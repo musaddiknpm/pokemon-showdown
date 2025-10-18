@@ -10,6 +10,7 @@
 import { exec } from "child_process";
 import { promisify } from "util";
 import { FS } from "../../../lib";
+import { ImpulseUI } from "../../modules/table-ui-wrapper";
 import '../../../impulse/utils';
 
 const execAsync = promisify(exec);
@@ -118,26 +119,25 @@ export const commands: Chat.ChatCommands = {
       const hasChanges = beforeCommit !== afterCommit;
       const isAlreadyUpToDate = stdout.includes('Already up to date') || stdout.includes('Already up-to-date');
       
-      let resultMessage = '<div class="infobox">';
-      resultMessage += `<strong>[GIT PULL] ${isAlreadyUpToDate ? '✓' : '✅'}</strong><br>`;
-      resultMessage += `<strong>Repository Root:</strong> ${Chat.escapeHTML(gitRoot)}<br><br>`;
+      let content = `<strong>${isAlreadyUpToDate ? '✓' : '✅'}</strong><br>`;
+      content += `<strong>Repository Root:</strong> ${Chat.escapeHTML(gitRoot)}<br><br>`;
       
       // Show the actual git output (like terminal)
       if (stdout) {
-        resultMessage += '<details><summary><strong>Git Output</strong></summary>';
-        resultMessage += '<pre style="background: #1e1e1e; color: #d4d4d4; padding: 10px; border-radius: 4px; overflow-x: auto;">';
-        resultMessage += Chat.escapeHTML(stdout);
-        resultMessage += '</pre>';
-        resultMessage += '</details>';
+        content += '<details><summary><strong>Git Output</strong></summary>';
+        content += '<pre style="background: #1e1e1e; color: #d4d4d4; padding: 10px; border-radius: 4px; overflow-x: auto;">';
+        content += Chat.escapeHTML(stdout);
+        content += '</pre>';
+        content += '</details>';
       }
       
       // Show stderr if present (git often uses stderr for informational messages)
       if (stderr) {
-        resultMessage += '<details><summary><strong>Additional Info</strong></summary>';
-        resultMessage += '<pre style="background: #2d2d2d; color: #ffd700; padding: 10px; border-radius: 4px; overflow-x: auto;">';
-        resultMessage += Chat.escapeHTML(stderr);
-        resultMessage += '</pre>';
-        resultMessage += '</details>';
+        content += '<details><summary><strong>Additional Info</strong></summary>';
+        content += '<pre style="background: #2d2d2d; color: #ffd700; padding: 10px; border-radius: 4px; overflow-x: auto;">';
+        content += Chat.escapeHTML(stderr);
+        content += '</pre>';
+        content += '</details>';
       }
       
       // Add summary if changes were pulled
@@ -149,11 +149,11 @@ export const commands: Chat.ChatCommands = {
             { cwd: gitRoot }
           );
           if (log.trim()) {
-            resultMessage += '<details><summary><strong>New Commits</strong></summary>';
-            resultMessage += '<pre style="background: #1e1e1e; color: #4ec9b0; padding: 10px; border-radius: 4px; overflow-x: auto;">';
-            resultMessage += Chat.escapeHTML(log.trim());
-            resultMessage += '</pre>';
-            resultMessage += '</details>';
+            content += '<details><summary><strong>New Commits</strong></summary>';
+            content += '<pre style="background: #1e1e1e; color: #4ec9b0; padding: 10px; border-radius: 4px; overflow-x: auto;">';
+            content += Chat.escapeHTML(log.trim());
+            content += '</pre>';
+            content += '</details>';
           }
         } catch {
           // If we can't get the log, that's okay
@@ -166,19 +166,18 @@ export const commands: Chat.ChatCommands = {
             { cwd: gitRoot }
           );
           if (diffStat.trim()) {
-            resultMessage += '<details><summary><strong>Files Changed</strong></summary>';
-            resultMessage += '<pre style="background: #1e1e1e; color: #d4d4d4; padding: 10px; border-radius: 4px; overflow-x: auto;">';
-            resultMessage += Chat.escapeHTML(diffStat.trim());
-            resultMessage += '</pre>';
-            resultMessage += '</details>';
+            content += '<details><summary><strong>Files Changed</strong></summary>';
+            content += '<pre style="background: #1e1e1e; color: #d4d4d4; padding: 10px; border-radius: 4px; overflow-x: auto;">';
+            content += Chat.escapeHTML(diffStat.trim());
+            content += '</pre>';
+            content += '</details>';
           }
         } catch {
           // If we can't get the diff stat, that's okay
         }
       }
       
-      resultMessage += '</div>';
-      
+      const resultMessage = ImpulseUI.infoBox('GIT PULL', content);
       this.sendReplyBox(resultMessage);
       
       const logMessage = isAlreadyUpToDate ? 'Git pull executed - Already up to date' : 
@@ -202,44 +201,41 @@ export const commands: Chat.ChatCommands = {
           // If we can't get the list, that's okay
         }
         
-        let conflictMessage = '<div class="message-error">';
-        conflictMessage += '<strong>❌ MERGE CONFLICT DETECTED</strong><br><br>';
-        conflictMessage += '⚠️ <strong>Git pull failed due to merge conflicts!</strong><br><br>';
+        let conflictContent = '<strong>❌ MERGE CONFLICT DETECTED</strong><br><br>';
+        conflictContent += '⚠️ <strong>Git pull failed due to merge conflicts!</strong><br><br>';
         
         if (conflictedFiles.length > 0) {
-          conflictMessage += `<strong>Conflicted Files (${conflictedFiles.length}):</strong><br>`;
-          conflictMessage += '<pre>' + conflictedFiles.map(f => Chat.escapeHTML(f)).join('\n') + '</pre><br>';
+          conflictContent += `<strong>Conflicted Files (${conflictedFiles.length}):</strong><br>`;
+          conflictContent += '<pre>' + conflictedFiles.map(f => Chat.escapeHTML(f)).join('\n') + '</pre><br>';
         }
         
-        conflictMessage += '<strong>Error Details:</strong><br>';
-        conflictMessage += '<pre>' + Chat.escapeHTML(errorMsg) + '</pre><br>';
+        conflictContent += '<strong>Error Details:</strong><br>';
+        conflictContent += '<pre>' + Chat.escapeHTML(errorMsg) + '</pre><br>';
         
-        conflictMessage += '<strong>⚠️ REPOSITORY IS NOW IN CONFLICTED STATE</strong><br><br>';
+        conflictContent += '<strong>⚠️ REPOSITORY IS NOW IN CONFLICTED STATE</strong><br><br>';
         
-        conflictMessage += '<strong>To Resolve:</strong><br>';
-        conflictMessage += '1. <strong>Option A - Abort the merge:</strong><br>';
-        conflictMessage += '   Run manually: <code>sudo git merge --abort</code><br>';
-        conflictMessage += '   This will cancel the pull and restore your previous state.<br><br>';
+        conflictContent += '<strong>To Resolve:</strong><br>';
+        conflictContent += '1. <strong>Option A - Abort the merge:</strong><br>';
+        conflictContent += '   Run manually: <code>sudo git merge --abort</code><br>';
+        conflictContent += '   This will cancel the pull and restore your previous state.<br><br>';
         
-        conflictMessage += '2. <strong>Option B - Fix conflicts manually:</strong><br>';
-        conflictMessage += '   • Edit each conflicted file to resolve conflicts<br>';
-        conflictMessage += '   • Look for conflict markers: <code>&lt;&lt;&lt;&lt;&lt;&lt;&lt;</code>, <code>=======</code>, <code>&gt;&gt;&gt;&gt;&gt;&gt;&gt;</code><br>';
-        conflictMessage += '   • After fixing, commit: <code>/gitcommit ./, Resolved merge conflicts</code><br><br>';
+        conflictContent += '2. <strong>Option B - Fix conflicts manually:</strong><br>';
+        conflictContent += '   • Edit each conflicted file to resolve conflicts<br>';
+        conflictContent += '   • Look for conflict markers: <code>&lt;&lt;&lt;&lt;&lt;&lt;&lt;</code>, <code>=======</code>, <code>&gt;&gt;&gt;&gt;&gt;&gt;&gt;</code><br>';
+        conflictContent += '   • After fixing, commit: <code>/gitcommit ./, Resolved merge conflicts</code><br><br>';
         
-        conflictMessage += '<small>Use <code>/gitstatus</code> to check current state</small>';
-        conflictMessage += '</div>';
+        conflictContent += '<small>Use <code>/gitstatus</code> to check current state</small>';
         
+        const conflictMessage = `<div class="message-error">${conflictContent}</div>`;
         this.sendReplyBox(conflictMessage);
         const gitRoot = await findGitRoot('./');
         notifyStaff("Git pull FAILED - MERGE CONFLICT", gitRoot || './', user, `${conflictedFiles.length} files conflicted`);
       } else {
         // Other git errors
-        let errorMessage = '<div class="message-error">';
-        errorMessage += '<strong>❌ Git Pull Failed</strong><br><br>';
-        errorMessage += '<strong>Error:</strong><br>';
-        errorMessage += '<pre>' + Chat.escapeHTML(errorMsg) + '</pre>';
-        errorMessage += '</div>';
+        let errorContent = '<strong>Error:</strong><br>';
+        errorContent += '<pre>' + Chat.escapeHTML(errorMsg) + '</pre>';
         
+        const errorMessage = `<div class="message-error"><strong>❌ Git Pull Failed</strong><br><br>${errorContent}</div>`;
         this.sendReplyBox(errorMessage);
         const gitRoot = await findGitRoot('./');
         notifyStaff("Git pull failed", gitRoot || './', user, errorMsg.slice(0, 200));
@@ -275,17 +271,15 @@ export const commands: Chat.ChatCommands = {
         // Remote not configured, use default message
       }
       
-      let resultMessage = '<div class="infobox">';
-      resultMessage += '<strong>[GIT STATUS]</strong><br>';
-      resultMessage += `<strong>Repository Root:</strong> ${Chat.escapeHTML(gitRoot)}<br>`;
-      resultMessage += `<strong>Branch:</strong> ${Chat.escapeHTML(branch.trim())}<br>`;
-      resultMessage += `<strong>Remote:</strong> ${Chat.escapeHTML(remoteUrl)}<br>`;
-      resultMessage += `<strong>Latest Commit:</strong> ${Chat.escapeHTML(commit.trim())}<br><br>`;
-      resultMessage += '<details><summary><strong>Full Status</strong></summary>';
-      resultMessage += '<pre>' + Chat.escapeHTML(status) + '</pre>';
-      resultMessage += '</details>';
-      resultMessage += '</div>';
+      let content = `<strong>Repository Root:</strong> ${Chat.escapeHTML(gitRoot)}<br>`;
+      content += `<strong>Branch:</strong> ${Chat.escapeHTML(branch.trim())}<br>`;
+      content += `<strong>Remote:</strong> ${Chat.escapeHTML(remoteUrl)}<br>`;
+      content += `<strong>Latest Commit:</strong> ${Chat.escapeHTML(commit.trim())}<br><br>`;
+      content += '<details><summary><strong>Full Status</strong></summary>';
+      content += '<pre>' + Chat.escapeHTML(status) + '</pre>';
+      content += '</details>';
       
+      const resultMessage = ImpulseUI.infoBox('GIT STATUS', content);
       this.sendReplyBox(resultMessage);
       notifyStaff("Git status checked", gitRoot, user);
       
@@ -330,35 +324,33 @@ export const commands: Chat.ChatCommands = {
       }
       const { stdout: stats } = await execAsync(statsCommand, { cwd: gitRoot });
       
-      let resultMessage = '<div class="infobox">';
-      resultMessage += '<strong>[GIT DIFF]</strong><br>';
-      resultMessage += `<strong>Repository Root:</strong> ${Chat.escapeHTML(gitRoot)}<br>`;
+      let content = `<strong>Repository Root:</strong> ${Chat.escapeHTML(gitRoot)}<br>`;
       if (filePath) {
-        resultMessage += `<strong>File:</strong> ${Chat.escapeHTML(filePath)}<br>`;
+        content += `<strong>File:</strong> ${Chat.escapeHTML(filePath)}<br>`;
       } else {
-        resultMessage += '<strong>Showing:</strong> All uncommitted changes<br>';
+        content += '<strong>Showing:</strong> All uncommitted changes<br>';
       }
-      resultMessage += '<br>';
+      content += '<br>';
       
       // Show stats summary
       if (stats.trim()) {
-        resultMessage += '<details open><summary><strong>Summary (Click to collapse)</strong></summary>';
-        resultMessage += '<pre style="background: #1e1e1e; color: #d4d4d4; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px;">';
-        resultMessage += Chat.escapeHTML(stats);
-        resultMessage += '</pre>';
-        resultMessage += '</details><br>';
+        content += '<details open><summary><strong>Summary (Click to collapse)</strong></summary>';
+        content += '<pre style="background: #1e1e1e; color: #d4d4d4; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px;">';
+        content += Chat.escapeHTML(stats);
+        content += '</pre>';
+        content += '</details><br>';
       }
       
       // Show full diff in a collapsible section
-      resultMessage += '<details><summary><strong>Full Diff (Click to expand)</strong></summary>';
-      resultMessage += '<pre style="background: #1e1e1e; color: #d4d4d4; padding: 10px; border-radius: 4px; max-height: 400px; overflow: auto; font-size: 11px; white-space: pre-wrap; word-wrap: break-word;">';
-      resultMessage += Chat.escapeHTML(diff);
-      resultMessage += '</pre>';
-      resultMessage += '</details>';
+      content += '<details><summary><strong>Full Diff (Click to expand)</strong></summary>';
+      content += '<pre style="background: #1e1e1e; color: #d4d4d4; padding: 10px; border-radius: 4px; max-height: 400px; overflow: auto; font-size: 11px; white-space: pre-wrap; word-wrap: break-word;">';
+      content += Chat.escapeHTML(diff);
+      content += '</pre>';
+      content += '</details>';
       
-      resultMessage += '<br><small>💡 Use <code>/gitstash save</code> to temporarily save these changes</small>';
-      resultMessage += '</div>';
+      content += '<br><small>💡 Use <code>/gitstash save</code> to temporarily save these changes</small>';
       
+      const resultMessage = ImpulseUI.infoBox('GIT DIFF', content);
       this.sendReplyBox(resultMessage);
       notifyStaff("Git diff viewed", gitRoot, user, filePath || 'all files');
       
@@ -429,46 +421,43 @@ export const commands: Chat.ChatCommands = {
         return this.sendReply('No stashes found.');
       }
       
-      let resultMessage = '<div class="infobox">';
-      resultMessage += `<strong>[GIT ${actionTitle}]</strong><br>`;
-      resultMessage += `<strong>Repository Root:</strong> ${Chat.escapeHTML(gitRoot)}<br><br>`;
+      let content = `<strong>Repository Root:</strong> ${Chat.escapeHTML(gitRoot)}<br><br>`;
       
       if (stdout) {
         // For list action, format nicely
         if (action === 'list') {
           const stashes = stdout.trim().split('\n');
-          resultMessage += `<strong>Stashes (${stashes.length}):</strong><br>`;
-          resultMessage += '<details open><summary><strong>Stash List (Click to collapse)</strong></summary>';
-          resultMessage += '<pre style="background: #1e1e1e; color: #d4d4d4; padding: 10px; border-radius: 4px; overflow-x: auto;">';
-          resultMessage += Chat.escapeHTML(stdout);
-          resultMessage += '</pre>';
-          resultMessage += '</details>';
+          content += `<strong>Stashes (${stashes.length}):</strong><br>`;
+          content += '<details open><summary><strong>Stash List (Click to collapse)</strong></summary>';
+          content += '<pre style="background: #1e1e1e; color: #d4d4d4; padding: 10px; border-radius: 4px; overflow-x: auto;">';
+          content += Chat.escapeHTML(stdout);
+          content += '</pre>';
+          content += '</details>';
         } else {
-          resultMessage += '<details open><summary><strong>Output (Click to collapse)</strong></summary>';
-          resultMessage += '<pre style="background: #1e1e1e; color: #d4d4d4; padding: 10px; border-radius: 4px; max-height: 400px; overflow: auto;">';
-          resultMessage += Chat.escapeHTML(stdout);
-          resultMessage += '</pre>';
-          resultMessage += '</details>';
+          content += '<details open><summary><strong>Output (Click to collapse)</strong></summary>';
+          content += '<pre style="background: #1e1e1e; color: #d4d4d4; padding: 10px; border-radius: 4px; max-height: 400px; overflow: auto;">';
+          content += Chat.escapeHTML(stdout);
+          content += '</pre>';
+          content += '</details>';
         }
       }
       
       if (stderr) {
-        resultMessage += '<details><summary><strong>Info</strong></summary>';
-        resultMessage += '<pre style="background: #2d2d2d; color: #ffd700; padding: 10px; border-radius: 4px; overflow-x: auto;">';
-        resultMessage += Chat.escapeHTML(stderr);
-        resultMessage += '</pre>';
-        resultMessage += '</details>';
+        content += '<details><summary><strong>Info</strong></summary>';
+        content += '<pre style="background: #2d2d2d; color: #ffd700; padding: 10px; border-radius: 4px; overflow-x: auto;">';
+        content += Chat.escapeHTML(stderr);
+        content += '</pre>';
+        content += '</details>';
       }
       
       // Add helpful tips based on action
       if (action === 'save') {
-        resultMessage += '<br><small>💡 Use <code>/gitstash pop</code> to restore these changes later</small>';
+        content += '<br><small>💡 Use <code>/gitstash pop</code> to restore these changes later</small>';
       } else if (action === 'list' && stdout.trim()) {
-        resultMessage += '<br><small>💡 Use <code>/gitstash pop</code> to restore the latest stash</small>';
+        content += '<br><small>💡 Use <code>/gitstash pop</code> to restore the latest stash</small>';
       }
       
-      resultMessage += '</div>';
-      
+      const resultMessage = ImpulseUI.infoBox(`GIT ${actionTitle}`, content);
       this.sendReplyBox(resultMessage);
       notifyStaff(`Git stash ${action}`, gitRoot, user);
       

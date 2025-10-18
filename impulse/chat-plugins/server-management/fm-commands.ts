@@ -10,6 +10,7 @@
 
 import * as https from "https";
 import { FS } from "../../../lib";
+import { ImpulseUI } from "../../modules/table-ui-wrapper";
 import { exec } from "child_process";
 import { promisify } from "util";
 
@@ -213,13 +214,14 @@ export const commands: Chat.ChatCommands = {
       const content = await FileManager.readFile(filePath);
       if (!content) return this.errorReply("File not found: " + filePath);
 
-      this.sendReplyBox(
+      const contentBox =
         "<b>Contents of " + Chat.escapeHTML(filePath) + ":</b><br>" +
         "<details><summary>Show/Hide File</summary>" +
         "<div style=\"max-height:320px; overflow:auto;\"><pre>" +
           Chat.escapeHTML(content) +
-        "</pre></div></details>"
-      );
+        "</pre></div></details>";
+
+      this.sendReplyBox(contentBox);
     } catch (err: any) {
       this.errorReply("Error reading file: " + err.message);
     }
@@ -312,7 +314,8 @@ export const commands: Chat.ChatCommands = {
         content += files.map(file => `📄 ${Chat.escapeHTML(file)}`).join('<br>');
       }
 
-      this.sendReplyBox(content);
+      const resultMessage = ImpulseUI.infoBox('FILE LISTING', content);
+      this.sendReplyBox(resultMessage);
       notifyStaff("Listed directory", dirPath, user);
 
     } catch (err: any) {
@@ -344,14 +347,7 @@ export const commands: Chat.ChatCommands = {
           return this.sendReply('No PM2 processes found.');
         }
         
-        let processList = '<div class="infobox">';
-        processList += '<strong>[PM2 PROCESSES]</strong><br><br>';
-        processList += '<table style="border-collapse: collapse; width: 100%;">';
-        processList += '<tr><th style="text-align: left; padding: 5px; border-bottom: 1px solid #ccc;">Name</th>';
-        processList += '<th style="text-align: left; padding: 5px; border-bottom: 1px solid #ccc;">ID</th>';
-        processList += '<th style="text-align: left; padding: 5px; border-bottom: 1px solid #ccc;">Status</th>';
-        processList += '<th style="text-align: left; padding: 5px; border-bottom: 1px solid #ccc;">Uptime</th></tr>';
-        
+        const rows: string[][] = [];
         for (const proc of processes) {
           const uptime = Math.floor((Date.now() - proc.pm2_env.pm_uptime) / 1000);
           const uptimeStr = uptime < 60 ? `${uptime}s` : 
@@ -359,19 +355,23 @@ export const commands: Chat.ChatCommands = {
                            `${Math.floor(uptime / 3600)}h`;
           const statusColor = proc.pm2_env.status === 'online' ? 'green' : 'red';
           
-          processList += '<tr>';
-          processList += `<td style="padding: 5px;">${Chat.escapeHTML(proc.name)}</td>`;
-          processList += `<td style="padding: 5px;">${proc.pm_id}</td>`;
-          processList += `<td style="padding: 5px; color: ${statusColor};">${Chat.escapeHTML(proc.pm2_env.status)}</td>`;
-          processList += `<td style="padding: 5px;">${uptimeStr}</td>`;
-          processList += '</tr>';
+          rows.push([
+            Chat.escapeHTML(proc.name),
+            proc.pm_id.toString(),
+            `<span style="color: ${statusColor};">${Chat.escapeHTML(proc.pm2_env.status)}</span>`,
+            uptimeStr,
+          ]);
         }
         
-        processList += '</table><br>';
-        processList += '<small>Usage: <code>/pm2logs [process name/id] [lines]</code></small>';
-        processList += '</div>';
+        const output = ImpulseUI.table({
+          title: 'PM2 PROCESSES',
+          headers: ['Name', 'ID', 'Status', 'Uptime'],
+          rows,
+        });
         
-        return this.sendReplyBox(processList);
+        const content = output + '<br><small>Usage: <code>/pm2logs [process name/id] [lines]</code></small>';
+        this.sendReplyBox(content);
+        return;
       }
       
       // Get logs for specific process
@@ -383,17 +383,15 @@ export const commands: Chat.ChatCommands = {
         return this.sendReply(`No logs found for process: ${processName}`);
       }
       
-      let resultMessage = '<div class="infobox">';
-      resultMessage += '<strong>[PM2 LOGS]</strong><br>';
-      resultMessage += `<strong>Process:</strong> ${Chat.escapeHTML(processName)}<br>`;
-      resultMessage += `<strong>Lines:</strong> ${lines}<br><br>`;
-      resultMessage += '<details open><summary><strong>Show/Hide Logs</strong></summary>';
-      resultMessage += '<pre style="background: #1e1e1e; color: #d4d4d4; padding: 10px; border-radius: 4px; max-height: 400px; overflow: auto; font-size: 12px;">';
-      resultMessage += Chat.escapeHTML(stdout);
-      resultMessage += '</pre>';
-      resultMessage += '</details>';
-      resultMessage += '</div>';
+      let logContent = `<strong>Process:</strong> ${Chat.escapeHTML(processName)}<br>`;
+      logContent += `<strong>Lines:</strong> ${lines}<br><br>`;
+      logContent += '<details open><summary><strong>Show/Hide Logs</strong></summary>';
+      logContent += '<pre style="background: #1e1e1e; color: #d4d4d4; padding: 10px; border-radius: 4px; max-height: 400px; overflow: auto; font-size: 12px;">';
+      logContent += Chat.escapeHTML(stdout);
+      logContent += '</pre>';
+      logContent += '</details>';
       
+      const resultMessage = ImpulseUI.infoBox('PM2 LOGS', logContent);
       this.sendReplyBox(resultMessage);
       notifyStaff("PM2 logs viewed", processName, user, `${lines} lines`);
       
