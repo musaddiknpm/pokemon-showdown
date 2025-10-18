@@ -11,8 +11,6 @@ import { exec } from "child_process";
 import { promisify } from "util";
 import { FS } from "../../../lib";
 import { ImpulseUI } from "../../modules/table-ui-wrapper";
-import '../../../impulse/utils';
-
 const execAsync = promisify(exec);
 
 function notifyStaff(action: string, file: string, user: User, info = "") {
