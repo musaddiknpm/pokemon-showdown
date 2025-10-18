@@ -344,7 +344,10 @@ export const commands: Chat.ChatCommands = {
 			if (!roomid) return this.errorReply('Specify a room.');
 			const config = autotourConfig[roomid];
 			if (!config?.enabled) return this.errorReply(`Autotour is not enabled in ${roomid}.`);
-			const lastRun = config.lastTourTime || Date.now();
+			let lastRun = config.lastTourTime;
+			if (!lastRun) {
+				lastRun = Date.now() - (config.interval * 60 * 1000);
+			}
 			const nextRun = lastRun + (config.interval * 60 * 1000);
 			const timeRemaining = Math.max(0, nextRun - Date.now());
 			const minutes = Math.floor(timeRemaining / 60000);
@@ -358,7 +361,7 @@ export const commands: Chat.ChatCommands = {
 					[`<b>Last Run:</b>`, config.lastTourTime ? new Date(config.lastTourTime).toLocaleString() : '(never)'],
 				],
 			});
-			this.sendReplyBox(tableHTML);
+			this.sendReply(`|html|${tableHTML}`);
 		},
 		help(target, room, user) {
 			if (!this.runBroadcast()) return;
