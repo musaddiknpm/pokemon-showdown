@@ -284,9 +284,9 @@ export const commands: Chat.ChatCommands = {
 
 		async user(target, room, user) {
 			if (!this.runBroadcast()) return;
-			const targetId = toID(target) || user.id;
+			const targetId = (target) || user.name;
 
-			const userBadges = await UserBadgesDB.findOne({ _id: targetId });
+			const userBadges = await UserBadgesDB.findOne({ _id: toID(targetId) });
 			if (!userBadges?.badges.length) {
 				return this.sendReplyBox(`<username>${targetId}</username> has no badges.`);
 			}
