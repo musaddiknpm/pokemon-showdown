@@ -182,4 +182,6 @@ export const Economy = {
 	getTotalEconomy,
 	CURRENCY,
 	CONFIG: ECONOMY_CONFIG,
+	EconomyDB,
+	TransactionDB: TransactionsDB,
 };
