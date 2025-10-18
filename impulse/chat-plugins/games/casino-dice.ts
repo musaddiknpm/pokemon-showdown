@@ -84,6 +84,16 @@ export const commands: Chat.ChatCommands = {
 			else if (g.opponentRoll > g.creatorRoll) g.winner = g.opponent;
 			g.status = 'completed';
 			g.completedAt = new Date();
+			
+			// Calculate tax before updating HTML
+			if (g.winner) {
+				const winnings = g.betAmount * 2;
+				const fee = Math.floor(winnings * HOUSE_FEE);
+				g.taxCollected = fee;
+			} else {
+				g.taxCollected = 0;
+			}
+			
 			room.add(`|uhtmlchange|${gid}|${generateGameHTML(g, gid)}`).update();
 			activeGames.delete(gid);
 			// Handle payouts in background
@@ -92,10 +102,8 @@ export const commands: Chat.ChatCommands = {
 					const l = g.winner === g.creator ? g.opponent : g.creator;
 					const winnings = g.betAmount * 2;
 					const fee = Math.floor(winnings * HOUSE_FEE);
-					g.taxCollected = fee;
 					await Economy.updateBalance(g.winner, winnings - fee);
 				} else {
-					g.taxCollected = 0;
 					await Economy.updateBalance(g.creator, g.betAmount);
 					await Economy.updateBalance(g.opponent, g.betAmount);
 				}
