@@ -2,7 +2,7 @@
 * Pokemon Showdown
 * Ontime chat-plugin
 * 
-* Integration: User.onDisconnect override below tracks session time automatically
+* Integration: Uses Chat event handler system for session time tracking
 */
 import { ImpulseDB } from '../../impulse-db';
 import { ImpulseUI } from '../../modules/table-ui-wrapper';
@@ -15,27 +15,6 @@ interface OntimeDocument {
 
 const OntimeDB = ImpulseDB<OntimeDocument>('ontime');
 const ONTIME_LEADERBOARD_SIZE = 100;
-
-const originalOnDisconnect = Users.User.prototype.onDisconnect;
-Users.User.prototype.onDisconnect = function (this: User, connection: Connection) {
-	const isLastConnection = this.connections.length === 1;
-	originalOnDisconnect.call(this, connection);
-
-	if (this.named && isLastConnection && !this.isPublicBot) {
-		const sessionTime = this.lastDisconnected - this.lastConnected;
-		if (sessionTime > 0) {
-			void OntimeDB.updateOne({ _id: this.id }, { $inc: { ontime: sessionTime } }, { upsert: true });
-		}
-	}
-};
-
-const originalMerge = Users.User.prototype.merge;
-Users.User.prototype.merge = function (this: User, oldUser: User) {
-	if (oldUser.lastConnected < this.lastConnected) {
-		this.lastConnected = oldUser.lastConnected;
-	}
-	originalMerge.call(this, oldUser);
-};
 
 const convertTime = (time: number) => {
 	const s = Math.floor((time / 1000) % 60);
@@ -50,6 +29,18 @@ const displayTime = (t: { h: number; m: number; s: number }): string => {
 	if (t.m > 0) parts.push(`${t.m.toLocaleString()} ${t.m === 1 ? 'minute' : 'minutes'}`);
 	if (t.s > 0) parts.push(`${t.s.toLocaleString()} ${t.s === 1 ? 'second' : 'seconds'}`);
 	return parts.length ? parts.join(', ') : '0 seconds';
+};
+
+export const handlers: Chat.Handlers = {
+	onDisconnect(user: User) {
+		const isLastConnection = user.connections.length === 0;
+		if (user.named && isLastConnection && !user.isPublicBot) {
+			const sessionTime = user.lastDisconnected - user.lastConnected;
+			if (sessionTime > 0) {
+				void OntimeDB.updateOne({ _id: user.id }, { $inc: { ontime: sessionTime } }, { upsert: true });
+			}
+		}
+	}
 };
 
 export const commands: Chat.ChatCommands = {
@@ -75,14 +66,14 @@ export const commands: Chat.ChatCommands = {
 			const currentOntime = targetUser?.connected && targetUser.lastConnected ? Date.now() - targetUser.lastConnected : 0;
 			await checkAndAwardOntimeBadge(targetId);
 
-			const buf = `${Impulse.nameColor(targetId, true)}'s total ontime is <strong>${displayTime(convertTime(totalOntime + currentOntime))}</strong>. ${targetUser?.connected ? `Current session: <strong>${displayTime(convertTime(currentOntime))}</strong>.` : 'Currently offline.'}`;
+			const buf = `${Impulse.nameColor(targetId, true)}'s total ontime is <strong>${displayTime(convertTime(totalOntime + currentOntime))}</strong>. ${targetUser?.connected ? `Current session: <strong>${displayTime(convertTime(currentOntime))}</strong>.` : ''}`;
 			this.sendReplyBox(buf);
 		},
 
 		async ladder(target, room, user) {
 			if (!this.runBroadcast()) return;
 
-			const ontimeData = await OntimeDB.find({}, { sort: { ontime: -1 }, limit: 100 });
+			const ontimeData = await OntimeDB.find({}, { sort: { ontime: -1 }, limit: ONTIME_LEADERBOARD_SIZE });
 			const ontimeMap = new Map(ontimeData.map(d => [d._id, d.ontime]));
 
 			for (const u of Users.users.values()) {
