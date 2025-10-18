@@ -13,7 +13,12 @@ interface OntimeDocument {
 	ontime: number;
 }
 
+interface OntimeBlockDocument {
+	_id: string;
+}
+
 const OntimeDB = ImpulseDB<OntimeDocument>('ontime');
+const OntimeBlockDB = ImpulseDB<OntimeBlockDocument>('ontimeblocks');
 const ONTIME_LEADERBOARD_SIZE = 100;
 
 const convertTime = (time: number) => {
@@ -31,10 +36,20 @@ const displayTime = (t: { h: number; m: number; s: number }): string => {
 	return parts.length ? parts.join(', ') : '0 seconds';
 };
 
+async function isBlockedOntime(userid: string): Promise<boolean> {
+	return !!(await OntimeBlockDB.findOne({ _id: userid }));
+}
+
+async function getBlockedOntimeUsers(): Promise<string[]> {
+	const docs = await OntimeBlockDB.find({});
+	return docs.map(d => d._id);
+}
+
 export const handlers: Chat.Handlers = {
-	onDisconnect(user: User) {
+	async onDisconnect(user: User) {
 		const isLastConnection = user.connections.length === 0;
 		if (user.named && isLastConnection && !user.isPublicBot) {
+			if (await isBlockedOntime(user.id)) return;
 			const sessionTime = user.lastDisconnected - user.lastConnected;
 			if (sessionTime > 0) {
 				void OntimeDB.updateOne({ _id: user.id }, { $inc: { ontime: sessionTime } }, { upsert: true });
@@ -56,6 +71,10 @@ export const commands: Chat.ChatCommands = {
 				return this.sendReplyBox(`${Impulse.nameColor(targetId, true)} is a bot and does not track ontime.`);
 			}
 
+			if (await isBlockedOntime(targetId)) {
+				return this.sendReplyBox(`${Impulse.nameColor(targetId, true)} is blocked from gaining ontime.`);
+			}
+
 			const ontimeDoc = await OntimeDB.findOne({ _id: targetId });
 			const totalOntime = ontimeDoc?.ontime || 0;
 
@@ -73,16 +92,20 @@ export const commands: Chat.ChatCommands = {
 		async ladder(target, room, user) {
 			if (!this.runBroadcast()) return;
 
-			const ontimeData = await OntimeDB.find({}, { sort: { ontime: -1 }, limit: ONTIME_LEADERBOARD_SIZE });
+			const blockedUsers = await getBlockedOntimeUsers();
+			const blockedSet = new Set(blockedUsers);
+
+			const ontimeData = await OntimeDB.find({}, { sort: { ontime: -1 }, limit: ONTIME_LEADERBOARD_SIZE * 2 });
 			const ontimeMap = new Map(ontimeData.map(d => [d._id, d.ontime]));
 
 			for (const u of Users.users.values()) {
-				if (u.connected && u.named && !ontimeMap.has(u.id) && !u.isPublicBot) {
+				if (u.connected && u.named && !ontimeMap.has(u.id) && !u.isPublicBot && !blockedSet.has(u.id)) {
 					ontimeMap.set(u.id, 0);
 				}
 			}
 
 			const ladderData = [...ontimeMap.entries()]
+				.filter(([userid]) => !blockedSet.has(userid))
 				.map(([userid, ontime]) => {
 					const u = Users.get(userid);
 					const currentOntime = u?.connected && u.lastConnected ? Date.now() - u.lastConnected : 0;
@@ -113,6 +136,9 @@ export const commands: Chat.ChatCommands = {
 			const rows = [
 				[`<code>/ontime [user]</code> - Check user's online time`],
 				[`<code>/ontime ladder</code> - Top 100 by ontime`],
+				[`<code>/ontime block [user]</code> - Block user from gaining ontime (Admin)`],
+				[`<code>/ontime unblock [user]</code> - Unblock user from gaining ontime (Admin)`],
+				[`<code>/ontime blocked</code> - List blocked users (Admin)`],
 			];
 
 			const tableHTML = ImpulseUI.contentTable({
@@ -120,6 +146,40 @@ export const commands: Chat.ChatCommands = {
 				rows,
 			});
 
+			this.sendReplyBox(tableHTML);
+		},
+
+		async block(target, room, user) {
+			this.checkCan('admin', null, room);
+			const targetId = toID(target);
+			if (!targetId) return this.errorReply("Please specify a user to block.");
+			if (await isBlockedOntime(targetId)) {
+				return this.errorReply(`${Impulse.nameColor(targetId, true)} is already blocked from gaining ontime.`);
+			}
+			await OntimeBlockDB.updateOne({ _id: targetId }, { $set: { _id: targetId } }, { upsert: true });
+			this.sendReplyBox(`${Impulse.nameColor(targetId, true)} has been blocked from gaining ontime and will not appear on the ladder.`);
+		},
+
+		async unblock(target, room, user) {
+			this.checkCan('admin', null, room);
+			const targetId = toID(target);
+			if (!targetId) return this.errorReply("Please specify a user to unblock.");
+			if (!(await isBlockedOntime(targetId))) {
+				return this.errorReply(`${Impulse.nameColor(targetId, true)} is not blocked from gaining ontime.`);
+			}
+			await OntimeBlockDB.deleteOne({ _id: targetId });
+			this.sendReplyBox(`${Impulse.nameColor(targetId, true)} has been unblocked and can now gain ontime and appear on the ladder.`);
+		},
+
+		async blocked(target, room, user) {
+			this.checkCan('admin', null, room);
+			const blockedUsers = await getBlockedOntimeUsers();
+			if (!blockedUsers.length) return this.sendReplyBox("No users are currently blocked from gaining ontime.");
+			const rows = blockedUsers.map(userid => [Impulse.nameColor(userid, true)]);
+			const tableHTML = ImpulseUI.contentTable({
+				title: 'Blocked Ontime Users',
+				rows,
+			});
 			this.sendReplyBox(tableHTML);
 		},
 	},
