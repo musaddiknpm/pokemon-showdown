@@ -43,7 +43,7 @@ export const commands: Chat.ChatCommands = {
 			notifyUser(targetId, user.name, `You received ${Economy.formatMoney(amountCheck.amount)} from ${user.name}. Balance: ${Economy.formatMoney(result.toBalance)}`);
 		},
 
-		async leaderboard(target, room, user) {
+		async ladder(target, room, user) {
 			const result = await Economy.getLeaderboard(parseInt(target) || 1, 10);
 			if (result.total === 0) return this.sendReplyBox('No economy data.');
 
@@ -54,13 +54,13 @@ export const commands: Chat.ChatCommands = {
 			]);
 
 			const tableHTML = ImpulseUI.contentTable({
-				title: `Economy Leaderboard (Page ${result.page}/${result.totalPages})`,
+				title: `Economy Leaderboard`,
 				header: ['Rank', 'User', 'Net Worth'],
 				rows,
 			});
 
 			const pagination = ImpulseUI.pagination({
-				commandString: '/economy leaderboard',
+				commandString: '/economy ladder',
 				currentPage: result.page,
 				totalPages: result.totalPages,
 				totalResults: result.total,
@@ -258,10 +258,7 @@ export const commands: Chat.ChatCommands = {
 			`Transactions: ${ecoUser.transactions}`,
 		].join('');
 
-		if (this.broadcasting) {
-			return this.sendReplyBox(info);
-		}
-		user.send(`|popup||html|<div class="infobox">${info}</div>`);
+		this.sendReply(`|html|<div class="infobox">${info}</div>`);
 	},
 	bal: 'balance',
 	atm: 'balance',
@@ -275,7 +272,7 @@ export const commands: Chat.ChatCommands = {
 			[`<code>/economy transfer [user], [amount]</code> - Transfer money`],
 			[`<code>/economy deposit [amount]</code> - Deposit to bank`],
 			[`<code>/economy withdraw [amount]</code> - Withdraw from bank`],
-			[`<code>/economy leaderboard [page]</code> - Top richest users`],
+			[`<code>/economy ladder [page]</code> - Top richest users`],
 			[`<code>/economy history [limit]</code> - Your history (max 50)`],
 			[`<code>/economy stats</code> - Statistics (&)`],
 			[`<code>/economy give [user], [amount], [reason]</code> - Give money (&)`],
