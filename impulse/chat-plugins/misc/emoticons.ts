@@ -2,43 +2,7 @@
 * Pokemon Showdown
 * Emoticons
 * @author PrinceSky-Git
-* 
-* Instructions: Replace sendChatMessage in server/chat.ts with this:
-* sendChatMessage(message: string) {
-*   const emoticons = Impulse.parseEmoticons(message, this.room);
-*   if (this.pmTarget) {
-*     const blockInvites = this.pmTarget.settings.blockInvites;
-*     if (blockInvites && /^<<.*>>$/.test(message.trim())) {
-*       if (!this.user.can('lock') && blockInvites === true || !Users.globalAuth.atLeast(this.user, blockInvites as GroupSymbol)) {
-*         Chat.maybeNotifyBlocked(`invite`, this.pmTarget, this.user);
-*         return this.errorReply(`${this.pmTarget.name} is blocking room invites.`);
-*       }
-*     }
-*     Chat.PrivateMessages.send((emoticons ? `/html ${emoticons}` : `${message}`), this.user, this.pmTarget);
-*   } else if (this.room) {
-*     if (emoticons && !this.room.disableEmoticons) {
-*       for (const u in this.room.users) {
-*         const curUser = Users.get(u);
-*         if (!curUser || !curUser.connected) continue;
-*         if (Impulse.ignoreEmotes[curUser.user.id]) {
-*           curUser.sendTo(this.room, `${(this.room.type === 'chat' ? `|c:|${(~~(Date.now() / 1000))}|` : `|c|`)}${this.user.getIdentity(this.room)}|${message}`);
-*           continue;
-*         }
-*         curUser.sendTo(this.room, `${(this.room.type === 'chat' ? `|c:|${(~~(Date.now() / 1000))}|` : `|c|`)}${this.user.getIdentity(this.room)}|/html ${emoticons}`);
-*       }
-*       this.room.log.log.push(`${(this.room.type === 'chat' ? `|c:|${(~~(Date.now() / 1000))}|` : `|c|`)}${this.user.getIdentity(this.room)}|/html ${emoticons}`);
-*       this.room.game?.onLogMessage?.(message, this.user);
-*     } else {
-*       this.room.add(`|c|${this.user.getIdentity(this.room)}|${message}`);
-*     }
-*   } else {
-*     this.connection.popup(`Your message could not be sent:\n\n${message}\n\nIt needs to be sent to a user or room.`);
-*   }
-* }
-* 
-* KNOWN BEHAVIOR:
-* - Users who have enabled "ignore emoticons" will still see emoticons in chat history when they rejoin.
-* - New messages will correctly respect their ignore preference.
+* Chatfilter implementation: No core modification required.
 */
 
 import Autolinker from 'autolinker';
@@ -141,7 +105,7 @@ const deleteEmoticon = async (name: string) => {
 const parseEmoticons = (message: string, room?: Room): string | false => {
 	if (emoteRegex.test(message)) {
 		const size = getEmoteSize();
-		message = Impulse.parseMessage(message).replace(emoteRegex, (match: string) => 
+		message = Impulse.parseMessage(message).replace(emoteRegex, (match: string) =>
 			`<img src="${emoticons[match]}" title="${match}" height="${size}" width="${size}">`
 		);
 		return message;
@@ -152,10 +116,18 @@ Impulse.parseEmoticons = parseEmoticons;
 
 loadEmoticons();
 
-const renderEmoticonGrid = (emotes: Array<{ _id: string; url: string }>) => 
-	emotes.map(e => 
+const renderEmoticonGrid = (emotes: Array<{ _id: string; url: string }>) =>
+	emotes.map(e =>
 		`<div style="text-align: center; padding: 10px;"><img src="${e.url}" height="40" width="40" style="display: block; margin: 0 auto;"><br><small>${Chat.escapeHTML(e._id)}</small></div>`
 	);
+
+export const chatfilter = function(message, user, room, connection, pmTarget, originalMessage) {
+	if (room?.disableEmoticons) return message;
+	if (Impulse.ignoreEmotes[user.id]) return message;
+	const parsed = Impulse.parseEmoticons(message, room);
+	if (parsed) return `/html ${parsed}`;
+	return message;
+};
 
 export const commands: Chat.ChatCommands = {
 	emoticon: {
