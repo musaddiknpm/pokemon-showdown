@@ -12,7 +12,6 @@ export interface EconomyUser {
 	bank: number;
 	netWorth: number;
 	transactions: number;
-	lastDaily: Date | null;
 	createdAt: Date;
 	updatedAt: Date;
 }
@@ -22,7 +21,7 @@ export interface Transaction {
 	from: string;
 	to: string;
 	amount: number;
-	type: 'transfer' | 'give' | 'take' | 'daily' | 'shop' | 'reward';
+	type: 'transfer' | 'give' | 'take' | 'shop' | 'reward';
 	reason?: string;
 	timestamp: Date;
 }
@@ -34,8 +33,6 @@ export const CURRENCY = { name: 'PokéBucks', symbol: '$' };
 
 export const ECONOMY_CONFIG = {
 	startingBalance: 100,
-	dailyAmount: 50,
-	dailyCooldown: 24 * 60 * 60 * 1000,
 	maxBalance: 1000000000,
 	maxTransfer: 100000,
 	bankInterestRate: 0.01,
@@ -51,7 +48,6 @@ export const getEconomyUser = async (userid: string): Promise<EconomyUser> => {
 			bank: 0,
 			netWorth: ECONOMY_CONFIG.startingBalance,
 			transactions: 0,
-			lastDaily: null,
 			createdAt: now,
 			updatedAt: now,
 		};
@@ -100,25 +96,6 @@ export const getTransactionHistory = (userid: string, limit = 10): Promise<Trans
 
 export const formatMoney = (amount: number | undefined | null): string => 
 	`${CURRENCY.symbol}${(amount ?? 0).toLocaleString()}`;
-
-export const canClaimDaily = async (userid: string): Promise<{ can: boolean; cooldown?: number }> => {
-	const user = await getEconomyUser(userid);
-	if (!user.lastDaily) return { can: true };
-
-	const timeSince = Date.now() - user.lastDaily.getTime();
-	return timeSince >= ECONOMY_CONFIG.dailyCooldown ? { can: true } : { can: false, cooldown: ECONOMY_CONFIG.dailyCooldown - timeSince };
-};
-
-export const claimDaily = async (userid: string): Promise<{ success: boolean; amount?: number; error?: string; cooldown?: number }> => {
-	const check = await canClaimDaily(userid);
-	if (!check.can) return { success: false, error: 'Already claimed', cooldown: check.cooldown };
-
-	await updateBalance(userid, ECONOMY_CONFIG.dailyAmount);
-	await EconomyDB.updateOne({ _id: userid }, { $set: { lastDaily: new Date() } });
-	await logTransaction({ from: 'system', to: userid, amount: ECONOMY_CONFIG.dailyAmount, type: 'daily', timestamp: new Date() });
-
-	return { success: true, amount: ECONOMY_CONFIG.dailyAmount };
-};
 
 export const formatCooldown = (ms: number): string => {
 	const h = Math.floor(ms / (60 * 60 * 1000));
@@ -196,8 +173,6 @@ export const Economy = {
 	logTransaction,
 	getTransactionHistory,
 	formatMoney,
-	canClaimDaily,
-	claimDaily,
 	formatCooldown,
 	getStats: getEconomyStats,
 	getLeaderboard,
