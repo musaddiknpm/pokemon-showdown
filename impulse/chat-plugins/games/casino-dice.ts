@@ -165,7 +165,7 @@ export const commands: Chat.ChatCommands = {
 					resultsPerPage,
 				});
 				
-				this.sendReply(output);
+				this.sendReply(`|html|${output}`);
 			} catch (e) {
 				this.errorReply('Error fetching ladder data.');
 				console.error(e);
