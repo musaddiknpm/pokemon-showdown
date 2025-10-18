@@ -50,6 +50,7 @@ const defaultRoomConfig: Omit<PerRoomAutotourConfig, 'roomid'> = {
 const autotourCollection = new ImpulseCollection<PerRoomAutotourConfig>(AUTOTOUR_COLLECTION);
 let autotourConfig: Record<string, PerRoomAutotourConfig> = {};
 let autotourIntervals: Record<string, NodeJS.Timeout> = {};
+let lastTourTime: Record<string, number> = {};
 
 async function saveConfig(roomid: string) {
 	const config = autotourConfig[roomid];
@@ -157,6 +158,7 @@ function runAutotour(roomid: string) {
 				runBroadcast: () => true,
 				requireRoom: () => room,
 			});
+			lastTourTime[roomid] = Date.now();
 		}
 	} catch (err: any) {
 		Monitor.warn(`[AutoTour] Failed to create tournament in ${roomid}: ${err.message}`);
@@ -307,6 +309,19 @@ export const commands: Chat.ChatCommands = {
 			}
 			this.sendReplyBox(out.join('<br>') || 'No autotour configs set.');
 		},
+		nextrun(target, room, user) {
+			this.runBroadcast();
+			const roomid = target ? toID(target) : room?.roomid;
+			if (!roomid) return this.errorReply('Specify a room.');
+			const config = autotourConfig[roomid];
+			if (!config?.enabled) return this.errorReply(`Autotour is not enabled in ${roomid}.`);
+			const lastRun = lastTourTime[roomid] || Date.now();
+			const nextRun = lastRun + (config.interval * 60 * 1000);
+			const timeRemaining = Math.max(0, nextRun - Date.now());
+			const minutes = Math.floor(timeRemaining / 60000);
+			const seconds = Math.floor((timeRemaining % 60000) / 1000);
+			this.sendReply(`Next tournament in ${roomid} will start in ${minutes}m ${seconds}s.`);
+		},
 		help(target, room, user) {
 			this.runBroadcast();
 			this.sendReplyBox(
@@ -315,7 +330,8 @@ export const commands: Chat.ChatCommands = {
 				`<b>/autotour set [option],... </b> - Set per-room option (run in room):<br>` +
 				`formats, addformat, removeformat, removeallformats, types, addtype, removetype, removealltypes, interval, autostart, autodq, playercap, name<br>` +
 				`<b>/autotour show</b> - Show current and default autotour formats/types for this room.<br>` +
-				`<b>/autotour status</b> - Show all autotour configs.<br><br>` +
+				`<b>/autotour status</b> - Show all autotour configs.<br>` +
+				`<b>/autotour nextrun [room]</b> - Show time remaining until next tournament starts.<br><br>` +
 				`<b>Examples:</b><br>` +
 				`/autotour enable<br>` +
 				`/autotour set formats, gen9randombattle, gen8randombattle<br>` +
@@ -326,7 +342,8 @@ export const commands: Chat.ChatCommands = {
 				`/autotour set name, My Weekly Tour<br>` +
 				`/autotour set removeallformats<br>` +
 				`/autotour set removealltypes<br>` +
-				`/autotour show<br>`
+				`/autotour show<br>` +
+				`/autotour nextrun<br>`
 			);
 		},
 	},
