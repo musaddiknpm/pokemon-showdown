@@ -122,6 +122,7 @@ export const commands: Chat.ChatCommands = {
 		},
 
 		async ladder(target, room, user) {
+			if (!this.runBroadcast()) return;
 			const page = parseInt(target?.split('page:')[1] || '1') || 1;
 			const resultsPerPage = 10;
 			
@@ -164,7 +165,7 @@ export const commands: Chat.ChatCommands = {
 					resultsPerPage,
 				});
 				
-				this.sendReplyBox(output + pagination);
+				this.sendReply(output);
 			} catch (e) {
 				this.errorReply('Error fetching ladder data.');
 				console.error(e);
