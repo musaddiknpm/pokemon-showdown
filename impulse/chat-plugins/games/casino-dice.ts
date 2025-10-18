@@ -87,8 +87,7 @@ export const commands: Chat.ChatCommands = {
 			
 			// Calculate tax before updating HTML
 			if (g.winner) {
-				const winnings = g.betAmount * 2;
-				const fee = Math.floor(winnings * HOUSE_FEE);
+				const fee = Math.floor(g.betAmount * HOUSE_FEE);
 				g.taxCollected = fee;
 			} else {
 				g.taxCollected = 0;
