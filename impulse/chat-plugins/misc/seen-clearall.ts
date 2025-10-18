@@ -31,10 +31,10 @@ const trackSeen = (userid: string) => {
 
 Impulse.Seen = trackSeen;
 
-const originalOnDisconnect = Users.User.prototype.onDisconnect;
-Users.User.prototype.onDisconnect = function (connection: Connection) {
-	if (this.named) Impulse.Seen(this.id);
-	return originalOnDisconnect.call(this, connection);
+export const handlers: Chat.Handlers = {
+	onDisconnect(user: User) {
+		if (user.named) Impulse.Seen(user.id);
+	}
 };
 
 const getLastSeen = async (userid: string): Promise<Date | null> => {
