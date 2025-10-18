@@ -44,6 +44,7 @@ export const commands: Chat.ChatCommands = {
 		},
 
 		async ladder(target, room, user) {
+			if (!this.runBroadcast()) return;
 			const result = await Economy.getLeaderboard(parseInt(target) || 1, 10);
 			if (result.total === 0) return this.sendReplyBox('No economy data.');
 
@@ -71,6 +72,7 @@ export const commands: Chat.ChatCommands = {
 		},
 
 		async history(target, room, user) {
+			if (!this.runBroadcast()) return;
 			const limit = Math.min(Math.max(parseInt(target) || 10, 1), 50);
 			const transactions = await Economy.getTransactionHistory(user.id, limit);
 
@@ -128,6 +130,7 @@ export const commands: Chat.ChatCommands = {
 		},
 
 		async stats(target, room, user) {
+			if (!this.runBroadcast()) return;
 			this.checkCan('roomowner');
 
 			const stats = await Economy.getStats();
@@ -247,6 +250,7 @@ export const commands: Chat.ChatCommands = {
 	eco: 'economy',
 
 	async balance(target, room, user) {
+		if (!this.runBroadcast()) return;
 		const userid = toID(target?.trim() || user.name);
 		const ecoUser = await Economy.getUser(userid);
 
