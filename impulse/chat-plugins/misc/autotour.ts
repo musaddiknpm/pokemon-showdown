@@ -5,7 +5,6 @@
 */
 import {ImpulseCollection} from '../../impulse-db';
 import { ImpulseUI } from '../../modules/table-ui-wrapper';
-import { getCustomColors, nameColor } from '../../modules/colors';
 
 const AUTOTOUR_COLLECTION = 'autotour_configs';
 
@@ -294,10 +293,11 @@ export const commands: Chat.ChatCommands = {
 			if (config.enabled) startRoomAutotourScheduler(roomid);
 		},
 		show(target, room, user) {
+			if (!this.runBroadcast()) return;
 			if (!checkRoomOwner(this, room)) return;
 			const roomid = room!.roomid;
 			const config = autotourConfig[roomid] || {roomid, ...defaultRoomConfig};
-			const colorName = nameColor(user.name, true, true);
+			const colorName = Impulse.nameColor(user.name, true, true);
 			const rows = [
 				[`<b>Room:</b>`, `<b>${roomid}</b>`],
 				[`<b>Owner:</b>`, colorName],
@@ -317,11 +317,11 @@ export const commands: Chat.ChatCommands = {
 			this.sendReplyBox(tableHTML);
 		},
 		async status(target, room, user) {
-			this.runBroadcast();
+			if (!this.runBroadcast()) return;
 			const configs = await autotourCollection.find({});
 			if (!configs.length) return this.sendReplyBox('No autotour configs set.');
 			const rows = configs.map(config => [
-				nameColor(config.roomid, true),
+				Impulse.nameColor(config.roomid, true),
 				config.enabled ? '<span style="color:limegreen">Enabled</span>' : '<span style="color:red">Disabled</span>',
 				config.formats.join(', ') || '(none)',
 				config.types.join(', ') || '(none)',
@@ -339,7 +339,7 @@ export const commands: Chat.ChatCommands = {
 			this.sendReplyBox(tableHTML);
 		},
 		nextrun(target, room, user) {
-			this.runBroadcast();
+			if (!this.runBroadcast()) return;
 			const roomid = target ? toID(target) : room?.roomid;
 			if (!roomid) return this.errorReply('Specify a room.');
 			const config = autotourConfig[roomid];
@@ -361,7 +361,7 @@ export const commands: Chat.ChatCommands = {
 			this.sendReplyBox(tableHTML);
 		},
 		help(target, room, user) {
-			this.runBroadcast();
+			if (!this.runBroadcast()) return;
 			const rows = [
 				[`<code>/autotour enable</code>`, `Enable autotour in this room.`],
 				[`<code>/autotour disable</code>`, `Disable autotour in this room.`],
@@ -374,7 +374,7 @@ export const commands: Chat.ChatCommands = {
 				title: 'Autotour Commands',
 				rows,
 			});
-			this.sendReplyBox(tableHTML);
+			this.sendReply(`|html|${tableHTML}`);
 		},
 	},
 };
