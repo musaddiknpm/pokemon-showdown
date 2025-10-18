@@ -337,7 +337,6 @@ export const readyPromise = cleanupStale().then(() => {
 	}, 30 * 1000);
 
 	// === End: Automatically create and start random-format random-type tournament every 1 hour in Lobby ===
-});
 
 	if (Config.ofemain) {
 		// Create a heapdump if the process runs out of memory.
