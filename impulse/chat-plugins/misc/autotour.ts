@@ -185,7 +185,7 @@ export const commands: Chat.ChatCommands = {
 			const roomid = room!.roomid;
 			if (!autotourConfig[roomid]) autotourConfig[roomid] = {roomid, ...defaultRoomConfig};
 			autotourConfig[roomid].enabled = true;
-			await saveConfig(roomid);
+			void saveConfig(roomid);
 			startRoomAutotourScheduler(roomid);
 			this.sendReply(`Autotour enabled for room ${roomid}.`);
 		},
@@ -194,11 +194,11 @@ export const commands: Chat.ChatCommands = {
 			const roomid = room!.roomid;
 			if (!autotourConfig[roomid]) autotourConfig[roomid] = {roomid, ...defaultRoomConfig};
 			autotourConfig[roomid].enabled = false;
-			await saveConfig(roomid);
+			void saveConfig(roomid);
 			stopRoomAutotourScheduler(roomid);
 			this.sendReply(`Autotour disabled for room ${roomid}.`);
 		},
-		async set(target, room, user) {
+		set(target, room, user) {
 			if (!checkRoomOwner(this, room)) return;
 			const args = target.split(',').map(s => s.trim());
 			const [key, ...rest] = args;
@@ -287,7 +287,7 @@ export const commands: Chat.ChatCommands = {
 				default:
 					return this.errorReply('Unknown option. Use formats, addformat, removeformat, removeallformats, types, addtype, removetype, removealltypes, interval, autostart, autodq, playercap, name, reset.');
 			}
-			await saveConfig(roomid);
+			void saveConfig(roomid);
 			if (config.enabled) startRoomAutotourScheduler(roomid);
 		},
 		show(target, room, user) {
