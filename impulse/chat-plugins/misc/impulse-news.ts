@@ -3,8 +3,7 @@
 * News chat-plugin
 * @author PrinceSky-Git
 * Integration:
-* This system integrates with server/users.ts at line 877:
-*   Impulse.NewsManager.onUserConnect(user);
+* Now uses loginfilter instead of direct users.ts modification.
 */
 
 import { ImpulseDB } from '../../impulse-db';
@@ -88,6 +87,10 @@ class NewsManager {
 }
 
 Impulse.NewsManager = NewsManager;
+
+export const loginfilter = function(user: User, oldUser: User | null, userType: string) {
+	void NewsManager.onUserConnect(user);
+};
 
 export const commands: Chat.ChatCommands = {
 	servernews: {
