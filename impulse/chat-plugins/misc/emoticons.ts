@@ -18,8 +18,8 @@ const EmoticonDB = ImpulseDB<EmoticonEntry>('emoticons');
 const EmoticonConfigDB = ImpulseDB<EmoticonConfigDocument>('emoticonconfig');
 const IgnoreEmotesDB = ImpulseDB<IgnoreEmotesDocument>('ignoreemotes');
 
-let emoticons: { [key: string]: string } = { "spGun": "https://i.ibb.co/78y8mKv/spGun.jpg" };
-let emoteRegex: RegExp = new RegExp("spGun", "g");
+let emoticons: { [key: string]: string } = {};
+let emoteRegex: RegExp = new RegExp("^$", "g");
 let emoteSize: number = 32;
 Impulse.ignoreEmotes = {} as IgnoreEmotesData;
 
