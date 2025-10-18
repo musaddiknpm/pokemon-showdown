@@ -33,7 +33,7 @@ Impulse.Seen = trackSeen;
 
 export const handlers: Chat.Handlers = {
 	onDisconnect(user: User) {
-		if (user.named) Impulse.Seen(user.id);
+		if (user.named && user.connections.length === 0) Impulse.Seen(user.id);
 	}
 };
 
