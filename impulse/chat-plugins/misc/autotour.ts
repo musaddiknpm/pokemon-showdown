@@ -31,7 +31,7 @@ const ALL_TOUR_TYPES = [
 const defaultRoomConfig: Omit<PerRoomAutotourConfig, 'roomid'> = {
 	formats: [
     'gen9randombattle', 'gen9randomdoublesbattle',
-    'gen9blackcanvasrandombattle', 'gen9monotyperandombattle',
+    'gen9blankcanvasrandombattle', 'gen9monotyperandombattle',
     'gen9randombattlemayhem', 'gen9babyrandombattle',
     'gen9randombattle', 'gen8randomdoublesbattle',
     'gen7randombattle', 'gen6randombattle',
