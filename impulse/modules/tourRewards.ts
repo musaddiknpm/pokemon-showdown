@@ -1,4 +1,4 @@
-export const handlers = {
+export const handlers: Chat.Handlers = {
   async onTournamentEnd(tournament) {
     try {
       const rewardConfig = Config.tournamentRewards;
