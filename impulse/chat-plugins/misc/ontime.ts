@@ -136,9 +136,9 @@ export const commands: Chat.ChatCommands = {
 			const rows = [
 				[`<code>/ontime [user]</code> - Check user's online time`],
 				[`<code>/ontime ladder</code> - Top 100 by ontime`],
-				[`<code>/ontime block [user]</code> - Block user from gaining ontime (Admin)`],
-				[`<code>/ontime unblock [user]</code> - Unblock user from gaining ontime (Admin)`],
-				[`<code>/ontime blocked</code> - List blocked users (Admin)`],
+				[`<code>/ontime block [user]</code> - Block user from gaining ontime (&)`],
+				[`<code>/ontime unblock [user]</code> - Unblock user from gaining ontime (&)`],
+				[`<code>/ontime blocked</code> - List blocked users (&)`],
 			];
 
 			const tableHTML = ImpulseUI.contentTable({
@@ -150,7 +150,7 @@ export const commands: Chat.ChatCommands = {
 		},
 
 		async block(target, room, user) {
-			this.checkCan('admin', null, room);
+			this.checkCan('roomowner');
 			const targetId = toID(target);
 			if (!targetId) return this.errorReply("Please specify a user to block.");
 			if (await isBlockedOntime(targetId)) {
@@ -161,7 +161,7 @@ export const commands: Chat.ChatCommands = {
 		},
 
 		async unblock(target, room, user) {
-			this.checkCan('admin', null, room);
+			this.checkCan('roomowner');
 			const targetId = toID(target);
 			if (!targetId) return this.errorReply("Please specify a user to unblock.");
 			if (!(await isBlockedOntime(targetId))) {
@@ -172,7 +172,7 @@ export const commands: Chat.ChatCommands = {
 		},
 
 		async blocked(target, room, user) {
-			this.checkCan('admin', null, room);
+			this.checkCan('roomowner');
 			const blockedUsers = await getBlockedOntimeUsers();
 			if (!blockedUsers.length) return this.sendReplyBox("No users are currently blocked from gaining ontime.");
 			const rows = blockedUsers.map(userid => [Impulse.nameColor(userid, true)]);
