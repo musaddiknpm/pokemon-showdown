@@ -5,6 +5,7 @@
 * @author PrinceSky-Git
 */
 import {ImpulseCollection} from '../../impulse-db';
+import {ImpulseUI} from '../../modules/table-ui-wrapper';
 
 const AUTOTOUR_COLLECTION = 'autotour_configs';
 
@@ -19,6 +20,7 @@ interface PerRoomAutotourConfig {
 	name: string;
 	enabled: boolean;
 	modifier?: string;
+	lastTourTime?: number;
 	_id?: any;
 }
 
@@ -50,7 +52,6 @@ const defaultRoomConfig: Omit<PerRoomAutotourConfig, 'roomid'> = {
 const autotourCollection = new ImpulseCollection<PerRoomAutotourConfig>(AUTOTOUR_COLLECTION);
 let autotourConfig: Record<string, PerRoomAutotourConfig> = {};
 let autotourIntervals: Record<string, NodeJS.Timeout> = {};
-let lastTourTime: Record<string, number> = {};
 
 async function saveConfig(roomid: string) {
 	const config = autotourConfig[roomid];
@@ -158,7 +159,8 @@ function runAutotour(roomid: string) {
 				runBroadcast: () => true,
 				requireRoom: () => room,
 			});
-			lastTourTime[roomid] = Date.now();
+			autotourConfig[roomid].lastTourTime = Date.now();
+			await saveConfig(roomid);
 		}
 	} catch (err: any) {
 		Monitor.warn(`[AutoTour] Failed to create tournament in ${roomid}: ${err.message}`);
@@ -249,7 +251,7 @@ export const commands: Chat.ChatCommands = {
 				case 'interval':
 					{
 						const min = Number(rest[0]);
-						if (!min || min < 1) return this.errorReply('Invalid interval.');
+						if (!min || min < 1) return this.errorReply('Interval must be at least 1 minute.');
 						config.interval = min;
 						this.sendReply(`Interval for ${roomid} set to ${min} minutes.`);
 					}
@@ -278,8 +280,12 @@ export const commands: Chat.ChatCommands = {
 					config.name = rest.join(',') || '';
 					this.sendReply(`Name for ${roomid} set to "${config.name}".`);
 					break;
+				case 'reset':
+					config.lastTourTime = undefined;
+					this.sendReply(`Tournament timer for ${roomid} has been reset.`);
+					break;
 				default:
-					return this.errorReply('Unknown option. Use formats, addformat, removeformat, removeallformats, types, addtype, removetype, removealltypes, interval, autostart, autodq, playercap, name.');
+					return this.errorReply('Unknown option. Use formats, addformat, removeformat, removeallformats, types, addtype, removetype, removealltypes, interval, autostart, autodq, playercap, name, reset.');
 			}
 			await saveConfig(roomid);
 			if (config.enabled) startRoomAutotourScheduler(roomid);
@@ -288,26 +294,38 @@ export const commands: Chat.ChatCommands = {
 			if (!checkRoomOwner(this, room)) return;
 			const roomid = room!.roomid;
 			const config = autotourConfig[roomid] || {roomid, ...defaultRoomConfig};
-			this.sendReplyBox(
-				`<b>Autotour settings for ${roomid}:</b><br>` +
-				`<b>Enabled:</b> ${config.enabled ? 'Yes' : 'No'}<br>` +
-				`<b>Formats:</b> ${config.formats.join(', ') || '(none)'}<br>` +
-				`<b>Types:</b> ${config.types.join(', ') || '(none)'}<br>` +
-				`<b>Defaults:</b><br>` +
-				`- <b>Formats:</b> ${defaultRoomConfig.formats.join(', ')}<br>` +
-				`- <b>Types:</b> ${defaultRoomConfig.types.join(', ')}`
-			);
+			const rows = [
+				['Enabled', config.enabled ? 'Yes' : 'No'],
+				['Formats', config.formats.join(', ') || '(none)'],
+				['Types', config.types.join(', ') || '(none)'],
+				['Interval', `${config.interval} minutes`],
+				['Autostart', `${config.autostart} minutes`],
+				['Autodq', `${config.autodq} minutes`],
+				['Player Cap', config.playerCap || '(none)'],
+				['Name', config.name || '(none)'],
+			];
+			this.sendReplyBox(ImpulseUI.table({
+				title: `Autotour settings for ${roomid}`,
+				headers: ['Setting', 'Value'],
+				rows,
+			}));
 		},
 		async status(target, room, user) {
 			this.runBroadcast();
 			const configs = await autotourCollection.find({});
-			const out: string[] = [];
-			for (const config of configs) {
-				out.push(
-					`<b>${config.roomid}:</b> enabled=${config.enabled} formats=${config.formats.join(', ')} types=${config.types.join(', ')} interval=${config.interval} autostart=${config.autostart} autodq=${config.autodq} playerCap="${config.playerCap}" name="${config.name}"`
-				);
-			}
-			this.sendReplyBox(out.join('<br>') || 'No autotour configs set.');
+			if (!configs.length) return this.sendReplyBox('No autotour configs set.');
+			const rows = configs.map(config => [
+				config.roomid,
+				config.enabled ? 'Yes' : 'No',
+				config.formats.join(', '),
+				config.types.join(', '),
+				`${config.interval}m`,
+			]);
+			this.sendReplyBox(ImpulseUI.table({
+				title: 'All Autotour Configurations',
+				headers: ['Room', 'Enabled', 'Formats', 'Types', 'Interval'],
+				rows,
+			}));
 		},
 		nextrun(target, room, user) {
 			this.runBroadcast();
@@ -315,7 +333,7 @@ export const commands: Chat.ChatCommands = {
 			if (!roomid) return this.errorReply('Specify a room.');
 			const config = autotourConfig[roomid];
 			if (!config?.enabled) return this.errorReply(`Autotour is not enabled in ${roomid}.`);
-			const lastRun = lastTourTime[roomid] || Date.now();
+			const lastRun = config.lastTourTime || Date.now();
 			const nextRun = lastRun + (config.interval * 60 * 1000);
 			const timeRemaining = Math.max(0, nextRun - Date.now());
 			const minutes = Math.floor(timeRemaining / 60000);
@@ -328,7 +346,7 @@ export const commands: Chat.ChatCommands = {
 				`<b>/autotour enable</b> - Enable autotour in this room.<br>` +
 				`<b>/autotour disable</b> - Disable autotour in this room.<br>` +
 				`<b>/autotour set [option],... </b> - Set per-room option (run in room):<br>` +
-				`formats, addformat, removeformat, removeallformats, types, addtype, removetype, removealltypes, interval, autostart, autodq, playercap, name<br>` +
+				`formats, addformat, removeformat, removeallformats, types, addtype, removetype, removealltypes, interval, autostart, autodq, playercap, name, reset<br>` +
 				`<b>/autotour show</b> - Show current and default autotour formats/types for this room.<br>` +
 				`<b>/autotour status</b> - Show all autotour configs.<br>` +
 				`<b>/autotour nextrun [room]</b> - Show time remaining until next tournament starts.<br><br>` +
@@ -342,6 +360,7 @@ export const commands: Chat.ChatCommands = {
 				`/autotour set name, My Weekly Tour<br>` +
 				`/autotour set removeallformats<br>` +
 				`/autotour set removealltypes<br>` +
+				`/autotour set reset<br>` +
 				`/autotour show<br>` +
 				`/autotour nextrun<br>`
 			);
