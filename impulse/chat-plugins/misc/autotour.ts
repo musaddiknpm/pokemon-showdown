@@ -1,10 +1,11 @@
 /*
 * Pokemon Showdown
 * Auto Tournaments Commands
-* Allows Room Owners & Admins to set auto-tournaments.
 * @author PrinceSky-Git
 */
 import {ImpulseCollection} from '../../impulse-db';
+import { ImpulseUI } from '../../modules/table-ui-wrapper';
+import { getCustomColors, nameColor } from '../../modules/colors';
 
 const AUTOTOUR_COLLECTION = 'autotour_configs';
 
@@ -19,6 +20,7 @@ interface PerRoomAutotourConfig {
 	name: string;
 	enabled: boolean;
 	modifier?: string;
+	lastTourTime?: number;
 	_id?: any;
 }
 
@@ -45,12 +47,12 @@ const defaultRoomConfig: Omit<PerRoomAutotourConfig, 'roomid'> = {
 	playerCap: '',
 	name: '',
 	enabled: false,
+	lastTourTime: 0,
 };
 
 const autotourCollection = new ImpulseCollection<PerRoomAutotourConfig>(AUTOTOUR_COLLECTION);
 let autotourConfig: Record<string, PerRoomAutotourConfig> = {};
 let autotourIntervals: Record<string, NodeJS.Timeout> = {};
-let lastTourTime: Record<string, number> = {};
 
 async function saveConfig(roomid: string) {
 	const config = autotourConfig[roomid];
@@ -97,6 +99,12 @@ function stopRoomAutotourScheduler(roomid: string) {
 	delete autotourIntervals[roomid];
 }
 
+async function updateLastTourTime(roomid: string, time: number) {
+	if (!autotourConfig[roomid]) return;
+	autotourConfig[roomid].lastTourTime = time;
+	await saveConfig(roomid);
+}
+
 function runAutotour(roomid: string) {
 	const config = autotourConfig[roomid];
 	if (!config?.enabled) return;
@@ -137,7 +145,6 @@ function runAutotour(roomid: string) {
 			if (type === 'elimination' && modifier === '2') {
 				modinfo = ' (Double Elimination)';
 			}
-			//room.add(`[AutoTour] A new ${format} ${type}${modinfo} tournament has been created!`).update();
 			tour.setAutoStartTimeout(config.autostart * 60 * 1000, {
 				sendReply: (msg: string) => room.add(msg),
 				modlog: () => {},
@@ -158,7 +165,9 @@ function runAutotour(roomid: string) {
 				runBroadcast: () => true,
 				requireRoom: () => room,
 			});
-			lastTourTime[roomid] = Date.now();
+			const now = Date.now();
+			autotourConfig[roomid].lastTourTime = now;
+			void saveConfig(roomid);
 		}
 	} catch (err: any) {
 		Monitor.warn(`[AutoTour] Failed to create tournament in ${roomid}: ${err.message}`);
@@ -288,26 +297,46 @@ export const commands: Chat.ChatCommands = {
 			if (!checkRoomOwner(this, room)) return;
 			const roomid = room!.roomid;
 			const config = autotourConfig[roomid] || {roomid, ...defaultRoomConfig};
-			this.sendReplyBox(
-				`<b>Autotour settings for ${roomid}:</b><br>` +
-				`<b>Enabled:</b> ${config.enabled ? 'Yes' : 'No'}<br>` +
-				`<b>Formats:</b> ${config.formats.join(', ') || '(none)'}<br>` +
-				`<b>Types:</b> ${config.types.join(', ') || '(none)'}<br>` +
-				`<b>Defaults:</b><br>` +
-				`- <b>Formats:</b> ${defaultRoomConfig.formats.join(', ')}<br>` +
-				`- <b>Types:</b> ${defaultRoomConfig.types.join(', ')}`
-			);
+			const colorName = nameColor(user.name, true, true);
+			const rows = [
+				[`<b>Room:</b>`, `<b>${roomid}</b>`],
+				[`<b>Owner:</b>`, colorName],
+				[`<b>Enabled:</b>`, config.enabled ? '<span style="color:limegreen">Yes</span>' : '<span style="color:red">No</span>'],
+				[`<b>Formats:</b>`, config.formats.join(', ') || '(none)'],
+				[`<b>Types:</b>`, config.types.join(', ') || '(none)'],
+				[`<b>Interval:</b>`, `${config.interval} min`],
+				[`<b>Autostart:</b>`, `${config.autostart} min`],
+				[`<b>Autodq:</b>`, `${config.autodq} min`],
+				[`<b>Player Cap:</b>`, config.playerCap || '(none)'],
+				[`<b>Name:</b>`, config.name || '(none)'],
+			];
+			const tableHTML = ImpulseUI.contentTable({
+				title: `Autotour settings for ${roomid}`,
+				rows,
+			});
+			this.sendReplyBox(tableHTML);
 		},
 		async status(target, room, user) {
 			this.runBroadcast();
 			const configs = await autotourCollection.find({});
-			const out: string[] = [];
-			for (const config of configs) {
-				out.push(
-					`<b>${config.roomid}:</b> enabled=${config.enabled} formats=${config.formats.join(', ')} types=${config.types.join(', ')} interval=${config.interval} autostart=${config.autostart} autodq=${config.autodq} playerCap="${config.playerCap}" name="${config.name}"`
-				);
-			}
-			this.sendReplyBox(out.join('<br>') || 'No autotour configs set.');
+			if (!configs.length) return this.sendReplyBox('No autotour configs set.');
+			const rows = configs.map(config => [
+				nameColor(config.roomid, true),
+				config.enabled ? '<span style="color:limegreen">Enabled</span>' : '<span style="color:red">Disabled</span>',
+				config.formats.join(', ') || '(none)',
+				config.types.join(', ') || '(none)',
+				`${config.interval}m`, `${config.autostart}m`, `${config.autodq}m`,
+				config.playerCap || '(none)',
+				config.name || '(none)',
+				config.lastTourTime ? new Date(config.lastTourTime).toLocaleString() : '(never)'
+			]);
+			const header = ['Room', 'Status', 'Formats', 'Types', 'Interval', 'Autostart', 'Autodq', 'PlayerCap', 'Name', 'Last Run'];
+			const tableHTML = ImpulseUI.table({
+				title: 'Autotour Room Status',
+				headers: header,
+				rows,
+			});
+			this.sendReplyBox(tableHTML);
 		},
 		nextrun(target, room, user) {
 			this.runBroadcast();
@@ -315,36 +344,37 @@ export const commands: Chat.ChatCommands = {
 			if (!roomid) return this.errorReply('Specify a room.');
 			const config = autotourConfig[roomid];
 			if (!config?.enabled) return this.errorReply(`Autotour is not enabled in ${roomid}.`);
-			const lastRun = lastTourTime[roomid] || Date.now();
+			const lastRun = config.lastTourTime || Date.now();
 			const nextRun = lastRun + (config.interval * 60 * 1000);
 			const timeRemaining = Math.max(0, nextRun - Date.now());
 			const minutes = Math.floor(timeRemaining / 60000);
 			const seconds = Math.floor((timeRemaining % 60000) / 1000);
-			this.sendReply(`Next tournament in ${roomid} will start in ${minutes}m ${seconds}s.`);
+			const tableHTML = ImpulseUI.contentTable({
+				title: `Next Autotour in ${roomid}`,
+				rows: [
+					[`<b>Room:</b>`, `<b>${roomid}</b>`],
+					[`<b>Time Remaining:</b>`, `<b>${minutes}m ${seconds}s</b>`],
+					[`<b>Interval:</b>`, `${config.interval} min`],
+					[`<b>Last Run:</b>`, config.lastTourTime ? new Date(config.lastTourTime).toLocaleString() : '(never)'],
+				],
+			});
+			this.sendReplyBox(tableHTML);
 		},
 		help(target, room, user) {
 			this.runBroadcast();
-			this.sendReplyBox(
-				`<b>/autotour enable</b> - Enable autotour in this room.<br>` +
-				`<b>/autotour disable</b> - Disable autotour in this room.<br>` +
-				`<b>/autotour set [option],... </b> - Set per-room option (run in room):<br>` +
-				`formats, addformat, removeformat, removeallformats, types, addtype, removetype, removealltypes, interval, autostart, autodq, playercap, name<br>` +
-				`<b>/autotour show</b> - Show current and default autotour formats/types for this room.<br>` +
-				`<b>/autotour status</b> - Show all autotour configs.<br>` +
-				`<b>/autotour nextrun [room]</b> - Show time remaining until next tournament starts.<br><br>` +
-				`<b>Examples:</b><br>` +
-				`/autotour enable<br>` +
-				`/autotour set formats, gen9randombattle, gen8randombattle<br>` +
-				`/autotour set interval, 30<br>` +
-				`/autotour set autostart, 3<br>` +
-				`/autotour set types, elimination, roundrobin<br>` +
-				`/autotour set playercap, 32<br>` +
-				`/autotour set name, My Weekly Tour<br>` +
-				`/autotour set removeallformats<br>` +
-				`/autotour set removealltypes<br>` +
-				`/autotour show<br>` +
-				`/autotour nextrun<br>`
-			);
+			const rows = [
+				[`<code>/autotour enable</code>`, `Enable autotour in this room.`],
+				[`<code>/autotour disable</code>`, `Disable autotour in this room.`],
+				[`<code>/autotour set [option],...</code>`, `Set per-room option (run in room): formats, addformat, removeformat, removeallformats, types, addtype, removetype, removealltypes, interval, autostart, autodq, playercap, name`],
+				[`<code>/autotour show</code>`, `Show current autotour settings for this room.`],
+				[`<code>/autotour status</code>`, `Show all autotour configs.`],
+				[`<code>/autotour nextrun [room]</code>`, `Show time remaining until next tournament starts.`],
+			];
+			const tableHTML = ImpulseUI.contentTable({
+				title: 'Autotour Commands',
+				rows,
+			});
+			this.sendReplyBox(tableHTML);
 		},
 	},
 };
