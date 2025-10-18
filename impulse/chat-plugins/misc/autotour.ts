@@ -76,6 +76,21 @@ function pickRandom<T>(arr: T[]): T {
 }
 
 function pickTourTypeAndModifier(types: string[]): {type: string, modifier?: string} {
+	// If both 'elimination' and 'roundrobin' are present, pick with 60%/40% weight
+	const hasElim = types.includes('elimination');
+	const hasRR = types.includes('roundrobin');
+	if (hasElim && hasRR) {
+		const roll = Math.random();
+		if (roll < 0.6) {
+			// elimination
+			if (Math.random() < 0.5) {
+				return {type: 'elimination', modifier: '2'};
+			}
+			return {type: 'elimination'};
+		} else {
+			return {type: 'roundrobin'};
+		}
+	}
 	const type = pickRandom(types);
 	if (type === 'elimination') {
 		if (Math.random() < 0.5) {
