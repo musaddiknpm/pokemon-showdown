@@ -68,7 +68,7 @@ export const commands: Chat.ChatCommands = {
 				resultsPerPage: result.limit,
 			});
 
-			this.sendReply(`|raw|${tableHTML}${pagination}`);
+			this.sendReply(`|raw|${tableHTML}`);
 		},
 
 		async history(target, room, user) {
