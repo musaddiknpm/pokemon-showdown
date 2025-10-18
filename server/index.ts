@@ -256,6 +256,89 @@ export const readyPromise = cleanupStale().then(() => {
 	* Graceful Shutdown Ends
 	*/
 
+	// === Begin: Automatically create and start random-format random-type tournament every 1 hour in Lobby ===
+
+	const TOUR_ROOM_ID = 'lobby';
+	const TOUR_FORMATS = ['gen9randombattle', 'gen8randombattle', 'gen7randombattle',
+								'gen9monotyperandombattle', 'gen9babyrandombattle', 'gen9randomdoublesbattle'];
+	const TOUR_TYPES = ['elimination', 'roundrobin'];
+	const TOUR_PLAYER_CAP = '';
+	const TOUR_NAME = '';
+	const AUTOSTART_TIMER = 5 * 60 * 1000; // 5 minutes in ms
+	const AUTODQ_TIMER = 2 * 60 * 1000; // 2 minutes in ms
+
+	function pickRandom<T>(arr: T[]): T {
+		return arr[Math.floor(Math.random() * arr.length)];
+	}
+
+	function startHourlyTournament() {
+		const room = Rooms.get(TOUR_ROOM_ID);
+		if (!room) {
+			Monitor.warn(`[AutoTour] Could not find room: ${TOUR_ROOM_ID}`);
+			return;
+		}
+		if (room.game && room.game.gameid === 'tournament') {
+			Monitor.notice(`[AutoTour] Tournament already running in ${TOUR_ROOM_ID}, skipping creation.`);
+			return;
+		}
+		const format = pickRandom(TOUR_FORMATS);
+		const type = pickRandom(TOUR_TYPES);
+		try {
+			const tour = global.Tournaments.createTournament(
+				room,
+				format,
+				type,
+				TOUR_PLAYER_CAP,
+				false,
+				undefined,
+				TOUR_NAME,
+				{
+					sendReply: (msg: string) => room.add(msg),
+					modlog: () => {},
+					privateModAction: () => {},
+					errorReply: (msg: string) => room.add(msg),
+					parse: () => {},
+					checkCan: () => {},
+					runBroadcast: () => true,
+					requireRoom: () => room,
+				}
+			);
+			if (tour) {
+				room.add(`[AutoTour] A new ${format} ${type} tournament has been created!`).update();
+				tour.setAutoStartTimeout(AUTOSTART_TIMER, {
+					sendReply: (msg: string) => room.add(msg),
+					modlog: () => {},
+					privateModAction: () => {},
+					errorReply: (msg: string) => room.add(msg),
+					parse: () => {},
+					checkCan: () => {},
+					runBroadcast: () => true,
+					requireRoom: () => room,
+				});
+				tour.setAutoDisqualifyTimeout(AUTODQ_TIMER, {
+					sendReply: (msg: string) => room.add(msg),
+					modlog: () => {},
+					privateModAction: () => {},
+					errorReply: (msg: string) => room.add(msg),
+					parse: () => {},
+					checkCan: () => {},
+					runBroadcast: () => true,
+					requireRoom: () => room,
+				});
+			}
+		} catch (err: any) {
+			Monitor.warn(`[AutoTour] Failed to create tournament: ${err.message}`);
+		}
+	}
+
+	setTimeout(() => {
+		startHourlyTournament();
+		setInterval(startHourlyTournament, 10 * 60 * 1000);
+	}, 30 * 1000);
+
+	// === End: Automatically create and start random-format random-type tournament every 1 hour in Lobby ===
+});
+
 	if (Config.ofemain) {
 		// Create a heapdump if the process runs out of memory.
 		global.nodeOomHeapdump = (require as any)('node-oom-heapdump')({
