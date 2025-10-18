@@ -43,18 +43,6 @@ export const commands: Chat.ChatCommands = {
 			notifyUser(targetId, user.name, `You received ${Economy.formatMoney(amountCheck.amount)} from ${user.name}. Balance: ${Economy.formatMoney(result.toBalance)}`);
 		},
 
-		async daily(target, room, user) {
-			const check = await Economy.canClaimDaily(user.id);
-			if (!check.can) {
-				return this.errorReply(`Already claimed. Try again in ${Economy.formatCooldown(check.cooldown!)}.`);
-			}
-
-			const result = await Economy.claimDaily(user.id);
-			if (!result.success) return this.errorReply(result.error || 'Failed to claim reward.');
-
-			this.sendReply(`Claimed daily reward: ${Economy.formatMoney(result.amount)}!`);
-		},
-
 		async leaderboard(target, room, user) {
 			const result = await Economy.getLeaderboard(parseInt(target) || 1, 10);
 			if (result.total === 0) return this.sendReplyBox('No economy data.');
@@ -285,7 +273,6 @@ export const commands: Chat.ChatCommands = {
 		const rows = [
 			[`<code>/balance [user]</code> - View balance`],
 			[`<code>/economy transfer [user], [amount]</code> - Transfer money`],
-			[`<code>/economy daily</code> - Claim daily reward`],
 			[`<code>/economy deposit [amount]</code> - Deposit to bank`],
 			[`<code>/economy withdraw [amount]</code> - Withdraw from bank`],
 			[`<code>/economy leaderboard [page]</code> - Top richest users`],
