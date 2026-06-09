@@ -5,6 +5,7 @@ export const Formats: FormatList = [
 	{
 		name: "[Gen 9] PokeRogue Classic",
 		mod: 'pokeroguec',
+		searchShow: false,
 		ruleset: [
 			'Cancel Mod',
 			'HP Percentage Mod',
@@ -19,6 +20,7 @@ export const Formats: FormatList = [
 		name: "[Gen 9] PokeRogue Classic Doubles",
 		mod: 'pokeroguec',
 		gameType: 'doubles',
+		searchShow: false,
 		ruleset: [
 			'Cancel Mod',
 			'HP Percentage Mod',
@@ -32,6 +34,7 @@ export const Formats: FormatList = [
 	{
 		name: "[Gen 9] PokeRogue Random",
 		mod: 'pokeroguec',
+		searchShow: false,
 		ruleset: [
 			'Cancel Mod',
 			'HP Percentage Mod',
@@ -46,6 +49,7 @@ export const Formats: FormatList = [
 		name: "[Gen 9] PokeRogue Random Doubles",
 		mod: 'pokeroguec',
 		gameType: 'doubles',
+		searchShow: false,
 		ruleset: [
 			'Cancel Mod',
 			'HP Percentage Mod',
