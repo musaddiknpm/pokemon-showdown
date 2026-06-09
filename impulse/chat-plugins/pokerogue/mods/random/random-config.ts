@@ -15,8 +15,8 @@ export const randomConfig: ModeConfig = {
 	startingBiome: 'Town',
 	starterLevel: 5,
 	generation: 9,
-	baseFormat: '[Gen 9] PokeRogue',
-	doublesFormat: '[Gen 9] PokeRogue Doubles',
+	baseFormat: '[Gen 9] PokeRogue Random',
+	doublesFormat: '[Gen 9] PokeRogue Random Doubles',
 	economy: {
 		startingMoney: 10000,
 		startingKeyItems: { 'Exp. All': 2, 'Exp. Charm': 1 },
