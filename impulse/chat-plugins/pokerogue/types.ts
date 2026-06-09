@@ -23,6 +23,7 @@ export interface BiomeEntry {
 
 export interface TrainerMon {
 	species: string;
+	exactSpecies?: boolean;
 	moves?: string[];
 	ivs?: StatTable;
 	evs?: StatTable;
@@ -36,6 +37,7 @@ export interface TrainerMon {
 
 export interface TrainerData {
 	teamSize: number;
+	exactSpecies?: boolean;
 	pool?: (string | TrainerMon)[];
 	slotPools?: Record<number, (string | TrainerMon)[]>;
 	memoryId?: string;
