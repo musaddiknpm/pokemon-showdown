@@ -1,0 +1,106 @@
+{
+	"pokeball": {
+		"name": "Poke Ball",
+		"icon": "Poke Ball",
+		"type": "pokeball",
+		"desc": "A standard ball for catching wild Pokemon.",
+		"cost": 5,
+		"minFloor": 1
+	},
+	"greatball": {
+		"name": "Great Ball",
+		"icon": "Great Ball",
+		"type": "pokeball",
+		"desc": "A good ball with a higher catch rate.",
+		"cost": 10,
+		"minFloor": 11
+	},
+	"ultraball": {
+		"name": "Ultra Ball",
+		"icon": "Ultra Ball",
+		"type": "pokeball",
+		"desc": "An excellent ball with a very high catch rate.",
+		"cost": 15,
+		"minFloor": 31
+	},
+	"masterball": {
+		"name": "Master Ball",
+		"icon": "Master Ball",
+		"type": "pokeball",
+		"desc": "Catches any wild Pokemon without fail.",
+		"cost": 1000,
+		"minFloor": 51
+	},
+	"helditempack": {
+		"name": "Held Item Pack",
+		"icon": "Leftovers",
+		"type": "itemPack",
+		"desc": "Pick 1 of 3 held items to put on a Pokemon",
+		"cost": 3,
+		"minFloor": 1
+	},
+	"superpotion": {
+		"name": "Super Potion",
+		"icon": "Super Potion",
+		"type": "healHP",
+		"desc": "Heals 60% HP for a Pokemon.",
+		"cost": 1,
+		"minFloor": 1
+	},
+	"maxpotion": {
+		"name": "Max Potion",
+		"icon": "Max Potion",
+		"type": "healHP",
+		"desc": "Heals a pokemon's HP fully.",
+		"cost": 2,
+		"minFloor": 1
+	},
+	"fullheal": {
+		"name": "Full Heal",
+		"icon": "Full Heal",
+		"type": "cureStatus",
+		"desc": "Cures a pokemon's status.",
+		"cost": 2,
+		"minFloor": 1
+	},
+  "lure": {
+    "name": "Lure",
+    "icon": "Chipped Pot",
+    "type": "key",
+    "desc": "50% chance to encounter 2 wild Pokémon instead of 1.",
+    "cost": 15,
+    "minFloor": 1
+  },
+	"revive": {
+		"name": "Revive",
+		"icon": "Revive",
+		"type": "revive",
+		"desc": "Revives a Pokemon to half its maximum HP.",
+		"cost": 3,
+		"minFloor": 1
+	},
+	"maxrevive": {
+		"name": "Max Revive",
+		"icon": "Revive",
+		"type": "revive",
+		"desc": "Revives a Pokemon to its maximum HP.",
+		"cost": 5,
+		"minFloor": 1
+	},
+	"expall": {
+		"name": "Exp. All",
+		"icon": "Exp Share",
+		"type": "key",
+		"desc": "Gives 20% Exp. to all non-fainted Pokemon not in the battle. Stacks up to 5 times.",
+		"cost": 10,
+		"minFloor": 1
+	},
+	"expcharm": {
+		"name": "Exp. Charm",
+		"icon": "Exp. Share",
+		"type": "key",
+		"desc": "Boosts total EXP gained by the entire party by 25%. Stacks up to 99 times.",
+		"cost": 15,
+		"minFloor": 1
+	}
+}
