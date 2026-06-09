@@ -67,7 +67,7 @@ const NewsManager = {
 			generateCSS() {
 				const serverId = toID(SERVER_NAME);
 				return (
-					`}\n` +
+					`\n` +
 					`.pm-window-${serverId}news .challenge { display: none !important; }\n` +
 					`.pm-window-${serverId}news .pm-buttonbar { display: none !important; }\n` +
 					`.pm-window-${serverId}news .pm-log-add { display: none !important; }\n` +
