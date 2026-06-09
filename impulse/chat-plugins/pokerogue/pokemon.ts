@@ -925,6 +925,7 @@ export function genPokemon(
 		const chosenLevel = determineLevel(minLevel, maxLevel, depth);
 
 		let finalSpeciesId = '';
+		let exactSpecies = false;
 		let forcedMoves: string[] | undefined = undefined;
 		let forcedIvs: StatTable | undefined = undefined;
 		let forcedEvs: StatTable | undefined = undefined;
@@ -943,6 +944,7 @@ export function genPokemon(
 				finalSpeciesId = toID(forced);
 			} else {
 				finalSpeciesId = toID(forced.species);
+				exactSpecies = !!forced.exactSpecies;
 				if (forced.moves && forced.moves.length > 0) forcedMoves = forced.moves;
 				if (forced.ivs) forcedIvs = forced.ivs;
 				if (forced.evs) forcedEvs = forced.evs;
@@ -958,7 +960,26 @@ export function genPokemon(
 			finalSpeciesId = getBaseSpecies(weightedPick(pool));
 		}
 
-		finalSpeciesId = applyBossEvolutions(finalSpeciesId, chosenLevel, floor, isBossFloor);
+		if (!exactSpecies) {
+			while (true) {
+				const sp = Dex.species.get(finalSpeciesId);
+				if (!sp.prevo) break;
+
+				let requiredLevel = 36;
+				if (sp.evoLevel) {
+					requiredLevel = sp.evoLevel;
+				} else if (sp.evoType && EVO_TYPE_FALLBACK_LEVEL[sp.evoType]) {
+					requiredLevel = EVO_TYPE_FALLBACK_LEVEL[sp.evoType]!;
+				}
+
+				if (chosenLevel >= requiredLevel) break;
+
+				finalSpeciesId = toID(sp.prevo);
+			}
+
+			finalSpeciesId = applyBossEvolutions(finalSpeciesId, chosenLevel, floor, isBossFloor);
+		}
+
 		const finalSpecie = Dex.species.get(finalSpeciesId);
 
 		const genNumber = getValidGeneration(finalSpecie.name, config?.generation || 9);
@@ -1075,7 +1096,7 @@ export function genAIPokemon(
 			for (let i = 1; i <= trainerData.teamSize; i++) {
 				if (rememberedSpecies[i - 1]) {
 					const baseSpecies = rememberedSpecies[i - 1];
-					let pick: string | TrainerMon = baseSpecies;
+					let pick: TrainerMon = { species: baseSpecies };
 
 					if (trainerData.slotPools?.[i] && trainerData.slotPools[i].length > 0) {
 						const slotPool = trainerData.slotPools[i];
@@ -1084,23 +1105,29 @@ export function genAIPokemon(
 							pick = { ...slotConfig, species: baseSpecies };
 						}
 					}
+					if (trainerData.exactSpecies !== undefined && pick.exactSpecies === undefined) {
+						pick.exactSpecies = trainerData.exactSpecies;
+					}
 					forcedTeam.push(pick);
 				} else {
-					let pick: string | TrainerMon | undefined;
+					let rawPick: string | TrainerMon | undefined;
 					if (trainerData.slotPools?.[i] && trainerData.slotPools[i].length > 0) {
 						const slotPool = trainerData.slotPools[i];
-						pick = slotPool[Math.floor(Math.random() * slotPool.length)];
+						rawPick = slotPool[Math.floor(Math.random() * slotPool.length)];
 					} else if (globalIdx < globalPool.length) {
-						pick = globalPool[globalIdx];
+						rawPick = globalPool[globalIdx];
 						globalIdx++;
 					}
 
-					if (pick) {
+					if (rawPick) {
+						const pick: TrainerMon = typeof rawPick === 'string' ? { species: rawPick } : { ...rawPick };
+						if (trainerData.exactSpecies !== undefined && pick.exactSpecies === undefined) {
+							pick.exactSpecies = trainerData.exactSpecies;
+						}
 						forcedTeam.push(pick);
 						if (memoryKey && state) {
 							state.trainerMemories[memoryKey] = state.trainerMemories[memoryKey] || [];
-							const speciesStr = typeof pick === 'string' ? pick : pick.species;
-							state.trainerMemories[memoryKey].push(speciesStr);
+							state.trainerMemories[memoryKey].push(pick.species);
 						}
 					}
 				}
