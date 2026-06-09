@@ -29,4 +29,31 @@ export const Formats: FormatList = [
 		MaxLevel: 999999,
 		banlist: [],
 	},
+	{
+		name: "[Gen 9] PokeRogue Random",
+		mod: 'pokeroguec',
+		ruleset: [
+			'Cancel Mod',
+			'HP Percentage Mod',
+			'PokeRogue Classic Rule',
+			'PokeRogue EXP Tracker',
+		],
+		DefaultLevel: 1,
+		MaxLevel: 999999,
+		banlist: [],
+	},
+	{
+		name: "[Gen 9] PokeRogue Random Doubles",
+		mod: 'pokeroguec',
+		gameType: 'doubles',
+		ruleset: [
+			'Cancel Mod',
+			'HP Percentage Mod',
+			'PokeRogue Classic Rule',
+			'PokeRogue EXP Tracker',
+		],
+		DefaultLevel: 1,
+		MaxLevel: 999999,
+		banlist: [],
+	},
 ];
