@@ -114,6 +114,14 @@ export interface PokemonSet {
 	 * Tera Type
 	 */
 	teraType?: string;
+	/** Starting HP percentage */
+	hp?: number;
+	/** Starting Status condition */
+	status?: string;
+	/** Custom Base Stat % Boosts */
+	bstBoosts?: { atk: number, def: number, spa: number, spd: number, spe: number };
+	/** Custom Max HP Multiplier */
+	hpMultiplier?: number;
 }
 
 export const Teams = new class Teams {
@@ -200,12 +208,29 @@ export const Teams = new class Teams {
 			}
 
 			if (set.pokeball || set.hpType || set.gigantamax ||
-				(set.dynamaxLevel !== undefined && set.dynamaxLevel !== 10) || set.teraType) {
+				(set.dynamaxLevel !== undefined && set.dynamaxLevel !== 10) || set.teraType ||
+				(set.hp !== undefined && set.hp !== 100) || set.status || set.bstBoosts) {
 				buf += `,${set.hpType || ''}`;
 				buf += `,${this.packName(set.pokeball || '')}`;
 				buf += `,${set.gigantamax ? 'G' : ''}`;
 				buf += `,${set.dynamaxLevel !== undefined && set.dynamaxLevel !== 10 ? set.dynamaxLevel : ''}`;
 				buf += `,${set.teraType || ''}`;
+				buf += `,${set.hp !== undefined && set.hp !== 100 ? set.hp : ''}`;
+				buf += `,${set.status || ''}`;
+				
+				// --- CUSTOM BST BOOST PACKING ---
+				if (set.bstBoosts) {
+					buf += `,${set.bstBoosts.atk}:${set.bstBoosts.def}:${set.bstBoosts.spa}:${set.bstBoosts.spd}:${set.bstBoosts.spe}`;
+				} else {
+					buf += `,`;
+				}
+
+				// --- CUSTOM HPX PACKING ---
+				if (set.hpMultiplier) {
+					buf += `,${set.hpMultiplier}`;
+				} else {
+					buf += `,`;
+				}
 			}
 		}
 
@@ -326,9 +351,9 @@ export const Teams = new class Teams {
 			j = buf.indexOf(']', i);
 			let misc;
 			if (j < 0) {
-				if (i < buf.length) misc = buf.substring(i).split(',', 6);
+				if (i < buf.length) misc = buf.substring(i).split(',', 10);
 			} else {
-				if (i !== j) misc = buf.substring(i, j).split(',', 6);
+				if (i !== j) misc = buf.substring(i, j).split(',', 10);
 			}
 			if (misc) {
 				set.happiness = (misc[0] ? Number(misc[0]) : 255);
@@ -337,6 +362,25 @@ export const Teams = new class Teams {
 				set.gigantamax = !!misc[3];
 				set.dynamaxLevel = (misc[4] ? Number(misc[4]) : 10);
 				set.teraType = misc[5];
+				if (misc[6]) set.hp = Number(misc[6]);
+				if (misc[7]) set.status = misc[7];
+				
+				// --- CUSTOM BST BOOST UNPACKING ---
+				if (misc[8]) {
+					const bstParts = misc[8].split(':');
+					set.bstBoosts = {
+						atk: Number(bstParts[0]),
+						def: Number(bstParts[1]),
+						spa: Number(bstParts[2]),
+						spd: Number(bstParts[3]),
+						spe: Number(bstParts[4]),
+					};
+				}
+
+				// --- CUSTOM HPX UNPACKING ---
+				if (misc[9]) {
+					set.hpMultiplier = Number(misc[9]);
+				}
 			}
 			if (j < 0) break;
 			i = j + 1;
@@ -417,6 +461,18 @@ export const Teams = new class Teams {
 		}
 		if (set.teraType && !useStatPoints) {
 			out += `Tera Type: ${set.teraType}  \n`;
+		}
+		if (set.hp !== undefined && set.hp !== 100) {
+			out += `HP: ${set.hp}%  \n`;
+		}
+		if (set.status) {
+			out += `Status: ${set.status}  \n`;
+		}
+		if (set.bstBoosts) {
+			out += `BST: ${set.bstBoosts.atk}, ${set.bstBoosts.def}, ${set.bstBoosts.spa}, ${set.bstBoosts.spd}, ${set.bstBoosts.spe}  \n`;
+		}
+		if (set.hpMultiplier) {
+			out += `HPX: ${set.hpMultiplier}  \n`;
 		}
 
 		// stats
@@ -502,6 +558,25 @@ export const Teams = new class Teams {
 		} else if (line.startsWith('Tera Type: ')) {
 			line = line.slice(11);
 			set.teraType = aggressive ? line.replace(/[^a-zA-Z0-9]/g, '') : line;
+		} else if (line.startsWith('HP: ')) {
+			line = line.slice(4).replace('%', '');
+			set.hp = parseInt(line);
+		} else if (line.startsWith('Status: ')) {
+			line = line.slice(8).trim();
+			set.status = aggressive ? toID(line) : line;
+		} else if (line.startsWith('BST: ')) {
+			line = line.slice(5).trim();
+			const bstParts = line.split(',');
+			set.bstBoosts = {
+				atk: parseInt(bstParts[0]),
+				def: parseInt(bstParts[1]),
+				spa: parseInt(bstParts[2]),
+				spd: parseInt(bstParts[3]),
+				spe: parseInt(bstParts[4]),
+			};
+		} else if (line.startsWith('HPX: ')) {
+			line = line.slice(5).trim();
+			set.hpMultiplier = parseInt(line);			
 		} else if (line === 'Gigantamax: Yes') {
 			set.gigantamax = true;
 		} else if (line.startsWith('EVs: ')) {
@@ -566,6 +641,9 @@ export const Teams = new class Teams {
 					set.ability = sanitize(set.ability);
 					set.gender = sanitize(set.gender);
 					set.nature = sanitize(set.nature);
+					if (set.status) set.status = aggressive ? toID(set.status) : sanitize(set.status);
+					if (set.hp !== undefined) set.hp = Number(set.hp);
+
 					const evs = { hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 };
 					if (set.evs) {
 						for (const statid in evs) {

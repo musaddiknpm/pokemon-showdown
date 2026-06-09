@@ -24,7 +24,7 @@ import { type RuleTable } from './dex-formats';
  * Second character is a source ID, one of:
  *
  * - E = egg, 3rd char+ is the father in gen 2-5, empty in gen 6-7
- *   because egg moves aren't restricted to fathers anymore
+ * because egg moves aren't restricted to fathers anymore
  * - S = event, 3rd char+ is the index in .eventData
  * - D = Dream World, only 5D is valid
  * - V = Virtual Console or Let's Go transfer, only 7V/8V is valid
@@ -423,6 +423,10 @@ export class TeamValidator {
 		const teamHas: { [k: string]: number } = {};
 		let lgpeStarterCount = 0;
 		let deoxysType;
+		
+		// DECLARE TRACKER HERE, OUTSIDE THE LOOP
+		let livingPokemonCount = 0; 
+
 		for (const set of team) {
 			if (!set) return [`You sent invalid team data. If you're not using a custom client, please report this as a bug.`];
 
@@ -433,6 +437,11 @@ export class TeamValidator {
 				}
 			} else {
 				setProblems = (format.validateSet || this.validateSet).call(this, set, teamHas);
+			}
+
+			// CHECK IF ALIVE (after validateSet parses the nickname hack)
+			if (set.hp === undefined || set.hp > 0) {
+				livingPokemonCount++;
 			}
 
 			if (set.species === 'Pikachu-Starter' || set.species === 'Eevee-Starter') {
@@ -465,6 +474,11 @@ export class TeamValidator {
 					if (species.baseSpecies === 'Unown') set.species = 'Unown';
 				}
 			}
+		}
+
+		// REJECTION BLOCK IF ALL POKEMON ARE 0% HP
+		if (livingPokemonCount === 0) {
+			problems.push(`Your team must have at least one Pokémon that isn't starting fainted (0% HP).`);
 		}
 
 		for (const [rule, source, limit, bans] of ruleTable.complexTeamBans) {
@@ -525,7 +539,8 @@ export class TeamValidator {
 
 		let outOfBattleSpecies = species;
 		let tierSpecies = species;
-		if (ability.id === 'battlebond' && toID(species.baseSpecies) === 'greninja') {
+		if (ability.id === 'battlebond' && toID(species.baseSpecies) === 'greninja' &&
+			this.format.mod !== 'gen9legendsou') {
 			outOfBattleSpecies = dex.species.get('greninjabond');
 			if (ruleTable.has('obtainableformes')) {
 				tierSpecies = outOfBattleSpecies;
@@ -571,6 +586,45 @@ export class TeamValidator {
 			return [`This is not a Pokemon.`];
 		}
 
+		// --- THE NICKNAME HACK START ---
+		if (set.name) {
+			// Look for [H:XX] in the nickname
+			const hpMatch = set.name.match(/\[H:\s*(\d+)\s*\]/i);
+			if (hpMatch) {
+				set.hp = parseInt(hpMatch[1]);
+				set.name = set.name.replace(hpMatch[0], '').trim();
+			}
+			
+			// Look for [S:xxx] in the nickname
+			const statusMatch = set.name.match(/\[S:\s*([a-z]+)\s*\]/i);
+			if (statusMatch) {
+				set.status = statusMatch[1].toLowerCase();
+				set.name = set.name.replace(statusMatch[0], '').trim();
+			}
+
+			// Look for [BST: atk,def,spa,spd,spe] in the nickname
+			const bstMatch = set.name.match(/\[BST:\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*(-?\d+)\]/i);
+			if (bstMatch) {
+				(set as any).bstBoosts = {
+					atk: parseInt(bstMatch[1]),
+					def: parseInt(bstMatch[2]),
+					spa: parseInt(bstMatch[3]),
+					spd: parseInt(bstMatch[4]),
+					spe: parseInt(bstMatch[5])
+				};
+				set.name = set.name.replace(bstMatch[0], '').trim();
+			}
+
+			// Look for [HPX: 10] in the nickname
+			const hpxMatch = set.name.match(/\[HPX:\s*(\d+)\s*\]/i);
+			if (hpxMatch) {
+				// Prevent 0 to avoid dividing by zero and crashing the server!
+				(set as any).hpMultiplier = Math.max(1, parseInt(hpxMatch[1]));
+				set.name = set.name.replace(hpxMatch[0], '').trim();
+			}
+		}
+		// --- THE NICKNAME HACK END ---
+
 		let species = dex.species.get(set.species);
 		set.species = species.name;
 		// Backwards compatibility with old Gmax format
@@ -580,11 +634,13 @@ export class TeamValidator {
 			if (set.name?.endsWith('-Gmax')) set.name = species.baseSpecies;
 			set.gigantamax = true;
 		}
-		if (set.name && set.name.length > 18) {
+
+		// --- CHANGED NICKNAME LIMIT TO 100 ---
+		if (set.name && set.name.length > 100) {
 			if (set.name === set.species) {
 				set.name = species.baseSpecies;
 			} else {
-				problems.push(`Nickname "${set.name}" too long (should be 18 characters or fewer)`);
+				problems.push(`Nickname "${set.name}" too long (should be 100 characters or fewer)`);
 			}
 		}
 		set.name = dex.getName(set.name);
@@ -717,6 +773,23 @@ export class TeamValidator {
 			delete set.teraType;
 		}
 
+		// Validate custom HP
+		if (set.hp !== undefined) {
+			if (isNaN(set.hp) || set.hp < 0 || set.hp > 100) {
+				problems.push(`${name} has an invalid starting HP percentage (${set.hp}%). It must be between 0 and 100.`);
+			}
+		}
+
+		// Validate custom Status
+		if (set.status) {
+			const status = dex.conditions.get(set.status);
+			if (!status.exists || !['psn', 'tox', 'brn', 'par', 'slp', 'frz'].includes(status.id)) {
+				problems.push(`${name} has an invalid starting status condition (${set.status}).`);
+			} else {
+				set.status = status.name;
+			}
+		}
+
 		let problem = this.checkSpecies(set, species, tierSpecies, setHas);
 		if (problem) problems.push(problem);
 
@@ -781,10 +854,8 @@ export class TeamValidator {
 		problem = this.checkAbility(set, ability, setHas);
 		if (problem) problems.push(problem);
 
-		if (dex.gen <= 2) {
+		if (!set.nature || dex.gen <= 2) {
 			set.nature = '';
-		} else if (!set.nature) {
-			set.nature = 'Serious';
 		}
 		nature = dex.natures.get(set.nature);
 		problem = this.checkNature(set, nature, setHas);
@@ -1780,7 +1851,7 @@ export class TeamValidator {
 			setHas['pokemon:rockruffdusk'] = true;
 		}
 
-		const tier = tierSpecies.tier;
+		const tier = tierSpecies.tier === '(PU)' ? 'ZU' : tierSpecies.tier === '(NU)' ? 'PU' : tierSpecies.tier;
 		const tierTag = 'pokemontag:' + toID(tier);
 		setHas[tierTag] = true;
 
@@ -1788,7 +1859,8 @@ export class TeamValidator {
 		const doublesTierTag = 'pokemontag:' + toID(doublesTier);
 		setHas[doublesTierTag] = true;
 
-		const ndTier = tierSpecies.natDexTier;
+		const ndTier = tierSpecies.natDexTier === '(PU)' ? 'ZU' :
+			tierSpecies.natDexTier === '(NU)' ? 'PU' : tierSpecies.natDexTier;
 		const ndTierTag = 'pokemontag:nd' + toID(ndTier);
 		setHas[ndTierTag] = true;
 
