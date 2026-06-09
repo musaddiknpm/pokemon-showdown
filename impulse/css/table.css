@@ -1,0 +1,85 @@
+/* Impulse Table CSS */
+
+.impulse-table-container {
+  max-width: 100%;
+  max-height: 400px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: #ffffff;
+}
+
+.impulse-table-title {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  margin: 0;
+  background: #ffffff;
+  color: #2c2c2a;
+  border-bottom: 0.5px solid rgba(0, 0, 0, 0.15);
+}
+
+.impulse-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: auto;
+}
+
+.impulse-table-header th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  word-wrap: break-word;
+  min-width: 60px;
+  max-width: 200px;
+  background: #f1efe8;
+  color: #5f5e5a;
+  border-bottom: 0.5px solid rgba(0, 0, 0, 0.15);
+}
+
+.impulse-table-row td {
+  padding: 8px 12px;
+  word-wrap: break-word;
+  min-width: 60px;
+  max-width: 200px;
+  color: #2c2c2a;
+  border-bottom: 0.5px solid rgba(0, 0, 0, 0.15);
+}
+
+.impulse-table-row:last-child td {
+  border-bottom: none;
+}
+
+.impulse-table-row:hover td {
+  background: #f1efe8;
+}
+
+.dark .impulse-table-container {
+  background: #2c2c2a;
+}
+
+.dark .impulse-table-title {
+  background: #2c2c2a;
+  color: #f1efe8;
+  border-bottom: 0.5px solid rgba(255, 255, 255, 0.15);
+}
+
+.dark .impulse-table-header th {
+  background: #444441;
+  color: #b4b2a9;
+  border-bottom: 0.5px solid rgba(255, 255, 255, 0.15);
+}
+
+.dark .impulse-table-row td {
+  color: #f1efe8;
+  border-bottom: 0.5px solid rgba(255, 255, 255, 0.15);
+}
+
+.dark .impulse-table-row:last-child td {
+  border-bottom: none;
+}
+
+.dark .impulse-table-row:hover td {
+  background: #444441;
+}
+
+/* Impulse Table CSS Ends */
