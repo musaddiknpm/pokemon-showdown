@@ -543,7 +543,7 @@ export const commands: Chat.ChatCommands = {
 			const absMin = Math.abs(offsetMinutes);
 			const sign = offsetMinutes >= 0 ? '+' : '-';
 			const label = `UTC${sign}${Math.floor(absMin / 60)}${absMin % 60 ? ':' + String(absMin % 60).padStart(2, '0') : ''}`;
-			return this.sendReplyBox(`🕐 <b>Current Time (${label}):</b> ${formatForOffset(now, offsetMinutes)}`);
+			return this.sendReplyBox(`<b>Current Time (${label}):</b> ${formatForOffset(now, offsetMinutes)}`);
 		}
 
 		// Option B Normalization: Remove all spaces for the backend dictionary lookup
@@ -560,7 +560,7 @@ export const commands: Chat.ChatCommands = {
 				}
 			}).filter(Boolean).join('');
 			return this.sendReplyBox(
-				`🕐 <b>Current Times in ${toTitleCase(query)}:</b><br>` +
+				`<b>Current Times in ${toTitleCase(query)}:</b><br>` +
 				`<table style="border-collapse:collapse;margin-top:4px">${rows}</table>`
 			);
 		}
@@ -568,14 +568,14 @@ export const commands: Chat.ChatCommands = {
 		// Abbreviation / timezone shorthand (EST, PST, etc.)
 		if (ABBREV_TIMEZONES[lookupKey]) {
 			const tz = ABBREV_TIMEZONES[lookupKey];
-			return this.sendReplyBox(`🕐 <b>Current Time (${query.toUpperCase()}):</b> ${formatForTimezone(now, tz)}`);
+			return this.sendReplyBox(`<b>Current Time (${query.toUpperCase()}):</b> ${formatForTimezone(now, tz)}`);
 		}
 
 		// Single-timezone country or city lookup
 		if (SINGLE_TIMEZONES[lookupKey]) {
 			const tz = SINGLE_TIMEZONES[lookupKey];
 			try {
-				return this.sendReplyBox(`🕐 <b>Current Time in ${toTitleCase(query)}:</b> ${formatForTimezone(now, tz)}`);
+				return this.sendReplyBox(`<b>Current Time in ${toTitleCase(query)}:</b> ${formatForTimezone(now, tz)}`);
 			} catch (e) {
 				return this.errorReply(`Error formatting time for "${query}".`);
 			}
@@ -585,7 +585,7 @@ export const commands: Chat.ChatCommands = {
 		// We use the original 'query' here because IANA timezones do not contain spaces
 		if (query.includes('/')) {
 			try {
-				return this.sendReplyBox(`🕐 <b>Current Time (${query}):</b> ${formatForTimezone(now, query)}`);
+				return this.sendReplyBox(`<b>Current Time (${query}):</b> ${formatForTimezone(now, query)}`);
 			} catch (e) {
 				// fall through
 			}
