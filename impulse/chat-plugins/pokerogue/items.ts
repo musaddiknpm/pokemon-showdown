@@ -17,7 +17,6 @@ export type ItemType =
 	'tm' |
 	'mint' |
 	'rareCandy' |
-	'stackableItem' |
 	'gmaxMushroom' |
 	'xItem';
 
@@ -111,7 +110,7 @@ export function getItemWeight(item: ShopItem, state: PokeRogueState): number {
 
 	if (w <= 0) return 0;
 
-	if (item.type === 'tm' || item.type === 'item' || item.type === 'stackableItem') {
+	if (item.type === 'tm' || item.type === 'item') {
 		w = Math.max(1, Math.floor(w * 0.5));
 	}
 
@@ -262,7 +261,7 @@ function isItemValidForDraft(
 		if (!hasCompatibleTMTarget(state.team, key, item)) return false;
 	}
 
-	if (item.type === 'item' || item.type === 'stackableItem') {
+	if (item.type === 'item') {
 		if (heldItemsInDraft >= 1) return false;
 
 		const dexItem = Dex.items.get(key);
@@ -338,7 +337,7 @@ export function generateDraftOptions(state: PokeRogueState, config?: ModeConfig)
 			const anyUnpicked = Object.entries(SHOP_ITEMS).filter(([key, item]) => {
 				if (pickedKeys.has(key)) return false;
 				if (item.type === 'tm' && tmsInDraft >= 1) return false;
-				if ((item.type === 'item' || item.type === 'stackableItem') && heldItemsInDraft >= 1) return false;
+				if ((item.type === 'item') && heldItemsInDraft >= 1) return false;
 				if (getItemWeight(item, state) <= 0) return false;
 				return true;
 			});
@@ -348,7 +347,7 @@ export function generateDraftOptions(state: PokeRogueState, config?: ModeConfig)
 				draft.push(randomFallback[0]);
 				pickedKeys.add(randomFallback[0]);
 				if (randomFallback[1].type === 'tm') tmsInDraft++;
-				if (randomFallback[1].type === 'item' || randomFallback[1].type === 'stackableItem') heldItemsInDraft++;
+				if (randomFallback[1].type === 'item') heldItemsInDraft++;
 			}
 		} else {
 			const randomValid = weightedItemPick(validItems, state);
@@ -356,7 +355,7 @@ export function generateDraftOptions(state: PokeRogueState, config?: ModeConfig)
 				draft.push(randomValid[0]);
 				pickedKeys.add(randomValid[0]);
 				if (randomValid[1].type === 'tm') tmsInDraft++;
-				if (randomValid[1].type === 'item' || randomValid[1].type === 'stackableItem') heldItemsInDraft++;
+				if (randomValid[1].type === 'item') heldItemsInDraft++;
 			}
 		}
 	}
