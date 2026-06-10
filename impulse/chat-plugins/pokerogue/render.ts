@@ -833,7 +833,7 @@ export function renderGiveItem(state: PokeRogueState): string {
 	const pendingItemId = toID(state.pendingItemName);
 
 	let actionVerb = 'Give';
-	if (state.pendingItemIsEvo && !state.pendingItemIsStackable) actionVerb = 'Evolve';
+	if (state.pendingItemIsEvo) actionVerb = 'Evolve';
 	if (state.pendingItemIsMega) actionVerb = 'Mega Evolve';
 	if (state.pendingItemIsGmax) actionVerb = 'Gigantamax';
 
@@ -867,7 +867,7 @@ export function renderGiveItem(state: PokeRogueState): string {
 					}
 				}
 			}
-			if (!isEvoAble && !state.pendingItemIsStackable) {
+			if (!isEvoAble) {
 				isCompatible = false;
 				reason = 'Incompatible';
 			}

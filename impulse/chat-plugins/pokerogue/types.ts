@@ -171,7 +171,6 @@ export interface PokemonEntry {
 	selectedMoves?: string[];
 
 	activeBuffs?: Record<string, number>;
-	stackedItems?: Record<string, number>;
 
 	eggTier?: 'Common' | 'Rare' | 'Epic' | 'Legendary';
 }
@@ -208,7 +207,6 @@ export interface PokeRogueState {
 	pendingItemIsEvo?: boolean;
 	pendingItemIsMega?: boolean;
 	pendingItemIsGmax?: boolean;
-	pendingItemIsStackable?: boolean;
 	isRotationalItem?: boolean;
 	moveToLearn?: string;
 	pokemonForTM?: number;

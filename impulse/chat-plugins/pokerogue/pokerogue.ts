@@ -249,7 +249,6 @@ export const commands: Chat.ChatCommands = {
 				delete s.pendingItemIsEvo;
 				delete s.pendingItemIsMega;
 				delete s.pendingItemIsGmax;
-				delete s.pendingItemIsStackable;
 				setState(user.id, s);
 			}
 			refreshGamePage(user);

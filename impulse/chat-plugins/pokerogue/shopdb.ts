@@ -164,9 +164,9 @@ const STACKABLE_ITEMS_DATA: [string, string, string][] = [
 const generatedStackableItems: Record<string, ShopItem> = {};
 for (const [id, name, type] of STACKABLE_ITEMS_DATA) {
 	generatedStackableItems[id] = {
-		name, icon: name, type: "stackableItem", category: "Held Items",
-		desc: `Boosts the power of ${type}-type moves by 20%. Stacks additively.`,
-		moneyMultiplier: 3.0, tier: "Ultra", maxStack: 99, weight: 4, minWeight: 4, maxWeight: 4,
+		name, icon: name, type: "item", category: "Held Items",
+		desc: `Boosts the power of ${type}-type moves by 20%.`,
+		moneyMultiplier: 3.0, tier: "Ultra", weight: 4, minWeight: 4, maxWeight: 4,
 	};
 }
 

@@ -1178,12 +1178,6 @@ export function packPokemon(mon: PokemonEntry): string {
 		`${atkBoost}:${defBoost}:${spaBoost}:${spdBoost}:${speBoost}` :
 		'';
 
-	let stackedItemStr = '';
-	if (mon.stackedItems) {
-		const stacks = Object.entries(mon.stackedItems).map(([id, count]) => `${id}:${count}`);
-		stackedItemStr = stacks.join(';');
-	}
-
 	const misc = [
 		mon.happiness !== undefined && mon.happiness !== 255 ? mon.happiness.toString() : '',
 		'',
@@ -1195,7 +1189,6 @@ export function packPokemon(mon: PokemonEntry): string {
 		mon.status || '',
 		bstBoostsStr,
 		'',
-		stackedItemStr,
 	];
 
 	while (misc.length > 0 && misc[misc.length - 1] === '') {
