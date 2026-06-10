@@ -18,11 +18,12 @@ const DICE_UNICODE: Record<number, string> = {
 	1: '⚀', 2: '⚁', 3: '⚂', 4: '⚃', 5: '⚄', 6: '⚅',
 };
 
+const CASINO_ROOM = 'casino';
+const AUTO_END_MS = 60 * 1000;
+
 function dieChar(face: number): string {
 	return DICE_UNICODE[face] ?? DICE_UNICODE[1];
 }
-
-const AUTO_END_MS = 60 * 1000;
 
 async function expireGame(roomid: string): Promise<void> {
 	const game = activeGames.get(roomid);
@@ -44,7 +45,7 @@ async function expireGame(roomid: string): Promise<void> {
 export const commands: Chat.ChatCommands = wrapCommands({
 	dice: {
 		async start(target, room, user) {
-			if (!room || room.battle) return this.errorReply("This command must be used in a chat room.");
+			if (!room || room.battle || room.roomid !== CASINO_ROOM) return this.errorReply("This command can only be used in the Casino room.");
 
 			const bet = parseInt(target.trim());
 			if (isNaN(bet) || bet <= 0) return this.errorReply("Usage: /dice start [coins]");
@@ -83,7 +84,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 		},
 
 		async end(target, room, user) {
-			if (!room || room.battle) return this.errorReply("This command must be used in a chat room.");
+			if (!room || room.battle || room.roomid !== CASINO_ROOM) return this.errorReply("This command can only be used in the Casino room.");
 
 			const game = activeGames.get(room.roomid);
 			if (!game) return this.errorReply("No active dice game in this room.");
@@ -101,7 +102,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 		},
 
 		async join(target, room, user) {
-			if (!room || room.battle) return this.errorReply("This command must be used in a chat room.");
+			if (!room || room.battle || room.roomid !== CASINO_ROOM) return this.errorReply("This command can only be used in the Casino room.");
 
 			const game = activeGames.get(room.roomid);
 			if (!game) return this.errorReply("No active dice game in this room.");
@@ -135,9 +136,9 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			const resultHtml =
 				`<div class="infobox" style="text-align:center;padding:12px 16px;">` +
 				`<b>Dice Game Results</b><hr>` +
-				`${nameColor(game.hostName, true)} has rolled <span style="font-size:36px;line-height:1;vertical-align:middle;">${dieChar(hostRoll)}</span> <b>${hostRoll}</b>` +
+				`${nameColor(game.hostName, true)} has rolled <span style="font-size:36px;line-height:1;vertical-align:middle;">${dieChar(hostRoll)}</span>` +
 				`<br>` +
-				`${nameColor(user.name, true)} has rolled <span style="font-size:36px;line-height:1;vertical-align:middle;">${dieChar(opponentRoll)}</span> <b>${opponentRoll}</b>` +
+				`${nameColor(user.name, true)} has rolled <span style="font-size:36px;line-height:1;vertical-align:middle;">${dieChar(opponentRoll)}</span>` +
 				`<hr>${resultLine}` +
 				`</div>`;
 
