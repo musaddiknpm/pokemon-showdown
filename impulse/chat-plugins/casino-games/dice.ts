@@ -13,25 +13,13 @@ interface DiceGame {
 
 const activeGames = new Map<string, DiceGame>();
 
-const DICE_DOTS: Record<number, [number, number][]> = {
-	1: [[20, 20]],
-	2: [[28, 12], [12, 28]],
-	3: [[28, 12], [20, 20], [12, 28]],
-	4: [[12, 12], [28, 12], [12, 28], [28, 28]],
-	5: [[12, 12], [28, 12], [20, 20], [12, 28], [28, 28]],
-	6: [[12, 12], [12, 20], [12, 28], [28, 12], [28, 20], [28, 28]],
+// Unicode dice faces U+2680–U+2685
+const DICE_UNICODE: Record<number, string> = {
+	1: '⚀', 2: '⚁', 3: '⚂', 4: '⚃', 5: '⚄', 6: '⚅',
 };
 
-function dieSVG(face: number, size = 44): string {
-	const dots = (DICE_DOTS[face] ?? DICE_DOTS[1])
-		.map(([cx, cy]) => `<circle cx="${cx}" cy="${cy}" r="3.5" fill="#333"/>`)
-		.join('');
-	return (
-		`<svg width="${size}" height="${size}" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg" style="margin:0 4px;vertical-align:middle;">` +
-		`<rect x="1" y="1" width="38" height="38" rx="6" ry="6" fill="white" stroke="#666" stroke-width="2"/>` +
-		`${dots}` +
-		`</svg>`
-	);
+function dieChar(face: number): string {
+	return DICE_UNICODE[face] ?? DICE_UNICODE[1];
 }
 
 export const commands: Chat.ChatCommands = wrapCommands({
@@ -63,7 +51,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 				`<div class="infobox" style="text-align:center;padding:12px 16px;">` +
 				`<b>${nameColor(user.name, true)}</b> has started a game of dice for <b>${bet}</b> ${CURRENCY_NAME}` +
 				`<br><br>` +
-				`${dieSVG(2)}${dieSVG(5)}${dieSVG(3)}` +
+				`<span style="font-size:32px;">⚀ ⚂ ⚄</span>` +
 				`<br><br>` +
 				`<button class="button" name="send" value="/dice join" style="padding:6px 20px;font-size:13px;">Join The Game</button>` +
 				`</div>`;
@@ -122,9 +110,9 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			const resultHtml =
 				`<div class="infobox" style="text-align:center;padding:12px 16px;">` +
 				`<b>Dice Game Results</b><hr>` +
-				`${nameColor(game.hostName, true)}: ${dieSVG(hostRoll, 36)} <b>${hostRoll}</b>` +
-				`&nbsp;&nbsp;&nbsp;` +
-				`${nameColor(user.name, true)}: ${dieSVG(opponentRoll, 36)} <b>${opponentRoll}</b>` +
+				`${nameColor(game.hostName, true)} rolled <span style="font-size:24px;">${dieChar(hostRoll)}</span> <b>${hostRoll}</b>` +
+				`<br>` +
+				`${nameColor(user.name, true)} rolled <span style="font-size:24px;">${dieChar(opponentRoll)}</span> <b>${opponentRoll}</b>` +
 				`<hr>${resultLine}` +
 				`</div>`;
 
