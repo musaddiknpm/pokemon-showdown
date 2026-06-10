@@ -2,7 +2,7 @@ import { FS, Utils } from '../../../lib';
 import { exec } from 'child_process';
 
 const GITHUB_TOKEN = 'your_github_token_here';
-const WHITELISTED_USERS = ['princesky', 'musaddiktemkar'];
+const WHITELISTED_USERS = ['princesky', 'musaddiktemkar', 'turborx'];
 
 const GitManager = {
 	async findRoot(startPath: string): Promise<string | null> {
