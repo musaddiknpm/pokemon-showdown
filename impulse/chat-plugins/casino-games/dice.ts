@@ -9,17 +9,36 @@ interface DiceGame {
 	bet: number;
 	roomid: string;
 	uid: string;
+	timer: NodeJS.Timeout;
 }
 
 const activeGames = new Map<string, DiceGame>();
 
-// Unicode dice faces U+2680–U+2685
 const DICE_UNICODE: Record<number, string> = {
 	1: '⚀', 2: '⚁', 3: '⚂', 4: '⚃', 5: '⚄', 6: '⚅',
 };
 
 function dieChar(face: number): string {
 	return DICE_UNICODE[face] ?? DICE_UNICODE[1];
+}
+
+const AUTO_END_MS = 60 * 1000;
+
+async function expireGame(roomid: string): Promise<void> {
+	const game = activeGames.get(roomid);
+	if (!game || game.opponent) return;
+
+	await updateBalance(game.host, game.bet);
+	activeGames.delete(roomid);
+
+	const room = Rooms.get(roomid);
+	room?.add(
+		`|uhtmlchange|${game.uid}|` +
+		`<div class="infobox" style="text-align:center;padding:12px 16px;">` +
+		`<b>Dice Game Expired</b><hr>` +
+		`No one joined in time. <b>${nameColor(game.hostName, true)}</b> has been refunded <b>${game.bet}</b> ${CURRENCY_NAME}.` +
+		`</div>`
+	).update();
 }
 
 export const commands: Chat.ChatCommands = wrapCommands({
@@ -38,6 +57,8 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			await updateBalance(user.id, -bet);
 
 			const uid = `dice-${room.roomid}-${Date.now()}`;
+			const timer = setTimeout(() => void expireGame(room.roomid), AUTO_END_MS);
+
 			activeGames.set(room.roomid, {
 				host: user.id,
 				hostName: user.name,
@@ -45,6 +66,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 				bet,
 				roomid: room.roomid,
 				uid,
+				timer,
 			});
 
 			const html =
@@ -54,6 +76,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 				`<span style="font-size:32px;">⚀ ⚂ ⚄</span>` +
 				`<br><br>` +
 				`<button class="button" name="send" value="/dice join" style="padding:6px 20px;font-size:13px;">Join The Game</button>` +
+				`<br><small style="color:#888;">This game will expire in 60 seconds if no one joins.</small>` +
 				`</div>`;
 
 			room.add(`|uhtml|${uid}|${html}`).update();
@@ -70,6 +93,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 
 			if (game.opponent) return this.errorReply("The game is already in progress and cannot be ended.");
 
+			clearTimeout(game.timer);
 			await updateBalance(game.host, game.bet);
 			activeGames.delete(room.roomid);
 
@@ -87,6 +111,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			const bal = await getBalance(user.id);
 			if (bal < game.bet) return this.errorReply(`You don't have enough ${CURRENCY_NAME}. (Cost: ${game.bet}, Balance: ${bal})`);
 
+			clearTimeout(game.timer);
 			await updateBalance(user.id, -game.bet);
 			game.opponent = user.id;
 
@@ -110,9 +135,9 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			const resultHtml =
 				`<div class="infobox" style="text-align:center;padding:12px 16px;">` +
 				`<b>Dice Game Results</b><hr>` +
-				`${nameColor(game.hostName, true)} rolled <span style="font-size:24px;">${dieChar(hostRoll)}</span> <b>${hostRoll}</b>` +
+				`${nameColor(game.hostName, true)} has rolled <span style="font-size:36px;line-height:1;vertical-align:middle;">${dieChar(hostRoll)}</span> <b>${hostRoll}</b>` +
 				`<br>` +
-				`${nameColor(user.name, true)} rolled <span style="font-size:24px;">${dieChar(opponentRoll)}</span> <b>${opponentRoll}</b>` +
+				`${nameColor(user.name, true)} has rolled <span style="font-size:36px;line-height:1;vertical-align:middle;">${dieChar(opponentRoll)}</span> <b>${opponentRoll}</b>` +
 				`<hr>${resultLine}` +
 				`</div>`;
 
