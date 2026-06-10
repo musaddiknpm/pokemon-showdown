@@ -514,7 +514,7 @@ export function processFloorRewards(
 
 					if (isShiny && !starter.shiny) {
 						starter.shiny = true;
-						incrementAccountStat(user.id, 'shiniesUnlocked');
+						incrementAccountStat(userId, 'shiniesUnlocked');
 					}
 
 					if (unlockedEggMove) {
@@ -526,7 +526,7 @@ export function processFloorRewards(
 					}
 				}
 				userData.eggs.splice(i, 1);
-				incrementAccountStat(user.id, 'eggsHatched');
+				incrementAccountStat(userId, 'eggsHatched');
 			}
 		}
 	}
