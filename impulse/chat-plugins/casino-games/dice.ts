@@ -13,6 +13,27 @@ interface DiceGame {
 
 const activeGames = new Map<string, DiceGame>();
 
+const DICE_DOTS: Record<number, [number, number][]> = {
+	1: [[20, 20]],
+	2: [[28, 12], [12, 28]],
+	3: [[28, 12], [20, 20], [12, 28]],
+	4: [[12, 12], [28, 12], [12, 28], [28, 28]],
+	5: [[12, 12], [28, 12], [20, 20], [12, 28], [28, 28]],
+	6: [[12, 12], [12, 20], [12, 28], [28, 12], [28, 20], [28, 28]],
+};
+
+function dieSVG(face: number, size = 44): string {
+	const dots = (DICE_DOTS[face] ?? DICE_DOTS[1])
+		.map(([cx, cy]) => `<circle cx="${cx}" cy="${cy}" r="3.5" fill="#333"/>`)
+		.join('');
+	return (
+		`<svg width="${size}" height="${size}" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg" style="margin:0 4px;vertical-align:middle;">` +
+		`<rect x="1" y="1" width="38" height="38" rx="6" ry="6" fill="white" stroke="#666" stroke-width="2"/>` +
+		`${dots}` +
+		`</svg>`
+	);
+}
+
 export const commands: Chat.ChatCommands = wrapCommands({
 	dice: {
 		async start(target, room, user) {
@@ -38,7 +59,16 @@ export const commands: Chat.ChatCommands = wrapCommands({
 				uid,
 			});
 
-			room.add(`|uhtml|${uid}|<div class="infobox"><b>${nameColor(user.name, true)}</b> started a dice game for <b>${bet}</b> ${CURRENCY_NAME}! Use <code>/dice join</code> to play.</div>`).update();
+			const html =
+				`<div class="infobox" style="text-align:center;padding:12px 16px;">` +
+				`<b>${nameColor(user.name, true)}</b> has started a game of dice for <b>${bet}</b> ${CURRENCY_NAME}` +
+				`<br><br>` +
+				`${dieSVG(2)}${dieSVG(5)}${dieSVG(3)}` +
+				`<br><br>` +
+				`<button class="button" name="send" value="/dice join" style="padding:6px 20px;font-size:13px;">Join The Game</button>` +
+				`</div>`;
+
+			room.add(`|uhtml|${uid}|${html}`).update();
 		},
 
 		async end(target, room, user) {
@@ -55,7 +85,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			await updateBalance(game.host, game.bet);
 			activeGames.delete(room.roomid);
 
-			room.add(`|uhtmlchange|${game.uid}|<div class="infobox">The dice game was cancelled. <b>${nameColor(game.hostName, true)}</b> has been refunded <b>${game.bet}</b> ${CURRENCY_NAME}.</div>`).update();
+			room.add(`|uhtmlchange|${game.uid}|<div class="infobox" style="text-align:center;">The dice game was cancelled. <b>${nameColor(game.hostName, true)}</b> has been refunded <b>${game.bet}</b> ${CURRENCY_NAME}.</div>`).update();
 		},
 
 		async join(target, room, user) {
@@ -74,27 +104,29 @@ export const commands: Chat.ChatCommands = wrapCommands({
 
 			const hostRoll = Math.floor(Math.random() * 6) + 1;
 			const opponentRoll = Math.floor(Math.random() * 6) + 1;
-
-			let resultHtml = `<div class="infobox">`;
-			resultHtml += `<center><b>Dice Game Results</b></center><hr>`;
-			resultHtml += `${nameColor(game.hostName, true)}: rolled <b>${hostRoll}</b><br>`;
-			resultHtml += `${nameColor(user.name, true)}: rolled <b>${opponentRoll}</b><br><hr>`;
-
 			const totalPot = game.bet * 2;
 
+			let resultLine: string;
 			if (hostRoll > opponentRoll) {
 				await updateBalance(game.host, totalPot);
-				resultHtml += `${nameColor(game.hostName, true)} wins <b>${totalPot}</b> ${CURRENCY_NAME}!`;
+				resultLine = `${nameColor(game.hostName, true)} wins <b>${totalPot}</b> ${CURRENCY_NAME}!`;
 			} else if (opponentRoll > hostRoll) {
 				await updateBalance(user.id, totalPot);
-				resultHtml += `${nameColor(user.name, true)} wins <b>${totalPot}</b> ${CURRENCY_NAME}!`;
+				resultLine = `${nameColor(user.name, true)} wins <b>${totalPot}</b> ${CURRENCY_NAME}!`;
 			} else {
 				await updateBalance(game.host, game.bet);
 				await updateBalance(user.id, game.bet);
-				resultHtml += `It's a tie! Both players have been refunded <b>${game.bet}</b> ${CURRENCY_NAME}.`;
+				resultLine = `It's a tie! Both players have been refunded <b>${game.bet}</b> ${CURRENCY_NAME}.`;
 			}
 
-			resultHtml += `</div>`;
+			const resultHtml =
+				`<div class="infobox" style="text-align:center;padding:12px 16px;">` +
+				`<b>Dice Game Results</b><hr>` +
+				`${nameColor(game.hostName, true)}: ${dieSVG(hostRoll, 36)} <b>${hostRoll}</b>` +
+				`&nbsp;&nbsp;&nbsp;` +
+				`${nameColor(user.name, true)}: ${dieSVG(opponentRoll, 36)} <b>${opponentRoll}</b>` +
+				`<hr>${resultLine}` +
+				`</div>`;
 
 			activeGames.delete(room.roomid);
 			room.add(`|uhtmlchange|${game.uid}|${resultHtml}`).update();
