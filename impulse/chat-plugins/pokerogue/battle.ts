@@ -218,8 +218,6 @@ interface BattleRequestPokemon {
 	commanding?: boolean;
 	stats?: { atk?: number, spa?: number };
 	boosts?: Record<string, number>;
-	ability?: string;
-	baseAbility?: string;
 }
 
 interface BattleRequestMove {
@@ -364,7 +362,7 @@ function clearMoveHistory(roomid: string): void {
 
 function getOpponentSpecies(room: AnyObject | null | undefined, slot: number): string {
 	try {
-		const oppActive = ((room?.battle as any)?.stream?.battle || room?.battle)?.p1?.active?.[slot];
+		const oppActive = (room?.battle)?.p1?.active?.[slot];
 		if (isFainted(oppActive)) return '';
 		return toID(oppActive.species?.name ?? '');
 	} catch {
@@ -374,7 +372,7 @@ function getOpponentSpecies(room: AnyObject | null | undefined, slot: number): s
 
 function getOpponentAbility(room: AnyObject | null | undefined, slot: number): string {
 	try {
-		const oppActive = ((room?.battle as any)?.stream?.battle || room?.battle)?.p1?.active?.[slot];
+		const oppActive = (room?.battle)?.p1?.active?.[slot];
 		if (isFainted(oppActive)) return '';
 		return toID(oppActive.ability ?? oppActive.baseAbility ?? '');
 	} catch {
@@ -384,7 +382,7 @@ function getOpponentAbility(room: AnyObject | null | undefined, slot: number): s
 
 function getOpponentMoveTypes(room: AnyObject | null | undefined, slot: number): string[] {
 	try {
-		const oppActive = ((room?.battle as any)?.stream?.battle || room?.battle)?.p1?.active?.[slot];
+		const oppActive = (room?.battle)?.p1?.active?.[slot];
 		if (!oppActive) return [];
 		const species = Dex.species.get(oppActive.species?.name ?? '');
 		return species.exists ? species.types : [];
@@ -415,19 +413,19 @@ function getMatchupContext(room: AnyObject | null | undefined, slot: number, pok
 	};
 
 	try {
-		const oppActive = ((room?.battle as any)?.stream?.battle || room?.battle)?.p1?.active?.[slot];
+		const oppActive = (room?.battle)?.p1?.active?.[slot];
 		if (!isFainted(oppActive)) {
 			ctx.oppStatus = oppActive.status ?? '';
 			ctx.targetCondition = oppActive.condition ?? '';
 		}
 
-		const p1SideConditions = ((room?.battle as any)?.stream?.battle || room?.battle)?.p1?.sideConditions ?? {};
+		const p1SideConditions = (room?.battle)?.p1?.sideConditions ?? {};
 		for (const cond of Object.keys(p1SideConditions)) ctx.hazardsSet.add(cond);
 
-		const p2SideConditions = ((room?.battle as any)?.stream?.battle || room?.battle)?.p2?.sideConditions ?? {};
+		const p2SideConditions = (room?.battle)?.p2?.sideConditions ?? {};
 		for (const cond of Object.keys(p2SideConditions)) ctx.screensSet.add(cond);
 
-		ctx.allyFainted = ((room?.battle as any)?.stream?.battle || room?.battle)?.p2?.pokemon?.some((p: BattlePokemonLike) => isFainted(p)) ?? false;
+		ctx.allyFainted = (room?.battle)?.p2?.pokemon?.some((p: BattlePokemonLike) => isFainted(p)) ?? false;
 	} catch {}
 
 	return ctx;
@@ -797,7 +795,7 @@ function makeAIChoice(requestJson: string, roomid: string, turn: number, gen: nu
 		const numActive = request.active.length;
 
 		const oppActiveSlots: number[] = [];
-		const p1Active = (((room?.battle as any)?.stream?.battle || room?.battle)?.p1?.active ?? []) as BattlePokemonLike[];
+		const p1Active = ((room?.battle)?.p1?.active ?? []) as BattlePokemonLike[];
 		for (let j = 0; j < p1Active.length; j++) {
 			if (!isFainted(p1Active[j])) {
 				oppActiveSlots.push(j);
@@ -867,63 +865,10 @@ function makeAIChoice(requestJson: string, roomid: string, turn: number, gen: nu
 						}
 					}
 				} else {
-					let score = 0;
-					const targetType = moveData.target || 'normal';
-					
-					if (targetType === 'allAdjacentFoes' || targetType === 'allAdjacent' || targetType === 'all') {
-						let anyHit = false;
-						for (const targetSlot of oppActiveSlots) {
-							const targetCtx = getMatchupContext(room, targetSlot, pokemon, gen, turn);
-							let subScore = scoreMove(m, targetCtx);
-							if (subScore > -Infinity) {
-								anyHit = true;
-								score += subScore;
-							}
-						}
-						
-						if (!anyHit) {
-							score = -Infinity;
-						} else if (targetType === 'allAdjacent' || targetType === 'all') {
-							if (numActive > 1) {
-								const allySlot = i === 0 ? 1 : 0;
-								const allyPokemon = request.side?.pokemon?.[allySlot];
-								if (!isFainted(allyPokemon)) {
-									const allySpecies = toID(allyPokemon?.details?.split(',')[0] ?? '');
-									const allyCtx: MatchupContext = {
-										gen, turn,
-										userPokemon: pokemon,
-										userSpecies: toID(pokemon?.details?.split(',')[0] ?? ''),
-										userDex: Dex.species.get(toID(pokemon?.details?.split(',')[0] ?? '')),
-										targetSpecies: allySpecies,
-										targetDex: Dex.species.get(allySpecies),
-										targetAbility: toID(allyPokemon?.ability || allyPokemon?.baseAbility || ''),
-										boosts: pokemon?.boosts ?? {},
-										oppStatus: allyPokemon?.condition?.endsWith(' fnt') ? '' : (allyPokemon?.condition ?? ''),
-										targetCondition: allyPokemon?.condition ?? '',
-										hazardsSet: new Set(), screensSet: new Set(), allyFainted: false,
-									};
-									let allyScore = scoreMove(m, allyCtx);
-									if (allyScore !== -Infinity && allyScore > 0) {
-										score -= allyScore;
-									}
-								}
-							}
-						}
-					} else {
-						score = scoreMove(m, defaultCtx);
-					}
-
-					if (score !== -Infinity) {
-						score *= ppMod;
-					}
-					
+					let score = scoreMove(m, defaultCtx);
+					score *= ppMod;
 					scored.push({ m, originalIdx, score, target: null });
 				}
-			}
-
-			for (let idx = scored.length - 1; idx > 0; idx--) {
-				const randIdx = Math.floor(Math.random() * (idx + 1));
-				[scored[idx], scored[randIdx]] = [scored[randIdx], scored[idx]];
 			}
 
 			scored.sort((a: ScoredMove, b: ScoredMove) => b.score - a.score);
