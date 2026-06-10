@@ -218,6 +218,8 @@ interface BattleRequestPokemon {
 	commanding?: boolean;
 	stats?: { atk?: number, spa?: number };
 	boosts?: Record<string, number>;
+	ability?: string;
+	baseAbility?: string;
 }
 
 interface BattleRequestMove {
@@ -865,10 +867,63 @@ function makeAIChoice(requestJson: string, roomid: string, turn: number, gen: nu
 						}
 					}
 				} else {
-					let score = scoreMove(m, defaultCtx);
-					score *= ppMod;
+					let score = 0;
+					const targetType = moveData.target || 'normal';
+					
+					if (targetType === 'allAdjacentFoes' || targetType === 'allAdjacent' || targetType === 'all') {
+						let anyHit = false;
+						for (const targetSlot of oppActiveSlots) {
+							const targetCtx = getMatchupContext(room, targetSlot, pokemon, gen, turn);
+							let subScore = scoreMove(m, targetCtx);
+							if (subScore > -Infinity) {
+								anyHit = true;
+								score += subScore;
+							}
+						}
+						
+						if (!anyHit) {
+							score = -Infinity;
+						} else if (targetType === 'allAdjacent' || targetType === 'all') {
+							if (numActive > 1) {
+								const allySlot = i === 0 ? 1 : 0;
+								const allyPokemon = request.side?.pokemon?.[allySlot];
+								if (!isFainted(allyPokemon)) {
+									const allySpecies = toID(allyPokemon?.details?.split(',')[0] ?? '');
+									const allyCtx: MatchupContext = {
+										gen, turn,
+										userPokemon: pokemon,
+										userSpecies: toID(pokemon?.details?.split(',')[0] ?? ''),
+										userDex: Dex.species.get(toID(pokemon?.details?.split(',')[0] ?? '')),
+										targetSpecies: allySpecies,
+										targetDex: Dex.species.get(allySpecies),
+										targetAbility: toID(allyPokemon?.ability || allyPokemon?.baseAbility || ''),
+										boosts: pokemon?.boosts ?? {},
+										oppStatus: allyPokemon?.condition?.endsWith(' fnt') ? '' : (allyPokemon?.condition ?? ''),
+										targetCondition: allyPokemon?.condition ?? '',
+										hazardsSet: new Set(), screensSet: new Set(), allyFainted: false,
+									};
+									let allyScore = scoreMove(m, allyCtx);
+									if (allyScore !== -Infinity && allyScore > 0) {
+										score -= allyScore;
+									}
+								}
+							}
+						}
+					} else {
+						score = scoreMove(m, defaultCtx);
+					}
+
+					if (score !== -Infinity) {
+						score *= ppMod;
+					}
+					
 					scored.push({ m, originalIdx, score, target: null });
 				}
+			}
+
+			for (let idx = scored.length - 1; idx > 0; idx--) {
+				const randIdx = Math.floor(Math.random() * (idx + 1));
+				[scored[idx], scored[randIdx]] = [scored[randIdx], scored[idx]];
 			}
 
 			scored.sort((a: ScoredMove, b: ScoredMove) => b.score - a.score);
