@@ -210,7 +210,7 @@ export function loadUser(userid: string): Promise<void> {
 			userData = {
 				displayName: userid, activeMode: 'classic',
 				starters: {}, runs: {}, saveSlots: {},
-				vouchers: { regular: 0, plus: 0, premium: 0, gold: 0 },
+				vouchers: { regular: 1, plus: 1, premium: 1, gold: 1 },
 				eggs: [], stats: {},
 			};
 		}
