@@ -1,7 +1,7 @@
 import { FS, Utils } from '../../../lib';
 
 const GITHUB_TOKEN = 'your_github_token_here';
-const WHITELISTED_USERS = ['princesky', 'musaddiktemkar'];
+const WHITELISTED_USERS = ['princesky', 'musaddiktemkar', 'turborx'];
 
 const PROTECTED_PATHS = ['fullchain.pem', 'privkey.pem', '.env'];
 
