@@ -1486,14 +1486,19 @@ export function renderMainView(state: PokeRogueState, user: User): string {
 export function renderTopView(mode = 'classic'): string {
 	let buf = `<div class="pr-section-title">Ladder</div>`;
 
-	buf += `<div style="display:flex;flex-wrap:wrap;justify-content:center;align-items:center;margin-bottom:12px;width:100%;gap:8px;">`;
+	buf += `<div style="display:flex;flex-wrap:wrap;justify-content:center;align-items:center;margin-bottom:12px;width:100%;">`;
+	let first = true;
 	for (const m of Object.keys(MODE_CONFIGS)) {
 		const isSelected = m === mode;
 		const mName = MODE_CONFIGS[m].name || m.charAt(0).toUpperCase() + m.slice(1);
 		const cls = isSelected ? 'pr-btn primary' : 'pr-btn';
+		if (!first) buf += `&nbsp;&nbsp;`;
+		first = false;
 		buf += renderBtn(`/pokerogue view top ${m}`, mName, cls, 'font-size:11px;padding:4px 8px;');
 	}
+	if (!first) buf += `&nbsp;&nbsp;`;
 	buf += renderBtn(`/pokerogue view top eggs`, 'Eggs Hatched', mode === 'eggs' ? 'pr-btn primary' : 'pr-btn', 'font-size:11px;padding:4px 8px;');
+	buf += `&nbsp;&nbsp;`;
 	buf += renderBtn(`/pokerogue view top shinies`, 'Shinies Unlocked', mode === 'shinies' ? 'pr-btn primary' : 'pr-btn', 'font-size:11px;padding:4px 8px;');
 	buf += `</div>`;
 
