@@ -181,7 +181,6 @@ const SINGLE_TIMEZONES: Record<string, string> = {
 	'cambodia': 'Asia/Phnom_Penh',
 	'kh': 'Asia/Phnom_Penh',
 	'laos': 'Asia/Vientiane',
-	'la': 'Asia/Vientiane',
 	'taiwan': 'Asia/Taipei',
 	'tw': 'Asia/Taipei',
 	'hongkong': 'Asia/Hong_Kong',
@@ -411,7 +410,6 @@ const SINGLE_TIMEZONES: Record<string, string> = {
 	'ck': 'Pacific/Rarotonga',
 	'niue': 'Pacific/Niue',
 	'nu': 'Pacific/Niue',
-	'tonga': 'Pacific/Tongatapu',
 
 	// Africa
 	'southafrica': 'Africa/Johannesburg',
@@ -596,7 +594,6 @@ const SINGLE_TIMEZONES: Record<string, string> = {
 	'manila': 'Asia/Manila',
 	'cebu': 'Asia/Manila',
 	'taipei': 'Asia/Taipei',
-	'hongkong': 'Asia/Hong_Kong',
 	'macaucity': 'Asia/Macau',
 	'beijing': 'Asia/Shanghai',
 	'shanghai': 'Asia/Shanghai',
@@ -687,7 +684,6 @@ const SINGLE_TIMEZONES: Record<string, string> = {
 	'dublin': 'Europe/Dublin',
 	'cork': 'Europe/Dublin',
 	'reykjavik': 'Atlantic/Reykjavik',
-	'luxembourg': 'Europe/Luxembourg',
 	'luxembourgcity': 'Europe/Luxembourg',
 	'valletta': 'Europe/Malta',
 	'tirana': 'Europe/Tirane',
@@ -698,9 +694,7 @@ const SINGLE_TIMEZONES: Record<string, string> = {
 	'ljubljiana': 'Europe/Ljubljana',
 	'pristina': 'Europe/Belgrade',
 	'vaduz': 'Europe/Vaduz',
-	'monaco': 'Europe/Monaco',
 	'sanmarinicity': 'Europe/San_Marino',
-	'vaticancity': 'Europe/Vatican',
 	'andorralavella': 'Europe/Andorra',
 
 	// Cities — Americas
@@ -874,10 +868,8 @@ const SINGLE_TIMEZONES: Record<string, string> = {
 	'lilongwe': 'Africa/Blantyre',
 	'maseru': 'Africa/Maseru',
 	'mbabane': 'Africa/Mbabane',
-	'djibouti': 'Africa/Djibouti',
 	'asmara': 'Africa/Asmara',
 	'praia': 'Atlantic/Cape_Verde',
-	'saotome': 'Africa/Sao_Tome',
 	'moroni': 'Indian/Comoro',
 	'victoria': 'Indian/Mahe',
 };
