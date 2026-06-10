@@ -15,7 +15,9 @@ export const initDB = async (): Promise<void> => {
 					voucher_regular INTEGER DEFAULT 0,
 					voucher_plus INTEGER DEFAULT 0,
 					voucher_premium INTEGER DEFAULT 0,
-					voucher_gold INTEGER DEFAULT 0
+					voucher_gold INTEGER DEFAULT 0,
+					"eggsHatched" INTEGER DEFAULT 0,
+					"shiniesUnlocked" INTEGER DEFAULT 0
 				);
 				CREATE TABLE IF NOT EXISTS pokerogue_runs (
 					userid TEXT NOT NULL,
@@ -111,6 +113,12 @@ export function loadGlobalData() {
 	if (globalDataLoaded) return Promise.resolve();
 	return (async () => {
 		await initDB();
+
+		try {
+			await PG.query(`ALTER TABLE pokerogue_user_profiles ADD COLUMN IF NOT EXISTS "eggsHatched" INTEGER DEFAULT 0;`);
+			await PG.query(`ALTER TABLE pokerogue_user_profiles ADD COLUMN IF NOT EXISTS "shiniesUnlocked" INTEGER DEFAULT 0;`);
+		} catch {}
+		
 		const globalRow = await getGlobalStatsTable().findById('stats');
 		if (globalRow) {
 			globalStats = JSON.parse(globalRow.data as string);
@@ -140,6 +148,8 @@ export function loadUser(userid: string): Promise<void> {
 			userData = {
 				displayName: profileRow.displayName as string,
 				activeMode: profileRow.activeMode as GameMode,
+				eggsHatched: Number(profileRow.eggsHatched) || 0,
+				shiniesUnlocked: Number(profileRow.shiniesUnlocked) || 0,
 				vouchers: {
 					regular: Number(profileRow.voucher_regular),
 					plus: Number(profileRow.voucher_plus),
@@ -274,6 +284,8 @@ export function saveUserData(userid: string): void {
 			userid,
 			displayName,
 			activeMode,
+			eggsHatched: u.eggsHatched || 0,
+			shiniesUnlocked: u.shiniesUnlocked || 0,
 			voucher_regular: vouchers.regular,
 			voucher_plus: vouchers.plus,
 			voucher_premium: vouchers.premium,
@@ -481,3 +493,18 @@ export function recordRunStats(userid: string, mode: GameMode, floor: number, te
 }
 
 void loadGlobalData();
+
+export function incrementAccountStat(userid: string, stat: 'eggsHatched' | 'shiniesUnlocked', amount: number = 1) {
+	const userData = getUserData(userid);
+	if (!userData[stat]) userData[stat] = 0;
+	userData[stat]! += amount;
+	saveUserData(userid);
+
+	if (!globalStats[userid]) {
+		globalStats[userid] = { displayName: userData.displayName, stats: {} };
+	}
+	if (!globalStats[userid][stat]) globalStats[userid][stat] = 0;
+	globalStats[userid][stat]! += amount;
+	globalStats[userid].displayName = userData.displayName;
+	void saveGlobalStats();
+}

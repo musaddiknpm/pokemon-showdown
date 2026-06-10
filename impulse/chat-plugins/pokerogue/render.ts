@@ -1484,6 +1484,42 @@ export function renderMainView(state: PokeRogueState, user: User): string {
 }
 
 export function renderTopView(mode = 'classic'): string {
+	let buf = `<div class="pr-section-title">Ladder</div>`;
+
+	buf += `<div style="display:flex;flex-wrap:wrap;justify-content:center;align-items:center;margin-bottom:12px;width:100%;gap:8px;">`;
+	for (const m of Object.keys(MODE_CONFIGS)) {
+		const isSelected = m === mode;
+		const mName = MODE_CONFIGS[m].name || m.charAt(0).toUpperCase() + m.slice(1);
+		const cls = isSelected ? 'pr-btn primary' : 'pr-btn';
+		buf += renderBtn(`/pokerogue view top ${m}`, mName, cls, 'font-size:11px;padding:4px 8px;');
+	}
+	buf += renderBtn(`/pokerogue view top eggs`, 'Eggs Hatched', mode === 'eggs' ? 'pr-btn primary' : 'pr-btn', 'font-size:11px;padding:4px 8px;');
+	buf += renderBtn(`/pokerogue view top shinies`, 'Shinies Unlocked', mode === 'shinies' ? 'pr-btn primary' : 'pr-btn', 'font-size:11px;padding:4px 8px;');
+	buf += `</div>`;
+
+	if (mode === 'eggs' || mode === 'shinies') {
+		const statKey = mode === 'eggs' ? 'eggsHatched' : 'shiniesUnlocked';
+		const statName = mode === 'eggs' ? 'Eggs Hatched' : 'Shinies Unlocked';
+		const customEntries = Object.entries(globalStats)
+			.map(([userid, s]) => ({ userid, displayName: s.displayName, statValue: s[statKey] || 0 }))
+			.filter(data => data.statValue > 0)
+			.sort((a, b) => b.statValue - a.statValue)
+			.slice(0, 100);
+
+		if (!customEntries.length) return buf + `<div style="text-align:center;padding:16px;color:#888;font-size:13px">No records yet!</div>`;
+
+		buf += `<table class="pr-table" style="width:100%;border-collapse:collapse;">`;
+		buf += `<thead><tr><th>Rank</th><th>Player</th><th>${statName}</th></tr></thead><tbody>`;
+
+		let i = 0;
+		for (const { userid, displayName, statValue } of customEntries) {
+			buf += `<tr><td class="pr-td-desc" style="font-weight:500;white-space:nowrap;">#${i + 1}</td><td class="pr-td-name" style="white-space:nowrap;">${nameColor(displayName || userid, true, false)}</td>`;
+			buf += `<td class="pr-td-desc" style="white-space:nowrap;text-align:center;">${statValue}</td></tr>`;
+			i++;
+		}
+		return buf + `</tbody></table>`;
+	}
+
 	const entries = Object.entries(globalStats)
 		.map(([userid, s]) => {
 			let statsForMode = s.stats?.[mode];
@@ -1510,20 +1546,6 @@ export function renderTopView(mode = 'classic'): string {
 			return b.statsForMode!.activeFloor! - a.statsForMode!.activeFloor!;
 		})
 		.slice(0, 100);
-
-	let buf = `<div class="pr-section-title">Ladder</div>`;
-
-	buf += `<div style="display:flex;flex-wrap:wrap;justify-content:center;align-items:center;margin-bottom:12px;width:100%;">`;
-	let first = true;
-	for (const m of Object.keys(MODE_CONFIGS)) {
-		const isSelected = m === mode;
-		const mName = MODE_CONFIGS[m].name || m.charAt(0).toUpperCase() + m.slice(1);
-		const cls = isSelected ? 'pr-btn primary' : 'pr-btn';
-		if (!first) buf += `&nbsp;&nbsp;`;
-		first = false;
-		buf += renderBtn(`/pokerogue view top ${m}`, mName, cls, 'font-size:11px;padding:4px 8px;');
-	}
-	buf += `</div>`;
 
 	if (!entries.length) return buf + `<div style="text-align:center;padding:16px;color:#888;font-size:13px">No records yet!</div>`;
 

@@ -253,6 +253,8 @@ export interface ModeStats {
 export interface GlobalStatEntry {
 	displayName: string;
 	stats?: Record<string, ModeStats>;
+	eggsHatched?: number;
+	shiniesUnlocked?: number;
 }
 
 export interface EggData {
@@ -273,4 +275,6 @@ export interface UserSaveData {
 	vouchers?: Record<string, number>;
 	eggs?: EggData[];
 	stats?: Record<string, ModeStats>;
+	eggsHatched?: number;
+	shiniesUnlocked?: number;
 }

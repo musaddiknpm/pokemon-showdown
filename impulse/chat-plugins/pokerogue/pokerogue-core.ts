@@ -5,7 +5,7 @@ import { MODE_CONFIGS, MODE_REGISTRY } from './config';
 import { CATCH_RATES } from './pokemon-basic-data';
 import { SHOP_ITEMS, genItem, generateDraftOptions, getRewardMoney, getItemPrice, getRerollCost } from './items';
 import {
-	getState, setState, getUserData, saveUserData, globalStats, saveGlobalStats, recordRunStats,
+	getState, setState, getUserData, saveUserData, globalStats, saveGlobalStats, recordRunStats, incrementAccountStat,
 } from './database';
 import {
 	pickStarterOptions, expForLevel, applyExpAndLevelUp, getLevelUpEvo,
@@ -514,6 +514,7 @@ export function processFloorRewards(
 
 					if (isShiny && !starter.shiny) {
 						starter.shiny = true;
+						incrementAccountStat(user.id, 'shiniesUnlocked');
 					}
 
 					if (unlockedEggMove) {
@@ -525,6 +526,7 @@ export function processFloorRewards(
 					}
 				}
 				userData.eggs.splice(i, 1);
+				incrementAccountStat(user.id, 'eggsHatched');
 			}
 		}
 	}
@@ -1573,9 +1575,13 @@ export function handleCatchAction(target: string, room: AnyObject, user: User, s
 			const starterUnlocks: string[] = [];
 			if (!existingStarter) {
 				starterUnlocks.push(`&nbsp;&nbsp;↳ ${baseDex.name} - Unlocked as a Starter!`);
+				if (caught.shiny) {
+					incrementAccountStat(user.id, 'shiniesUnlocked');
+				}
 			} else {
 				if (!existingStarter.shiny && caught.shiny) {
 					starterUnlocks.push(`&nbsp;&nbsp;↳ ${baseDex.name} - Unlocked Shiny form!`);
+					incrementAccountStat(user.id, 'shiniesUnlocked');
 				}
 				if (unlockedNatures.size > oldNaturesSize) {
 					starterUnlocks.push(`&nbsp;&nbsp;↳ ${baseDex.name} - Unlocked ${caught.nature} Nature.`);

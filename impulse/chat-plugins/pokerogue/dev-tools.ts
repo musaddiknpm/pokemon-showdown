@@ -1,4 +1,4 @@
-import { loadUser, getState, setState, deleteState, getUserData, saveUserData, globalStats, saveGlobalStats, userCache, saveAllData } from './database';
+import { loadUser, getState, setState, deleteState, getUserData, saveUserData, globalStats, saveGlobalStats, userCache, saveAllData, incrementAccountStat } from './database';
 import { getLevelUpEvo, getExpType, getLevelUpMoves, expForLevel, getEggMoves } from './pokemon';
 import { type PokeRogueState, type PokemonEntry, type GameMode } from './types';
 import { nameColor } from '../customization/custom-color';
@@ -245,14 +245,17 @@ export const devCommands: Chat.ChatCommands = {
 					if (!starter.unlockedAbilities.includes(haName)) starter.unlockedAbilities.push(haName);
 				}
 
-				if (isShiny && !starter.shiny) starter.shiny = true;
-
+				if (isShiny && !starter.shiny) {
+					starter.shiny = true;
+					incrementAccountStat(targetId, 'shiniesUnlocked');
+				}
 				if (unlockedEggMove) {
 					if (!starter.unlockedEggMoves) starter.unlockedEggMoves = [];
 					if (!starter.unlockedEggMoves.includes(unlockedEggMove)) starter.unlockedEggMoves.push(unlockedEggMove);
 				}
 			}
 			userData.eggs.splice(i, 1);
+			incrementAccountStat(targetId, 'eggsHatched');
 		}
 
 		if (newlyHatched.length > 0) {
@@ -439,7 +442,7 @@ export const devCommands: Chat.ChatCommands = {
 			let affectedUsers = 0;
 
 			for (const key in globalStats) {
-				delete globalStats[key];
+				globalStats[key].stats = {};
 			}
 
 			for (const userid in userCache) {
@@ -480,7 +483,7 @@ export const devCommands: Chat.ChatCommands = {
 			}
 		}
 
-		if (globalStats[targetId]) delete globalStats[targetId];
+		if (globalStats[targetId]) globalStats[targetId].stats = {};
 
 		saveUserData(targetId);
 		void saveGlobalStats();
