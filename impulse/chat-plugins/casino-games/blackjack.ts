@@ -416,8 +416,20 @@ export const commands: Chat.ChatCommands = wrapCommands({
 				`<b>/bj stand</b>: End your turn.<hr>` +
 				`<b>/bj end</b>: Cancel the game (Host/Moderator only).`
 			);
+		},
+
+		rules() {
+			this.runBroadcast();
+			this.sendReplyBox(
+				`<center><b>Blackjack Rules</b></center><hr>` +
+				`Try to get your hand's value closer to 21 than the dealer's without going over (busting).<br>` +
+				`Number cards are face value, face cards are 10, and Aces can be 1 or 11.<br>` +
+				`Beating the dealer pays 2x your bet, and getting a natural Blackjack pays 2.5x!`
+			);
 		}
 	},
 	blackjackhelp: 'blackjack help',
 	bjhelp: 'blackjack help',
+	blackjackrules: 'blackjack rules',
+	bjrules: 'blackjack rules',
 });
