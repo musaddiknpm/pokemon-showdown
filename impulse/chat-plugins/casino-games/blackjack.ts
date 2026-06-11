@@ -179,19 +179,18 @@ function updateRoom(game: BlackjackGame) {
 	const room = Rooms.get(game.roomid);
 	if (!room) return;
 	
-	let html = `<div class="infobox" style="padding:12px 16px;">`;
-	html += `<center><b>Blackjack</b> (Bet: <b>${game.bet}</b> ${CURRENCY_NAME})</center><hr>`;
+	let html = `<div class="infobox" style="padding:12px 16px; text-align:center;">`;
+	html += `<b>Blackjack</b> (Bet: <b>${game.bet}</b> ${CURRENCY_NAME})<hr>`;
 	
 	if (game.state === 'lobby') {
 		html += `<b>Players in lobby:</b><br>`;
 		for (const p of game.players) {
-			html += `- ${nameColor(p.name, true)}<br>`;
+			html += `${nameColor(p.name, true)}<br>`;
 		}
-		html += `<br><center>`;
+		html += `<br>`;
 		html += `<button class="button" name="send" value="/bj join" style="padding:6px 20px;margin-right:5px;">Join Game</button>`;
 		html += `<button class="button" name="send" value="/bj deal" style="padding:6px 20px;margin-right:5px;">Deal (Host)</button>`;
 		html += `<button class="button" name="send" value="/bj end" style="padding:6px 20px;">Cancel Game (Host)</button>`;
-		html += `</center>`;
 	} else {
 		const hideFirst = game.state === 'playing';
 		const dealerVal = hideFirst ? '?' : calculateHandValue(game.dealerHand);
@@ -211,8 +210,8 @@ function updateRoom(game: BlackjackGame) {
 			}
 
 			const isTurn = game.state === 'playing' && game.turnIndex === i;
-			if (isTurn) html += `<div style="background:#ffffe0;padding:4px;border-radius:4px;margin-bottom:4px;">`;
-			else html += `<div style="padding:4px;margin-bottom:4px;">`;
+			if (isTurn) html += `<div style="border:2px solid #888;padding:4px;border-radius:4px;margin-bottom:4px;">`;
+			else html += `<div style="padding:4px;margin-bottom:4px;border:2px solid transparent;">`;
 			
 			html += `<b>${nameColor(p.name, true)}:</b>${statusStr}<br>`;
 			html += renderHand(p.hand) + `<br>`;
@@ -298,15 +297,15 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			
 			const roomObj = Rooms.get(game.roomid);
 			if (roomObj) {
-				let html = `<div class="infobox" style="padding:12px 16px;">`;
-				html += `<center><b>Blackjack</b> (Bet: <b>${game.bet}</b> ${CURRENCY_NAME})</center><hr>`;
+				let html = `<div class="infobox" style="padding:12px 16px; text-align:center;">`;
+				html += `<b>Blackjack</b> (Bet: <b>${game.bet}</b> ${CURRENCY_NAME})<hr>`;
 				html += `<b>Players in lobby:</b><br>`;
-				html += `- ${nameColor(user.name, true)}<br>`;
-				html += `<br><center>`;
+				html += `${nameColor(user.name, true)}<br>`;
+				html += `<br>`;
 				html += `<button class="button" name="send" value="/bj join" style="padding:6px 20px;margin-right:5px;">Join Game</button>`;
 				html += `<button class="button" name="send" value="/bj deal" style="padding:6px 20px;margin-right:5px;">Deal (Host)</button>`;
 				html += `<button class="button" name="send" value="/bj end" style="padding:6px 20px;">Cancel Game</button>`;
-				html += `</center></div>`;
+				html += `</div>`;
 				roomObj.add(`|uhtml|${game.uid}|${html}`).update();
 			}
 		},
