@@ -191,6 +191,7 @@ function updateRoom(game: BlackjackGame) {
 		html += `<button class="button" name="send" value="/bj join" style="padding:6px 20px;margin-right:5px;">Join Game</button>`;
 		html += `<button class="button" name="send" value="/bj deal" style="padding:6px 20px;margin-right:5px;">Deal (Host)</button>`;
 		html += `<button class="button" name="send" value="/bj end" style="padding:6px 20px;">Cancel Game (Host)</button>`;
+		html += `<br><br><small>This game will automatically start in 60 seconds.</small>`;
 	} else {
 		const hideFirst = game.state === 'playing';
 		const dealerVal = hideFirst ? '?' : calculateHandValue(game.dealerHand);
@@ -305,6 +306,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 				html += `<button class="button" name="send" value="/bj join" style="padding:6px 20px;margin-right:5px;">Join Game</button>`;
 				html += `<button class="button" name="send" value="/bj deal" style="padding:6px 20px;margin-right:5px;">Deal (Host)</button>`;
 				html += `<button class="button" name="send" value="/bj end" style="padding:6px 20px;">Cancel Game</button>`;
+				html += `<br><br><small>This game will automatically start in 60 seconds.</small>`;
 				html += `</div>`;
 				roomObj.add(`|uhtml|${game.uid}|${html}`).update();
 			}

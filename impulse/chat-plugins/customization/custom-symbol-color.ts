@@ -72,8 +72,10 @@ export const commands: Chat.ChatCommands = wrapCommands({
 	symbolcolor: {
 		async set(target, room, user) {
 			this.checkCan('bypassall');
-			const [name, color] = target.split(',').map(s => s.trim());
-			if (!name || !color) return this.parse('/sc help');
+			const [name, rawColor] = target.split(',').map(s => s.trim());
+			if (!name || !rawColor) return this.parse('/sc help');
+			
+			const color = rawColor.startsWith('#') ? rawColor : `#${rawColor}`;
 
 			const targetId = toID(name);
 			if (targetId.length > 19) throw new Chat.ErrorMessage("Username too long.");
@@ -92,8 +94,9 @@ export const commands: Chat.ChatCommands = wrapCommands({
 
 		async update(target, room, user) {
 			this.checkCan('bypassall');
-			const [name, color] = target.split(',').map(s => s.trim());
+			const [name, rawColor] = target.split(',').map(s => s.trim());
 			const targetId = toID(name);
+			const color = rawColor.startsWith('#') ? rawColor : `#${rawColor}`;
 
 			if (!symbolData[targetId]) throw new Chat.ErrorMessage("User does not have a symbol color.");
 			if (!SymbolColorManager.validateColor(color)) throw new Chat.ErrorMessage("Invalid hex color format.");
