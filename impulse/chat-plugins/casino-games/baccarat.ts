@@ -331,8 +331,21 @@ export const commands: Chat.ChatCommands = wrapCommands({
 				`<b>/bacc deal</b>: Deal the cards (Host only).<hr>` +
 				`<b>/bacc end</b>: Cancel the game (Host/Moderator only).`
 			);
+		},
+
+		rules() {
+			this.runBroadcast();
+			this.sendReplyBox(
+				`<center><b>Baccarat Rules</b></center><hr>` +
+				`Bet on which hand (Player or Banker) will be closest to 9.<br>` +
+				`Number cards are face value, Aces are 1, and 10/face cards are 0.<br>` +
+				`Hand values only use the last digit of the sum (e.g., 15 is 5).<br>` +
+				`Winning Player or Banker bets pay 2x, and a Tie bet pays 9x! In the event of a Tie, Player and Banker bets push (refund).`
+			);
 		}
 	},
 	baccarathelp: 'baccarat help',
 	bacchelp: 'baccarat help',
+	baccaratrules: 'baccarat rules',
+	baccrules: 'baccarat rules',
 });

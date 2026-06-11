@@ -154,7 +154,17 @@ export const commands: Chat.ChatCommands = wrapCommands({
 				`<b>/dice join</b>: Join the current Dice game.<hr>` +
 				`<b>/dice end</b>: Cancel the game (Host/Moderator only).`
 			);
+		},
+
+		rules() {
+			this.runBroadcast();
+			this.sendReplyBox(
+				`<center><b>Dice Rules</b></center><hr>` +
+				`Roll a 6-sided die against an opponent. Highest roll wins the entire pot!<br>` +
+				`In the event of a tie, both players are refunded.`
+			);
 		}
 	},
 	dicehelp: 'dice help',
+	dicerules: 'dice rules',
 });
