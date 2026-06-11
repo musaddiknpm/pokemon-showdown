@@ -77,7 +77,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 				`<span style="font-size:32px;">⚀ ⚂ ⚄</span>` +
 				`<br><br>` +
 				`<button class="button" name="send" value="/dice join" style="padding:6px 20px;font-size:13px;">Join The Game</button>` +
-				`<br><small style="color:#888;">This game will expire in 60 seconds if no one joins.</small>` +
+				`<br><br><small style="color:#888;">This game will expire in 60 seconds if no one joins.</small>` +
 				`</div>`;
 
 			room.add(`|uhtml|${uid}|${html}`).update();
