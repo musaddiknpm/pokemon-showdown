@@ -23,184 +23,179 @@ export interface ParsedBattleState {
 	consumedItems: { teamIdx: number, itemId: string }[];
 }
 
-export function parseBattleState(logLines: string[], playerTeam: PokemonEntry[]): ParsedBattleState {
-	const p1TeamHp: Record<number, number> = {};
-	const p1TeamStatus: Record<number, string> = {};
-	const p1FaintedIndices = new Set<number>();
+interface ParseState {
+	p1TeamHp: Record<number, number>;
+	p1TeamStatus: Record<number, string>;
+	p1FaintedIndices: Set<number>;
+	p2Active: Map<string, ParsedPokemonState>;
+	consumedItems: { teamIdx: number, itemId: string }[];
+	p1SlotToTeamIdx: Record<string, number>;
+	p1ActivelyAssigned: Set<number>;
+	itemSlotMap: Record<string, number>;
+	itemAssigned: Set<number>;
+	p1SlotState: Map<string, boolean>;
+	playerTeam: PokemonEntry[];
+}
 
-	const p2Active = new Map<string, ParsedPokemonState>();
-	let p1ActiveFainted = false;
+function handleSwitchEvent(match: RegExpExecArray, state: ParseState) {
+	const slot = match[1];
+	const species = toID(match[2].trim());
+	const level = match[3] ? parseInt(match[3]) : 0;
+	const hp = parseInt(match[4]);
+	const maxHp = match[5] ? parseInt(match[5]) : 100;
+	const status = match[6] || '';
 
-	const consumedItems: { teamIdx: number, itemId: string }[] = [];
+	if (slot.startsWith('p1')) {
+		state.p1SlotState.set(slot, false);
+		const prev = state.p1SlotToTeamIdx[slot];
+		if (prev !== undefined) state.p1ActivelyAssigned.delete(prev);
 
-	const p1SlotToTeamIdx: Record<string, number> = {};
-	const p1ActivelyAssigned = new Set<number>();
-
-	const itemSlotMap: Record<string, number> = {};
-	const itemAssigned = new Set<number>();
-
-	const p1SlotState = new Map<string, boolean>();
-
-	for (const line of logLines) {
-		const swMatch = /^\|(?:switch|drag)\|(p[12][a-z]): [^|]+\|([^|,]+)(?:, L(\d+))?[^|]*\|(\d+)(?:\/(\d+))?(?: (brn|psn|tox|par|slp|frz))?/.exec(line);
-		if (swMatch) {
-			const slot = swMatch[1];
-			const species = toID(swMatch[2].trim());
-			const level = swMatch[3] ? parseInt(swMatch[3]) : 0;
-			const hp = parseInt(swMatch[4]);
-			const maxHp = swMatch[5] ? parseInt(swMatch[5]) : 100;
-			const status = swMatch[6] || '';
-
-			if (slot.startsWith('p1')) {
-				p1SlotState.set(slot, false);
-
-				const prev = p1SlotToTeamIdx[slot];
-				if (prev !== undefined) p1ActivelyAssigned.delete(prev);
-
-				let matched = -1;
-				for (let i = 0; i < playerTeam.length; i++) {
-					if (!p1ActivelyAssigned.has(i) && toID(playerTeam[i].species) === species && !p1FaintedIndices.has(i) && (playerTeam[i].currentHp ?? 100) > 0) {
-						matched = i;
-						break;
-					}
-				}
-				if (matched !== -1) {
-					p1SlotToTeamIdx[slot] = matched;
-					p1ActivelyAssigned.add(matched);
-					p1TeamHp[matched] = hp;
-					p1TeamStatus[matched] = status;
-				}
-
-				const prevItem = itemSlotMap[slot];
-				if (prevItem !== undefined) itemAssigned.delete(prevItem);
-				const logBase = toID(Dex.species.get(species).baseSpecies || species);
-				for (let i = 0; i < playerTeam.length; i++) {
-					const teamBase = toID(Dex.species.get(playerTeam[i].species).baseSpecies || playerTeam[i].species);
-					if (!itemAssigned.has(i) && teamBase === logBase && !p1FaintedIndices.has(i) && (playerTeam[i].currentHp ?? 100) > 0) {
-						itemSlotMap[slot] = i;
-						itemAssigned.add(i);
-						break;
-					}
-				}
-			} else {
-				p2Active.set(slot, { species, level, hp, maxHp, status, fainted: hp <= 0 });
+		let matched = -1;
+		for (let i = 0; i < state.playerTeam.length; i++) {
+			if (!state.p1ActivelyAssigned.has(i) && toID(state.playerTeam[i].species) === species && !state.p1FaintedIndices.has(i) && (state.playerTeam[i].currentHp ?? 100) > 0) {
+				matched = i; break;
 			}
-			continue;
+		}
+		if (matched !== -1) {
+			state.p1SlotToTeamIdx[slot] = matched;
+			state.p1ActivelyAssigned.add(matched);
+			state.p1TeamHp[matched] = hp;
+			state.p1TeamStatus[matched] = status;
 		}
 
-		const dmgMatch = /^\|(?:-damage|-heal)\|(p[12][a-z]): [^|]+\|(\d+)(?:\/(\d+))?(?: (brn|psn|tox|par|slp|frz))?/.exec(line);
-		if (dmgMatch) {
-			const slot = dmgMatch[1];
-			const hp = parseInt(dmgMatch[2]);
-			const maxHp = dmgMatch[3] ? parseInt(dmgMatch[3]) : 100;
-			const status = dmgMatch[4] || '';
-
-			if (slot.startsWith('p1')) {
-				const idx = p1SlotToTeamIdx[slot];
-				if (idx !== undefined) {
-					p1TeamHp[idx] = hp;
-					if (status) p1TeamStatus[idx] = status;
-				}
-			} else {
-				const s = p2Active.get(slot);
-				if (s) {
-					s.hp = hp;
-					if (dmgMatch[3]) s.maxHp = maxHp;
-					if (status) s.status = status;
-				}
+		const prevItem = state.itemSlotMap[slot];
+		if (prevItem !== undefined) state.itemAssigned.delete(prevItem);
+		const logBase = toID(Dex.species.get(species).baseSpecies || species);
+		for (let i = 0; i < state.playerTeam.length; i++) {
+			const teamBase = toID(Dex.species.get(state.playerTeam[i].species).baseSpecies || state.playerTeam[i].species);
+			if (!state.itemAssigned.has(i) && teamBase === logBase && !state.p1FaintedIndices.has(i) && (state.playerTeam[i].currentHp ?? 100) > 0) {
+				state.itemSlotMap[slot] = i;
+				state.itemAssigned.add(i); break;
 			}
-			continue;
 		}
+	} else {
+		state.p2Active.set(slot, { species, level, hp, maxHp, status, fainted: hp <= 0 });
+	}
+}
 
-		const stMatch = /^\|-status\|(p[12][a-z]): [^|]+\|(brn|psn|tox|par|slp|frz)/.exec(line);
-		if (stMatch) {
-			const slot = stMatch[1];
-			const status = stMatch[2];
-			if (slot.startsWith('p1')) {
-				const idx = p1SlotToTeamIdx[slot];
-				if (idx !== undefined) p1TeamStatus[idx] = status;
-			} else {
-				const s = p2Active.get(slot);
-				if (s) s.status = status;
-			}
-			continue;
+function handleDamageEvent(match: RegExpExecArray, state: ParseState) {
+	const slot = match[1];
+	const hp = parseInt(match[2]);
+	const maxHp = match[3] ? parseInt(match[3]) : 100;
+	const status = match[4] || '';
+
+	if (slot.startsWith('p1')) {
+		const idx = state.p1SlotToTeamIdx[slot];
+		if (idx !== undefined) {
+			state.p1TeamHp[idx] = hp;
+			if (status) state.p1TeamStatus[idx] = status;
 		}
-
-		const cureMatch = /^\|-curestatus\|(p[12][a-z]):/.exec(line);
-		if (cureMatch) {
-			const slot = cureMatch[1];
-			if (slot.startsWith('p1')) {
-				const idx = p1SlotToTeamIdx[slot];
-				if (idx !== undefined) p1TeamStatus[idx] = '';
-			} else {
-				const s = p2Active.get(slot);
-				if (s) s.status = '';
-			}
-			continue;
-		}
-
-		const faintMatch = /^\|faint\|(p[12][a-z]):/.exec(line);
-		if (faintMatch) {
-			const slot = faintMatch[1];
-			if (slot.startsWith('p1')) {
-				p1SlotState.set(slot, true);
-
-				const idx = p1SlotToTeamIdx[slot];
-				if (idx !== undefined) {
-					p1TeamHp[idx] = 0;
-					p1TeamStatus[idx] = '';
-					p1FaintedIndices.add(idx);
-					p1ActivelyAssigned.delete(idx);
-					delete p1SlotToTeamIdx[slot];
-				}
-			} else {
-				const s = p2Active.get(slot);
-				if (s) {
-					s.fainted = true;
-					s.hp = 0;
-					s.status = '';
-				}
-			}
-			continue;
-		}
-
-		const endItemMatch = /^\|-enditem\|p1([a-z]): [^|]+\|([^|]+)/.exec(line);
-		if (endItemMatch) {
-			if (line.includes('[from] move: Knock Off') || line.includes('[from] move: Thief') || line.includes('[from] move: Incinerate')) continue;
-			const slot = 'p1' + endItemMatch[1];
-			const itemId = toID(endItemMatch[2].trim());
-			const teamIdx = itemSlotMap[slot];
-			if (teamIdx !== undefined) {
-				consumedItems.push({ teamIdx, itemId });
-			}
+	} else {
+		const s = state.p2Active.get(slot);
+		if (s) {
+			s.hp = hp;
+			if (match[3]) s.maxHp = maxHp;
+			if (status) s.status = status;
 		}
 	}
+}
 
-	if (p1SlotState.size > 0) {
+function handleStatusEvent(match: RegExpExecArray, state: ParseState) {
+	const slot = match[1];
+	const status = match[2];
+	if (slot.startsWith('p1')) {
+		const idx = state.p1SlotToTeamIdx[slot];
+		if (idx !== undefined) state.p1TeamStatus[idx] = status;
+	} else {
+		const s = state.p2Active.get(slot);
+		if (s) s.status = status;
+	}
+}
+
+function handleCureStatusEvent(match: RegExpExecArray, state: ParseState) {
+	const slot = match[1];
+	if (slot.startsWith('p1')) {
+		const idx = state.p1SlotToTeamIdx[slot];
+		if (idx !== undefined) state.p1TeamStatus[idx] = '';
+	} else {
+		const s = state.p2Active.get(slot);
+		if (s) s.status = '';
+	}
+}
+
+function handleFaintEvent(match: RegExpExecArray, state: ParseState) {
+	const slot = match[1];
+	if (slot.startsWith('p1')) {
+		state.p1SlotState.set(slot, true);
+		const idx = state.p1SlotToTeamIdx[slot];
+		if (idx !== undefined) {
+			state.p1TeamHp[idx] = 0;
+			state.p1TeamStatus[idx] = '';
+			state.p1FaintedIndices.add(idx);
+			state.p1ActivelyAssigned.delete(idx);
+			delete state.p1SlotToTeamIdx[slot];
+		}
+	} else {
+		const s = state.p2Active.get(slot);
+		if (s) {
+			s.fainted = true; s.hp = 0; s.status = '';
+		}
+	}
+}
+
+function handleEndItemEvent(line: string, match: RegExpExecArray, state: ParseState) {
+	if (line.includes('[from] move: Knock Off') || line.includes('[from] move: Thief') || line.includes('[from] move: Incinerate')) return;
+	const slot = 'p1' + match[1];
+	const itemId = toID(match[2].trim());
+	const teamIdx = state.itemSlotMap[slot];
+	if (teamIdx !== undefined) {
+		state.consumedItems.push({ teamIdx, itemId });
+	}
+}
+
+export function parseBattleState(logLines: string[], playerTeam: PokemonEntry[]): ParsedBattleState {
+	const state: ParseState = {
+		p1TeamHp: {}, p1TeamStatus: {}, p1FaintedIndices: new Set(),
+		p2Active: new Map(), consumedItems: [], p1SlotToTeamIdx: {},
+		p1ActivelyAssigned: new Set(), itemSlotMap: {}, itemAssigned: new Set(),
+		p1SlotState: new Map(), playerTeam
+	};
+
+	for (const line of logLines) {
+		let match = /^\|(?:switch|drag)\|(p[12][a-z]): [^|]+\|([^|,]+)(?:, L(\d+))?[^|]*\|(\d+)(?:\/(\d+))?(?: (brn|psn|tox|par|slp|frz))?/.exec(line);
+		if (match) { handleSwitchEvent(match, state); continue; }
+		match = /^\|(?:-damage|-heal)\|(p[12][a-z]): [^|]+\|(\d+)(?:\/(\d+))?(?: (brn|psn|tox|par|slp|frz))?/.exec(line);
+		if (match) { handleDamageEvent(match, state); continue; }
+		match = /^\|-status\|(p[12][a-z]): [^|]+\|(brn|psn|tox|par|slp|frz)/.exec(line);
+		if (match) { handleStatusEvent(match, state); continue; }
+		match = /^\|-curestatus\|(p[12][a-z]):/.exec(line);
+		if (match) { handleCureStatusEvent(match, state); continue; }
+		match = /^\|faint\|(p[12][a-z]):/.exec(line);
+		if (match) { handleFaintEvent(match, state); continue; }
+		match = /^\|-enditem\|p1([a-z]): [^|]+\|([^|]+)/.exec(line);
+		if (match) { handleEndItemEvent(line, match, state); continue; }
+	}
+
+	let p1ActiveFainted = false;
+	if (state.p1SlotState.size > 0) {
 		let totalAlive = 0;
 		for (let i = 0; i < playerTeam.length; i++) {
 			let hp = playerTeam[i].currentHp ?? 100;
-			if (p1TeamHp[i] !== undefined) hp = p1TeamHp[i];
-			if (p1FaintedIndices.has(i)) hp = 0;
+			if (state.p1TeamHp[i] !== undefined) hp = state.p1TeamHp[i];
+			if (state.p1FaintedIndices.has(i)) hp = 0;
 			if (hp > 0) totalAlive++;
 		}
-
-		const activeAliveCount = Array.from(p1SlotState.values()).filter(isFainted => !isFainted).length;
-		const hasFaintedSlot = Array.from(p1SlotState.values()).includes(true);
-
+		const activeAliveCount = Array.from(state.p1SlotState.values()).filter(f => !f).length;
+		const hasFaintedSlot = Array.from(state.p1SlotState.values()).includes(true);
 		p1ActiveFainted = activeAliveCount === 0 || (hasFaintedSlot && totalAlive > activeAliveCount);
 	}
 
 	return {
-		p1TeamHp,
-		p1TeamStatus,
-		p1FaintedIndices,
-		p2Active,
-		p1ActiveFainted,
-		consumedItems,
+		p1TeamHp: state.p1TeamHp, p1TeamStatus: state.p1TeamStatus,
+		p1FaintedIndices: state.p1FaintedIndices, p2Active: state.p2Active,
+		p1ActiveFainted, consumedItems: state.consumedItems,
 	};
 }
-
 interface BattlePokemonLike {
 	fainted?: boolean;
 	hp?: number;
@@ -513,63 +508,44 @@ function getDefensiveScore(gen: number, switchInSpecies: string, oppMoveTypes: s
 	return score;
 }
 
-function scoreStatusMove(moveId: string, ctx: MatchupContext): number {
-	const hpRatio = parseHpRatio(ctx.userPokemon?.condition);
-	const boosts = ctx.boosts;
-
-	const alreadyStatused = !!ctx.oppStatus;
-
-	if (['thunderwave', 'glare', 'stunspore'].includes(moveId)) {
-		return alreadyStatused ? -Infinity : 55;
-	}
-
-	if (['spore', 'sleeppowder', 'hypnosis', 'lovelykiss', 'sing', 'darkvoid'].includes(moveId)) {
-		return alreadyStatused ? -Infinity : 65;
-	}
-
-	if (['willowisp', 'scald'].includes(moveId)) {
-		return alreadyStatused ? -Infinity : 50;
-	}
-
-	if (['toxic', 'poisongas', 'poisonpowder'].includes(moveId)) {
-		return alreadyStatused ? -Infinity : 45;
-	}
-
-	if (moveId === 'stealthrock') {
-		return ctx.hazardsSet.has('stealthrock') ? -Infinity : 40;
-	}
-	if (moveId === 'spikes') {
-		const count = (ctx.hazardsSet.has('spikes') ? 1 : 0);
-		return count >= 3 ? -Infinity : 38;
-	}
-	if (moveId === 'toxicspikes') {
-		return ctx.hazardsSet.has('toxicspikes') ? -Infinity : 35;
-	}
-	if (moveId === 'stickyweb') {
-		return ctx.hazardsSet.has('stickyweb') ? -Infinity : 36;
-	}
-
-	if (moveId === 'reflect') return ctx.screensSet.has('reflect') ? -Infinity : 35;
-	if (moveId === 'lightscreen') return ctx.screensSet.has('lightscreen') ? -Infinity : 35;
-	if (moveId === 'auroraveil') return ctx.screensSet.has('auroraveil') ? -Infinity : 38;
-
+function scoreSetupMove(moveId: string, boosts: Record<string, number>, turn: number): number {
 	const setupMoves: Record<string, number> = {
 		swordsdance: 75, nastyplot: 75, calmmind: 70, dragondance: 80,
 		quiverdance: 80, shellsmash: 85, growth: 60, bulkup: 65,
 		coilingcurrent: 70, tidyup: 65, victorydance: 80,
 		agility: 55, rockpolish: 55,
 	};
-	if (setupMoves[moveId] !== undefined) {
-		const relevantBoost = ['calmmind', 'nastyplot', 'quiverdance', 'growth'].includes(moveId) ?
-			(boosts['spa'] ?? 0) :
-			(boosts['atk'] ?? 0);
+	if (setupMoves[moveId] === undefined) return -1;
 
-		if (relevantBoost >= 3) return -Infinity;
+	const relevantBoost = ['calmmind', 'nastyplot', 'quiverdance', 'growth'].includes(moveId) ?
+		(boosts['spa'] ?? 0) : (boosts['atk'] ?? 0);
 
-		const boostPenalty = relevantBoost * 15;
-		const baseScore = ctx.turn <= 3 ? setupMoves[moveId] : setupMoves[moveId] * 0.5;
-		return Math.max(0, baseScore - boostPenalty);
-	}
+	if (relevantBoost >= 3) return -Infinity;
+
+	const boostPenalty = relevantBoost * 15;
+	const baseScore = turn <= 3 ? setupMoves[moveId] : setupMoves[moveId] * 0.5;
+	return Math.max(0, baseScore - boostPenalty);
+}
+
+function scoreStatusMove(moveId: string, ctx: MatchupContext): number {
+	const hpRatio = parseHpRatio(ctx.userPokemon?.condition);
+	const alreadyStatused = !!ctx.oppStatus;
+
+	if (['thunderwave', 'glare', 'stunspore'].includes(moveId)) return alreadyStatused ? -Infinity : 55;
+	if (['spore', 'sleeppowder', 'hypnosis', 'lovelykiss', 'sing', 'darkvoid'].includes(moveId)) return alreadyStatused ? -Infinity : 65;
+	if (['willowisp', 'scald'].includes(moveId)) return alreadyStatused ? -Infinity : 50;
+	if (['toxic', 'poisongas', 'poisonpowder'].includes(moveId)) return alreadyStatused ? -Infinity : 45;
+
+	if (moveId === 'stealthrock') return ctx.hazardsSet.has('stealthrock') ? -Infinity : 40;
+	if (moveId === 'spikes') return (ctx.hazardsSet.has('spikes') ? 1 : 0) >= 3 ? -Infinity : 38;
+	if (moveId === 'toxicspikes') return ctx.hazardsSet.has('toxicspikes') ? -Infinity : 35;
+	if (moveId === 'stickyweb') return ctx.hazardsSet.has('stickyweb') ? -Infinity : 36;
+	if (moveId === 'reflect') return ctx.screensSet.has('reflect') ? -Infinity : 35;
+	if (moveId === 'lightscreen') return ctx.screensSet.has('lightscreen') ? -Infinity : 35;
+	if (moveId === 'auroraveil') return ctx.screensSet.has('auroraveil') ? -Infinity : 38;
+
+	const setupScore = scoreSetupMove(moveId, ctx.boosts, ctx.turn);
+	if (setupScore !== -1) return setupScore;
 
 	if (['recover', 'roost', 'moonlight', 'morningsun', 'synthesis', 'slackoff',
 		'milkdrink', 'softboiled', 'shoreup', 'lifedew', 'healorder'].includes(moveId)) {
@@ -580,10 +556,8 @@ function scoreStatusMove(moveId: string, ctx: MatchupContext): number {
 	}
 
 	if (moveId === 'taunt') return 30;
-
 	return 15;
 }
-
 function scoreMove(move: BattleRequestMove, ctx: MatchupContext): number {
 	const moveData = Dex.moves.get(move.id);
 	if (!moveData.exists) return 0;
@@ -640,6 +614,30 @@ function scoreMove(move: BattleRequestMove, ctx: MatchupContext): number {
 	return score;
 }
 
+function scoreBenchSwitch(p: BattleRequestPokemon, idx: number, ctx: MatchupContext, oppMoveTypes: string[]): ScoredSwitch {
+	const benchSpecies = toID(p.details?.split(',')[0] ?? '');
+	const benchDex = Dex.species.get(benchSpecies);
+	let score = getDefensiveScore(ctx.gen, benchSpecies, oppMoveTypes) * 1.5;
+
+	if (benchDex.exists && ctx.targetDex.exists) {
+		for (const atkType of benchDex.types) {
+			const eff = getTypeMultiplier(ctx.gen, atkType, ctx.targetDex.types);
+			if (eff > 1) score += eff * 2;
+		}
+	}
+	score += parseHpRatio(p.condition) * 8;
+
+	if (ctx.targetDex.exists && benchDex.exists) {
+		for (const atkType of ctx.targetDex.types) {
+			const eff = getTypeMultiplier(ctx.gen, atkType, benchDex.types);
+			if (eff >= 2) score -= 3;
+			if (eff === 0) score += 2;
+		}
+	}
+	if (parseHpRatio(p.condition) < 0.3) score -= 4;
+	return { idx, score };
+}
+
 function shouldSwitch(
 	request: BattleChoiceRequest,
 	activeIdx: number,
@@ -649,16 +647,11 @@ function shouldSwitch(
 ): number {
 	const pokemon = request.side?.pokemon ?? [];
 	const currentPokemon = pokemon[activeIdx];
-	if (!currentPokemon) return 0;
-
 	const active = request.active?.[activeIdx];
-
-	if (active?.trapped || active?.maybeTrapped || active?.partiallyTrapped) return 0;
+	if (!currentPokemon || active?.trapped || active?.maybeTrapped || active?.partiallyTrapped) return 0;
 
 	const hpRatio = parseHpRatio(currentPokemon.condition);
-
-	const moves: BattleRequestMove[] = active?.moves ?? [];
-	const usableMoves = moves.filter((m: BattleRequestMove) => !m.disabled && (m.pp ?? 1) > 0);
+	const usableMoves = (active?.moves ?? []).filter((m: BattleRequestMove) => !m.disabled && (m.pp ?? 1) > 0);
 
 	let bestMoveScore = 0;
 	for (const m of usableMoves) {
@@ -669,68 +662,175 @@ function shouldSwitch(
 	}
 
 	const isWalled = bestMoveScore === 0;
-
 	let worstIncomingEff = 1;
 	if (ctx.targetDex.exists && ctx.userDex.exists) {
 		worstIncomingEff = getWorstIncomingMultiplier(ctx.gen, ctx.targetDex.types, ctx.userDex.types);
 	}
 
-	const inBadMatchup = worstIncomingEff >= 2;
-	const isLowHp = hpRatio < 0.25;
 	const isCriticallyLow = hpRatio < 0.15;
-
-	if (!isWalled && !inBadMatchup && !isLowHp) return 0;
+	if (!isWalled && worstIncomingEff < 2 && hpRatio >= 0.25) return 0;
 	if (hpRatio > 0.65 && !isWalled) return 0;
 
 	const numActive = request.active?.length ?? 0;
-	const oppMoveTypes = getOpponentMoveTypes(room, activeIdx);
-
-	const bench = pokemon
-		.map((p: BattleRequestPokemon, idx: number) => ({ p, idx: idx + 1 }))
-		.filter(({ p, idx }: { p: BattleRequestPokemon, idx: number }) =>
-			idx > numActive &&
-			!isFainted(p) &&
-			!alreadyChosen.includes(idx)
-		);
+	const bench = pokemon.map((p: BattleRequestPokemon, idx: number) => ({ p, idx: idx + 1 }))
+		.filter(({ p, idx }: { p: BattleRequestPokemon, idx: number }) => idx > numActive && !isFainted(p) && !alreadyChosen.includes(idx));
 
 	if (!bench.length) return 0;
-
-	const scored = bench.map(({ p, idx }: { p: BattleRequestPokemon, idx: number }) => {
-		const benchSpecies = toID(p.details?.split(',')[0] ?? '');
-		const benchDex = Dex.species.get(benchSpecies);
-		let score = 0;
-
-		score += getDefensiveScore(ctx.gen, benchSpecies, oppMoveTypes) * 1.5;
-
-		if (benchDex.exists && ctx.targetDex.exists) {
-			for (const atkType of benchDex.types) {
-				const eff = getTypeMultiplier(ctx.gen, atkType, ctx.targetDex.types);
-				if (eff > 1) score += eff * 2;
-			}
-		}
-
-		score += parseHpRatio(p.condition) * 8;
-
-		if (ctx.targetDex.exists && benchDex.exists) {
-			for (const atkType of ctx.targetDex.types) {
-				const eff = getTypeMultiplier(ctx.gen, atkType, benchDex.types);
-				if (eff >= 2) score -= 3;
-				if (eff === 0) score += 2;
-			}
-		}
-
-		const benchHp = parseHpRatio(p.condition);
-		if (benchHp < 0.3) score -= 4;
-
-		return { idx, score };
-	}).sort((a: ScoredSwitch, b: ScoredSwitch) => b.score - a.score);
+	const oppMoveTypes = getOpponentMoveTypes(room, activeIdx);
+	const scored = bench.map(({ p, idx }: { p: BattleRequestPokemon, idx: number }) => scoreBenchSwitch(p, idx, ctx, oppMoveTypes))
+		.sort((a: ScoredSwitch, b: ScoredSwitch) => b.score - a.score);
 
 	const best = scored[0];
-
 	if (isCriticallyLow && bench.length) return scored[0]?.idx ?? 0;
 	if (best && best.score > 3) return best.idx;
-
 	return 0;
+}
+function handleForceSwitch(request: BattleChoiceRequest): string {
+	const choices: string[] = [];
+	const pokemon = request.side?.pokemon ?? [];
+	const chosen: number[] = [];
+	const numActive = (request.forceSwitch ?? []).length;
+
+	for (const forceSwitchEntry of (request.forceSwitch ?? [])) {
+		if (!forceSwitchEntry) {
+			choices.push('pass'); continue;
+		}
+		const available = pokemon.map((p: BattleRequestPokemon, idx: number) => ({ p, idx: idx + 1 }))
+			.filter(({ p, idx }: { p: BattleRequestPokemon, idx: number }) => idx > numActive && !isFainted(p) && !chosen.includes(idx))
+			.sort((a: { p: BattleRequestPokemon, idx: number }, b: { p: BattleRequestPokemon, idx: number }) => parseHpRatio(b.p.condition) - parseHpRatio(a.p.condition));
+
+		if (available.length) {
+			const pick = available[0];
+			chosen.push(pick.idx);
+			choices.push(`switch ${pick.idx}`);
+		} else {
+			choices.push('pass');
+		}
+	}
+	return choices.join(', ');
+}
+
+function processActiveChoices(request: BattleChoiceRequest, roomid: string, turn: number, gen: number, config: ModeConfig): string {
+	const choicesList: string[] = [];
+	const chosenSwitchTargets: number[] = [];
+	const room = Rooms.get(roomid as RoomID);
+	const match = activeMatches.get(roomid as RoomID);
+	const currentFloor = match?.floor ?? 1;
+	const numActive = request.active?.length ?? 0;
+
+	const oppActiveSlots: number[] = [];
+	const p1Active = ((room?.battle)?.p1?.active ?? []) as BattlePokemonLike[];
+	for (let j = 0; j < p1Active.length; j++) if (!isFainted(p1Active[j])) oppActiveSlots.push(j);
+	if (!oppActiveSlots.length) oppActiveSlots.push(0);
+
+	for (let i = 0; i < numActive; i++) {
+		const active = request.active?.[i];
+		const pokemon = request.side?.pokemon?.[i];
+
+		if (!active || !pokemon || isFainted(pokemon) || pokemon.commanding) {
+			choicesList.push('pass'); continue;
+		}
+
+		const primaryTargetSlot = oppActiveSlots[0] || 0;
+		const defaultCtx = getMatchupContext(room, primaryTargetSlot, pokemon, gen, turn);
+		const switchIdx = shouldSwitch(request, i, room, chosenSwitchTargets, defaultCtx);
+
+		if (switchIdx > 0) {
+			chosenSwitchTargets.push(switchIdx); choicesList.push(`switch ${switchIdx}`); continue;
+		}
+
+		const usableMoves = (active?.moves ?? []).filter((m: BattleRequestMove) => !m.disabled && (m.pp ?? 1) > 0);
+		if (!usableMoves.length) {
+			choicesList.push(numActive > 1 ? `move 1 ${oppActiveSlots[0] + 1}` : 'move 1'); continue;
+		}
+
+		const scored = scoreActiveMoves(active.moves ?? [], usableMoves, i, numActive, request, pokemon, roomid, turn, gen, room, oppActiveSlots, defaultCtx);
+		scored.sort((a: ScoredMove, b: ScoredMove) => b.score - a.score);
+
+		let pickIdx = 0;
+		if (scored.length > 1 && scored[0].score > 0 && (scored[1].score / scored[0].score) >= 0.85 && Math.random() < 0.1) pickIdx = 1;
+		const pick = scored[pickIdx];
+
+		let chosen = formatChosenMove(pick, scored, usableMoves, oppActiveSlots, numActive, roomid, i, turn);
+		chosen += evaluateTerastallize(active, config, currentFloor, gen, defaultCtx, pokemon, pick);
+		choicesList.push(chosen);
+	}
+	return choicesList.join(', ') || 'move 1';
+}
+
+function scoreActiveMoves(allMoves: BattleRequestMove[], usableMoves: BattleRequestMove[], i: number, numActive: number, request: BattleChoiceRequest, pokemon: BattleRequestPokemon, roomid: string, turn: number, gen: number, room: AnyObject | null | undefined, oppActiveSlots: number[], defaultCtx: MatchupContext): ScoredMove[] {
+	const scored: ScoredMove[] = [];
+	for (const m of usableMoves) {
+		const moveData = Dex.moves.get(m.id);
+		const originalIdx = allMoves.indexOf(m) + 1;
+		const needsTarget = !['all', 'allAdjacent', 'allAdjacentFoes', 'allySide', 'allyTeam', 'foeSide', 'randomNormal', 'scripted', 'self'].includes(moveData.target || 'normal');
+		const targetsAlly = ['adjacentAlly', 'adjacentAllyOrSelf'].includes(moveData.target || '');
+		
+		let ppMod = 1;
+		const pp = m.pp ?? 99;
+		if (pp > 1) {
+			const turnsSince = turn - getLastUsedTurn(roomid, i, m.id);
+			if (turnsSince === 1) ppMod = 0.72; else if (turnsSince === 2) ppMod = 0.88; else if (turnsSince === 3) ppMod = 0.95;
+		}
+
+		if (needsTarget && numActive > 1) {
+			if (targetsAlly) {
+				const allySlot = i === 0 ? 1 : 0;
+				const allyPokemon = request.side?.pokemon?.[allySlot];
+				let score = isFainted(allyPokemon) ? -Infinity : 5 * ppMod;
+				scored.push({ m, originalIdx, score, target: -(allySlot + 1) });
+			} else {
+				for (const targetSlot of oppActiveSlots) {
+					const targetCtx = getMatchupContext(room, targetSlot, pokemon, gen, turn);
+					let score = scoreMove(m, targetCtx) * ppMod;
+					scored.push({ m, originalIdx, score, target: targetSlot + 1 });
+				}
+			}
+		} else {
+			let score = scoreMove(m, defaultCtx) * ppMod;
+			scored.push({ m, originalIdx, score, target: null });
+		}
+	}
+	return scored;
+}
+
+function formatChosenMove(pick: ScoredMove, scored: ScoredMove[], usableMoves: BattleRequestMove[], oppActiveSlots: number[], numActive: number, roomid: string, i: number, turn: number): string {
+	if (!pick || pick.score === -Infinity || pick.score <= 0) {
+		const fallback = scored.find((s: ScoredMove) => s.score > -Infinity && s.score > 0);
+		if (fallback) {
+			recordMoveUsed(roomid, i, fallback.m.id, turn);
+			return `move ${fallback.originalIdx}${fallback.target ? ` ${fallback.target}` : ''}`;
+		} else {
+			return numActive > 1 ? `move 1 ${oppActiveSlots[0] + 1}` : 'move 1';
+		}
+	} else {
+		recordMoveUsed(roomid, i, pick.m.id, turn);
+		return `move ${pick.originalIdx}${pick.target ? ` ${pick.target}` : ''}`;
+	}
+}
+
+function evaluateTerastallize(active: BattleRequestActive, config: ModeConfig, currentFloor: number, gen: number, defaultCtx: MatchupContext, pokemon: BattleRequestPokemon, pick: ScoredMove): string {
+	if (active.canMegaEvo && config.mechanicUnlocks?.mega && currentFloor >= config.mechanicUnlocks.mega) return ' mega';
+	if (active.canTerastallize && config.mechanicUnlocks?.terastallize && currentFloor >= config.mechanicUnlocks.terastallize) {
+		const teraType = active.teraType;
+		let teraDefensiveOk = true;
+		if (teraType && defaultCtx.targetDex.exists) {
+			const worstTeraIncoming = getWorstIncomingMultiplier(gen, defaultCtx.targetDex.types, [teraType]);
+			if (worstTeraIncoming >= 2) teraDefensiveOk = false;
+		}
+
+		const chosenMoveData = Dex.moves.get(pick?.m?.id ?? '');
+		const teraOffensiveBoost = teraType && chosenMoveData.exists && chosenMoveData.type === teraType;
+		let worstIncoming = 1;
+		if (defaultCtx.targetDex.exists && defaultCtx.userDex.exists) {
+			worstIncoming = getWorstIncomingMultiplier(gen, defaultCtx.targetDex.types, defaultCtx.userDex.types);
+		}
+
+		if (teraDefensiveOk && (worstIncoming >= 2 || currentFloor > 40 || teraOffensiveBoost) && parseHpRatio(pokemon.condition) > 0.3 && Math.random() < 0.7) {
+			return ' terastallize';
+		}
+	}
+	return '';
 }
 
 function makeAIChoice(requestJson: string, roomid: string, turn: number, gen: number, config: ModeConfig): string {
@@ -742,198 +842,15 @@ function makeAIChoice(requestJson: string, roomid: string, turn: number, gen: nu
 	}
 
 	if (!request || request.wait) return 'pass';
-
 	if (request.teamPreview) {
 		const count = request.side?.pokemon?.length ?? 1;
 		const order = Array.from({ length: count }, (_, i) => i + 1);
 		return `team ${order.join('')}`;
 	}
-
-	if (request.forceSwitch) {
-		const choices: string[] = [];
-		const pokemon = request.side?.pokemon ?? [];
-		const chosen: number[] = [];
-		const numActive = (request.forceSwitch).length;
-
-		for (const forceSwitchEntry of (request.forceSwitch)) {
-			if (!forceSwitchEntry) {
-				choices.push('pass');
-				continue;
-			}
-
-			const available = pokemon
-				.map((p: BattleRequestPokemon, idx: number) => ({ p, idx: idx + 1 }))
-				.filter(({ p, idx }: { p: BattleRequestPokemon, idx: number }) =>
-					idx > numActive &&
-					!isFainted(p) &&
-					!chosen.includes(idx)
-				)
-				.sort((a: { p: BattleRequestPokemon, idx: number }, b: { p: BattleRequestPokemon, idx: number }) => {
-					const aHp = parseHpRatio(a.p.condition);
-					const bHp = parseHpRatio(b.p.condition);
-					return bHp - aHp;
-				});
-
-			if (available.length) {
-				const pick = available[0];
-				chosen.push(pick.idx);
-				choices.push(`switch ${pick.idx}`);
-			} else {
-				choices.push('pass');
-			}
-		}
-		return choices.join(', ');
-	}
-
-	if (request.active) {
-		const choicesList: string[] = [];
-		const chosenSwitchTargets: number[] = [];
-
-		const room = Rooms.get(roomid as RoomID);
-		const match = activeMatches.get(roomid as RoomID);
-		const currentFloor = match?.floor ?? 1;
-		const numActive = request.active.length;
-
-		const oppActiveSlots: number[] = [];
-		const p1Active = ((room?.battle)?.p1?.active ?? []) as BattlePokemonLike[];
-		for (let j = 0; j < p1Active.length; j++) {
-			if (!isFainted(p1Active[j])) {
-				oppActiveSlots.push(j);
-			}
-		}
-		if (!oppActiveSlots.length) oppActiveSlots.push(0);
-
-		for (let i = 0; i < numActive; i++) {
-			const active = request.active[i];
-			const pokemon = request.side?.pokemon?.[i];
-
-			if (!active || !pokemon || isFainted(pokemon) || pokemon.commanding) {
-				choicesList.push('pass');
-				continue;
-			}
-
-			const primaryTargetSlot = oppActiveSlots[0] || 0;
-			const defaultCtx = getMatchupContext(room, primaryTargetSlot, pokemon, gen, turn);
-
-			const switchIdx = shouldSwitch(request, i, room, chosenSwitchTargets, defaultCtx);
-			if (switchIdx > 0) {
-				chosenSwitchTargets.push(switchIdx);
-				choicesList.push(`switch ${switchIdx}`);
-				continue;
-			}
-
-			const moves: BattleRequestMove[] = active?.moves ?? [];
-			const usableMoves = moves.filter((m: BattleRequestMove) => !m.disabled && (m.pp ?? 1) > 0);
-
-			if (!usableMoves.length) {
-				choicesList.push(numActive > 1 ? `move 1 ${oppActiveSlots[0] + 1}` : 'move 1');
-				continue;
-			}
-
-			const scored: ScoredMove[] = [];
-
-			for (const m of usableMoves) {
-				const moveData = Dex.moves.get(m.id);
-				const originalIdx = moves.indexOf(m) + 1;
-
-				const needsTarget = !['all', 'allAdjacent', 'allAdjacentFoes', 'allySide', 'allyTeam', 'foeSide', 'randomNormal', 'scripted', 'self'].includes(moveData.target || 'normal');
-				const targetsAlly = ['adjacentAlly', 'adjacentAllyOrSelf'].includes(moveData.target || '');
-
-				let ppMod = 1;
-				const pp = m.pp ?? 99;
-				if (pp > 1) {
-					const lastUsed = getLastUsedTurn(roomid, i, m.id);
-					const turnsSince = turn - lastUsed;
-					if (turnsSince === 1) ppMod = 0.72;
-					else if (turnsSince === 2) ppMod = 0.88;
-					else if (turnsSince === 3) ppMod = 0.95;
-				}
-
-				if (needsTarget && numActive > 1) {
-					if (targetsAlly) {
-						const allySlot = i === 0 ? 1 : 0;
-						const allyPokemon = request.side?.pokemon?.[allySlot];
-						let score = 5 * ppMod;
-						if (isFainted(allyPokemon)) score = -Infinity;
-						scored.push({ m, originalIdx, score, target: -(allySlot + 1) });
-					} else {
-						for (const targetSlot of oppActiveSlots) {
-							const targetCtx = getMatchupContext(room, targetSlot, pokemon, gen, turn);
-							let score = scoreMove(m, targetCtx);
-							score *= ppMod;
-							scored.push({ m, originalIdx, score, target: targetSlot + 1 });
-						}
-					}
-				} else {
-					let score = scoreMove(m, defaultCtx);
-					score *= ppMod;
-					scored.push({ m, originalIdx, score, target: null });
-				}
-			}
-
-			scored.sort((a: ScoredMove, b: ScoredMove) => b.score - a.score);
-
-			let pickIdx = 0;
-			if (scored.length > 1 && scored[0].score > 0) {
-				const ratio = scored[1].score / scored[0].score;
-				if (ratio >= 0.85 && Math.random() < 0.1) pickIdx = 1;
-			}
-
-			const pick = scored[pickIdx];
-			let chosen: string;
-
-			if (!pick || pick.score === -Infinity || pick.score <= 0) {
-				const fallback = scored.find((s: ScoredMove) => s.score > -Infinity && s.score > 0);
-				if (fallback) {
-					chosen = `move ${fallback.originalIdx}${fallback.target ? ` ${fallback.target}` : ''}`;
-					recordMoveUsed(roomid, i, fallback.m.id, turn);
-				} else {
-					chosen = numActive > 1 ? `move 1 ${oppActiveSlots[0] + 1}` : 'move 1';
-				}
-			} else {
-				chosen = `move ${pick.originalIdx}${pick.target ? ` ${pick.target}` : ''}`;
-				recordMoveUsed(roomid, i, pick.m.id, turn);
-			}
-
-			if (active.canMegaEvo && config.mechanicUnlocks?.mega && currentFloor >= config.mechanicUnlocks.mega) {
-				chosen += ' mega';
-			} else if (active.canTerastallize && config.mechanicUnlocks?.terastallize && currentFloor >= config.mechanicUnlocks.terastallize) {
-				const teraType = active.teraType;
-				let teraDefensiveOk = true;
-				if (teraType && defaultCtx.targetDex.exists) {
-					const worstTeraIncoming = getWorstIncomingMultiplier(gen, defaultCtx.targetDex.types, [teraType]);
-					if (worstTeraIncoming >= 2) teraDefensiveOk = false;
-				}
-
-				const chosenMoveId = pick?.m?.id ?? '';
-				const chosenMoveData = Dex.moves.get(chosenMoveId);
-				const teraOffensiveBoost = teraType && chosenMoveData.exists && chosenMoveData.type === teraType;
-
-				let worstIncoming = 1;
-				if (defaultCtx.targetDex.exists && defaultCtx.userDex.exists) {
-					worstIncoming = getWorstIncomingMultiplier(gen, defaultCtx.targetDex.types, defaultCtx.userDex.types);
-				}
-				const hpRatio = parseHpRatio(pokemon.condition);
-
-				if (
-					teraDefensiveOk &&
-					(worstIncoming >= 2 || currentFloor > 40 || teraOffensiveBoost) &&
-					hpRatio > 0.3 &&
-					Math.random() < 0.7
-				) {
-					chosen += ' terastallize';
-				}
-			}
-
-			choicesList.push(chosen);
-		}
-
-		return choicesList.join(', ') || 'move 1';
-	}
-
+	if (request.forceSwitch) return handleForceSwitch(request);
+	if (request.active) return processActiveChoices(request, roomid, turn, gen, config);
 	return 'move 1';
 }
-
 export function destroyBotUser(botUser: User): void {
 	botBattleHandlers.delete(botUser.id);
 	for (const c of botUser.connections.slice()) {
@@ -944,22 +861,16 @@ export function destroyBotUser(botUser: User): void {
 	}
 }
 
-function createBotUser(playerId: string): User {
-	const uid = ++botCounter;
-	const connId = `pokerogue-bot-${uid}`;
-	const botInternalName = `pokeroguebot${uid}`;
-
+function cleanupStaleBotMatch(playerId: string) {
 	let staleRoomId: RoomID | undefined;
 	for (const [roomId, match] of activeMatches) {
 		if (match.userId === toID(playerId)) {
-			staleRoomId = roomId;
-			break;
+			staleRoomId = roomId; break;
 		}
 	}
 	if (staleRoomId !== undefined) {
 		const room = Rooms.get(staleRoomId);
-		const battleEnded = !room?.battle || room.battle.ended;
-		if (battleEnded) {
+		if (!room?.battle || room.battle.ended) {
 			const staleMatch = activeMatches.get(staleRoomId);
 			if (staleMatch) {
 				const staleBot = Users.get(staleMatch.botUserId);
@@ -968,16 +879,16 @@ function createBotUser(playerId: string): User {
 			activeMatches.delete(staleRoomId);
 		}
 	}
+}
 
-	const conn = new Users.Connection(
-		connId,
-		noopWorker,
-		String(uid),
-		null,
-		'127.0.0.1',
-		null
-	);
+function createBotUser(playerId: string): User {
+	const uid = ++botCounter;
+	const connId = `pokerogue-bot-${uid}`;
+	const botInternalName = `pokeroguebot${uid}`;
 
+	cleanupStaleBotMatch(playerId);
+
+	const conn = new Users.Connection(connId, noopWorker, String(uid), null, '127.0.0.1', null);
 	const botUser = new Users.User(conn);
 	conn.user = botUser;
 
@@ -996,20 +907,15 @@ function createBotUser(playerId: string): User {
 					setTimeout(() => {
 						const handler = botBattleHandlers.get(botUser.id);
 						if (handler) handler(roomidStr, line);
-					}, 150);
-					break;
+					}, 150); break;
 				} else if (line.startsWith('|error|[Invalid choice]')) {
-					setTimeout(() => {
-						void Rooms.get(roomidStr)?.battle?.stream.write(`>p2 default`);
-					}, 50);
+					setTimeout(() => { void Rooms.get(roomidStr)?.battle?.stream.write(`>p2 default`); }, 50);
 				}
 			}
 		}
 	};
-
 	return botUser;
 }
-
 function buildBotTeam(state: PokeRogueState): { packedTeam: string, isTrainer: boolean, trainerName?: string, team: AIPokemonSet[] } {
 	const config = MODE_CONFIGS[state.gameMode] || MODE_CONFIGS['classic'];
 	const data = MODE_REGISTRY[state.gameMode] || MODE_REGISTRY['classic'];
@@ -1053,71 +959,36 @@ function buildBotTeam(state: PokeRogueState): { packedTeam: string, isTrainer: b
 	};
 }
 
-export function startBattle(user: User, state: PokeRogueState): boolean {
-	const livingTeam = state.team.filter(m => (m.currentHp ?? 100) > 0);
-
-	if (!livingTeam.length) {
-		user.popup('All your Pokémon have fainted! Use a Revive from the shop before battling.');
-		return false;
-	}
-
-	const playerTeam = packTeam(livingTeam);
-
-	const botTeamData = buildBotTeam(state);
-	const botTeam = botTeamData.packedTeam;
+function createBattleRoom(user: User, botUser: User, botTeamData: any, state: PokeRogueState, isBoss: boolean, config: ModeConfig, livingTeam: PokemonEntry[], playerTeam: string): AnyObject | null {
 	const isTrainer = botTeamData.isTrainer;
-	const trainerName = botTeamData.trainerName;
-
-	const config = MODE_CONFIGS[state.gameMode] || MODE_CONFIGS['classic'];
-	const isBoss = state.floor % config.bossInterval === 0;
-
 	const isDoubles = !isTrainer && !isBoss && botTeamData.team.length > 1 && livingTeam.length > 1;
+	const format = (isDoubles && config.doublesFormat) ? config.doublesFormat : config.baseFormat;
 
-	if (state.pendingTrainer) {
-		delete state.pendingTrainer;
-	}
-	if (state.pendingTrainerKey) {
-		delete state.pendingTrainerKey;
-	}
-
-	const botUser = createBotUser(user.id);
-
-	let opponentTitle = isTrainer && trainerName ? trainerName : (isTrainer ? TRAINER_NAME : 'Wild Encounter');
+	let opponentTitle = isTrainer && botTeamData.trainerName ? botTeamData.trainerName : (isTrainer ? TRAINER_NAME : 'Wild Encounter');
 	if (isBoss && !isTrainer) opponentTitle = `BOSS ${opponentTitle}`;
 
-	if (isTrainer && trainerName) {
-		botUser.name = trainerName;
+	if (isTrainer && botTeamData.trainerName) {
+		botUser.name = botTeamData.trainerName;
 	} else if (!isTrainer) {
-		const wildNames = botTeamData.team.map(m => Dex.species.get(toID(m.species)).name).filter(Boolean);
+		const wildNames = botTeamData.team.map((m: any) => Dex.species.get(toID(m.species)).name).filter(Boolean);
 		if (wildNames.length) botUser.name = `Wild ${wildNames.join(' & ')}`;
 	}
 
-	const botSlot = 'p2' as const;
-	const format = (isDoubles && config.doublesFormat) ? config.doublesFormat : config.baseFormat;
-
-	let battleRoom: AnyObject | null = null;
 	try {
-		battleRoom = Rooms.createBattle({
-			format,
-			players: [
-				{ user, team: playerTeam },
-				{ user: botUser, team: botTeam },
-			],
-			rated: false,
+		return Rooms.createBattle({
+			format, rated: false,
 			title: `PokéRogue Battle - Floor ${state.floor}: ${user.name} vs ${opponentTitle}`,
+			players: [{ user, team: playerTeam }, { user: botUser, team: botTeamData.packedTeam }],
 		});
 	} catch (e) {
 		destroyBotUser(botUser);
 		user.popup('Failed to start the PokéRogue battle. Please try again.');
 		Monitor.crashlog(e as Error, 'PokéRogue battle creation');
-		return false;
+		return null;
 	}
+}
 
-	if (!battleRoom) {
-		destroyBotUser(botUser);
-		return false;
-	}
-
+function registerBotBattleHandler(botUser: User) {
 	botBattleHandlers.set(botUser.id, (roomid, requestLine) => {
 		void (async () => {
 			const room = Rooms.get(roomid as RoomID);
@@ -1134,27 +1005,19 @@ export function startBattle(user: User, state: PokeRogueState): boolean {
 					gen = activeConfig.generation || 9;
 					if (activeState.floor % activeConfig.bossInterval !== 0 && !match.isTrainerBattle) {
 						const turn = room.battle.turn || 0;
-
 						if (turn > 0 && match.lastPanelTurn !== turn) {
 							const inv = activeState.inventory || {};
-							const pb = inv['pokeball'] || 0;
-							const gb = inv['greatball'] || 0;
-							const ub = inv['ultraball'] || 0;
-							const mb = inv['masterball'] || 0;
-
 							const catchHTML = `<div class="pr-catch-panel" style="padding:8px; background:rgba(0,0,0,0.2); border-radius:6px; text-align:center; margin-top:5px;">` +
 								`<div style="font-weight:bold; margin-bottom:6px; color:#ddd;">Wild Encounter!</div>` +
-								`<button name="send" value="/pokerogue catch pokeball" class="button" ${pb ? '' : 'disabled'}>Poké Ball (${pb})</button> ` +
-								`<button name="send" value="/pokerogue catch greatball" class="button" ${gb ? '' : 'disabled'}>Great Ball (${gb})</button> ` +
-								`<button name="send" value="/pokerogue catch ultraball" class="button" ${ub ? '' : 'disabled'}>Ultra Ball (${ub})</button> ` +
-								`<button name="send" value="/pokerogue catch masterball" class="button" ${mb ? '' : 'disabled'}>Master Ball (${mb})</button>` +
+								`<button name="send" value="/pokerogue catch pokeball" class="button" ${inv['pokeball'] ? '' : 'disabled'}>Poké Ball (${inv['pokeball'] || 0})</button> ` +
+								`<button name="send" value="/pokerogue catch greatball" class="button" ${inv['greatball'] ? '' : 'disabled'}>Great Ball (${inv['greatball'] || 0})</button> ` +
+								`<button name="send" value="/pokerogue catch ultraball" class="button" ${inv['ultraball'] ? '' : 'disabled'}>Ultra Ball (${inv['ultraball'] || 0})</button> ` +
+								`<button name="send" value="/pokerogue catch masterball" class="button" ${inv['masterball'] ? '' : 'disabled'}>Master Ball (${inv['masterball'] || 0})</button>` +
 								`</div>`;
 
 							const playerUser = Users.get(match.userId);
 							if (playerUser) {
-								if (match.lastPanelTurn) {
-									playerUser.sendTo(room, `|uhtmlchange|catchpanel-${match.lastPanelTurn}|`);
-								}
+								if (match.lastPanelTurn) playerUser.sendTo(room, `|uhtmlchange|catchpanel-${match.lastPanelTurn}|`);
 								playerUser.sendTo(room, `|uhtml|catchpanel-${turn}|${catchHTML}`);
 							}
 							match.lastPanelTurn = turn;
@@ -1165,23 +1028,41 @@ export function startBattle(user: User, state: PokeRogueState): boolean {
 
 			const turn = room.battle.turn || 0;
 			const choice = makeAIChoice(requestLine, roomid, turn, gen, activeConfig);
-			void room.battle.stream.write(`>${botSlot} ${choice}`);
+			void room.battle.stream.write(`>p2 ${choice}`);
 		})();
 	});
+}
+
+export function startBattle(user: User, state: PokeRogueState): boolean {
+	const livingTeam = state.team.filter(m => (m.currentHp ?? 100) > 0);
+	if (!livingTeam.length) {
+		user.popup('All your Pokémon have fainted! Use a Revive from the shop before battling.');
+		return false;
+	}
+
+	const config = MODE_CONFIGS[state.gameMode] || MODE_CONFIGS['classic'];
+	const isBoss = state.floor % config.bossInterval === 0;
+	if (state.pendingTrainer) delete state.pendingTrainer;
+	if (state.pendingTrainerKey) delete state.pendingTrainerKey;
+
+	const botTeamData = buildBotTeam(state);
+	const botUser = createBotUser(user.id);
+	const playerTeam = packTeam(livingTeam);
+
+	const battleRoom = createBattleRoom(user, botUser, botTeamData, state, isBoss, config, livingTeam, playerTeam);
+	if (!battleRoom) return false;
+
+	registerBotBattleHandler(botUser);
 
 	state.battleRoomId = battleRoom.roomid;
 	setState(user.id, state);
 
+	const isDoubles = !botTeamData.isTrainer && !isBoss && botTeamData.team.length > 1 && livingTeam.length > 1;
 	activeMatches.set(battleRoom.roomid, {
-		userId: user.id,
-		botUserId: botUser.id,
-		floor: state.floor,
-		isTrainerBattle: isTrainer,
-		botTeam: botTeamData.team,
-		isDoubles,
+		userId: user.id, botUserId: botUser.id, floor: state.floor,
+		isTrainerBattle: botTeamData.isTrainer, botTeam: botTeamData.team, isDoubles,
 	});
 
 	clearMoveHistory(battleRoom.roomid);
-
 	return true;
 }
