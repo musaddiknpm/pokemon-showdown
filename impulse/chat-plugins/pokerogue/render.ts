@@ -415,6 +415,17 @@ export function renderHatchedEggsView(state: PokeRogueState): string {
 	return buf;
 }
 
+function renderTeamTableRowStats(mon: PokemonEntry, spData: any, nature: string, ability: string, bs: any): string {
+	let buf = '';
+	if (mon.status) {
+		buf += `<div style="font-size:9px;color:#ff9800;font-weight:500;margin-top:2px">${mon.status.toUpperCase()}</div>`;
+	}
+	if (nature) buf += `<div class="pr-ct-ability" style="margin-top:4px">Nature: <b>${Utils.escapeHTML(nature)}</b></div>`;
+	if (ability) buf += `<div class="pr-ct-ability" style="margin-top:4px">Ability: <b>${Utils.escapeHTML(ability)}</b></div>`;
+	buf += `<div class="pr-ct-stats" style="margin-top:4px">${renderBaseStatsInline(bs)}</div>`;
+	return buf;
+}
+
 export function renderTeamTableRow(mon: PokemonEntry, actionButton?: string, genNumber = 9, statsButton?: string): string {
 	const spData = Dex.species.get(toID(mon.species));
 	const expNeeded = mon.level < 9999 ? expForLevel(mon.level + 1) - mon.exp : 0;
@@ -450,14 +461,7 @@ export function renderTeamTableRow(mon: PokemonEntry, actionButton?: string, gen
 		buf += `<div class="pr-item-tag">${Utils.escapeHTML(dexHeld.name || mon.heldItem)}</div>`;
 	}
 
-	if (mon.status) {
-		buf += `<div style="font-size:9px;color:#ff9800;font-weight:500;margin-top:2px">${mon.status.toUpperCase()}</div>`;
-	}
-
-	if (nature) buf += `<div class="pr-ct-ability" style="margin-top:4px">Nature: <b>${Utils.escapeHTML(nature)}</b></div>`;
-	if (ability) buf += `<div class="pr-ct-ability" style="margin-top:4px">Ability: <b>${Utils.escapeHTML(ability)}</b></div>`;
-
-	buf += `<div class="pr-ct-stats" style="margin-top:4px">${renderBaseStatsInline(bs)}</div>`;
+	buf += renderTeamTableRowStats(mon, spData, nature, ability, bs);
 
 	if (moves.length) buf += renderMoveList(moves);
 
@@ -477,24 +481,8 @@ export function renderTeamTableRow(mon: PokemonEntry, actionButton?: string, gen
 	return buf;
 }
 
-export function renderDraftView(state: PokeRogueState): string {
-	const currentMoney = state.money || 0;
-	const rerollCost = getRerollCost(state.floor, state.rerollCount || 0);
-	const canReroll = currentMoney >= rerollCost;
-
-	const tierColors: Record<string, string> = {
-		'Common': '#b0b0b0',
-		'Great': '#3b82f6',
-		'Ultra': '#eab308',
-		'Rogue': '#ef4444',
-		'Master': '#a855f7',
-	};
-
-	let buf = `<div style="padding: 10px;">`;
-	buf += renderStatBar(state, false, 'draft');
-
-	buf += `<div class="pr-section-title" style="text-align:left;">Reward Draft</div>`;
-	buf += `<div class="pr-table-container" style="margin-bottom: 16px;"><table class="pr-table" style="width:100%; border-collapse:collapse; font-size:11px; line-height:1.2;">`;
+function renderDraftPendingRewards(state: PokeRogueState, tierColors: Record<string, string>): string {
+	let buf = `<div class="pr-table-container" style="margin-bottom: 16px;"><table class="pr-table" style="width:100%; border-collapse:collapse; font-size:11px; line-height:1.2;">`;
 	buf += `<tbody>`;
 
 	for (let i = 0; i < (state.pendingRewardDraft?.length || 0); i++) {
@@ -517,15 +505,11 @@ export function renderDraftView(state: PokeRogueState): string {
 	}
 
 	buf += `</tbody></table></div>`;
+	return buf;
+}
 
-	buf += `<div style="text-align:center; margin-bottom:20px;">`;
-	buf += renderBtn(canReroll ? '/pokerogue reroll' : null, `Reroll ($${rerollCost})`, `pr-btn ${canReroll ? 'primary' : ''}`, 'font-size:11px;padding:5px 10px', !canReroll);
-	buf += `&nbsp;&nbsp;`;
-	buf += renderBtn('/pokerogue draft skip', 'Skip', 'pr-btn primary', 'font-size:11px;padding:5px 10px');
-	buf += `</div>`;
-
-	buf += `<div class="pr-section-title" style="text-align:left;">Shop</div>`;
-	buf += `<div class="pr-table-container"><table class="pr-table" style="width:100%; border-collapse:collapse; font-size:11px; line-height:1.2;">`;
+function renderDraftShop(state: PokeRogueState, currentMoney: number): string {
+	let buf = `<div class="pr-table-container"><table class="pr-table" style="width:100%; border-collapse:collapse; font-size:11px; line-height:1.2;">`;
 	buf += `<tbody>`;
 
 	const shopItems = Object.entries(SHOP_ITEMS)
@@ -546,7 +530,38 @@ export function renderDraftView(state: PokeRogueState): string {
 		buf += `</td></tr>`;
 	}
 
-	buf += `</tbody></table></div></div>`;
+	buf += `</tbody></table></div>`;
+	return buf;
+}
+
+export function renderDraftView(state: PokeRogueState): string {
+	const currentMoney = state.money || 0;
+	const rerollCost = getRerollCost(state.floor, state.rerollCount || 0);
+	const canReroll = currentMoney >= rerollCost;
+
+	const tierColors: Record<string, string> = {
+		'Common': '#b0b0b0',
+		'Great': '#3b82f6',
+		'Ultra': '#eab308',
+		'Rogue': '#ef4444',
+		'Master': '#a855f7',
+	};
+
+	let buf = `<div style="padding: 10px;">`;
+	buf += renderStatBar(state, false, 'draft');
+
+	buf += `<div class="pr-section-title" style="text-align:left;">Reward Draft</div>`;
+	buf += renderDraftPendingRewards(state, tierColors);
+
+	buf += `<div style="text-align:center; margin-bottom:20px;">`;
+	buf += renderBtn(canReroll ? '/pokerogue reroll' : null, `Reroll ($${rerollCost})`, `pr-btn ${canReroll ? 'primary' : ''}`, 'font-size:11px;padding:5px 10px', !canReroll);
+	buf += `&nbsp;&nbsp;`;
+	buf += renderBtn('/pokerogue draft skip', 'Skip', 'pr-btn primary', 'font-size:11px;padding:5px 10px');
+	buf += `</div>`;
+
+	buf += `<div class="pr-section-title" style="text-align:left;">Shop</div>`;
+	buf += renderDraftShop(state, currentMoney);
+	buf += `</div>`;
 	return buf;
 }
 
@@ -576,97 +591,40 @@ export function renderPendingChoice(state: PokeRogueState): string {
 	return buf + `</div>`;
 }
 
-export function renderStarterSelectionView(state: PokeRogueState, user: User): string {
-	const pending = state.pendingChoice || [];
-	const userData = getUserData(user.id);
+function renderSelectedStarters(state: PokeRogueState): string {
+	let buf = `<div class="pr-section-title">Selected Starters</div>`;
+	buf += `<table style="width:100%;border-collapse:collapse;table-layout:fixed;margin-bottom:12px;"><tbody>`;
 
-	let rawSearch = (state.starterSearch || '').toLowerCase().trim();
-	let sort: 'costAsc' | 'costDesc' | null = null;
-	let filterEgg = false;
+	const TEAM_COLS = 4;
+	for (let i = 0; i < state.team.length; i += TEAM_COLS) {
+		buf += `<tr>`;
+		for (let j = i; j < i + TEAM_COLS; j++) {
+			buf += `<td style="width:25%;text-align:center;padding:4px 2px;vertical-align:top;">`;
+			if (j < state.team.length) {
+				const mon = state.team[j];
+				const cost = getStarterCost(mon.species);
+				const spData = Dex.species.get(mon.species);
 
-	if (rawSearch.includes('cost +') || rawSearch.includes('cost+')) {
-		sort = 'costDesc';
-		rawSearch = rawSearch.replace(/cost\s*\+/, '').trim();
-	} else if (rawSearch.includes('cost -') || rawSearch.includes('cost-')) {
-		sort = 'costAsc';
-		rawSearch = rawSearch.replace(/cost\s*-/, '').trim();
-	}
-
-	if (/\begg\b/.test(rawSearch)) {
-		filterEgg = true;
-		rawSearch = rawSearch.replace(/\begg\b/, '').trim();
-	}
-
-	const search = rawSearch;
-	let currentCost = 0;
-	if (state.team) {
-		for (const mon of state.team) currentCost += getStarterCost(mon.species);
-	}
-
-	const config = MODE_CONFIGS[state.gameMode] || MODE_CONFIGS['classic'];
-	const maxCost = config.maxStarterCost || 10;
-
-	const filtered = pending.filter(sid => {
-		const sp = Dex.species.get(toID(sid));
-		const saved = userData.starters[toID(sid)];
-
-		if (filterEgg && (!saved?.unlockedEggMoves || saved.unlockedEggMoves.length === 0)) return false;
-
-		if (search.length > 0) {
-			if (search === 'shiny') return !!saved?.shiny;
-
-			const types = (sp.types ?? []).map(t => t.toLowerCase());
-			if (types.includes(search)) return true;
-
-			return sp.name.toLowerCase().includes(search) || toID(sid).includes(search);
-		}
-		return true;
-	});
-
-	if (sort === 'costAsc') {
-		filtered.sort((a, b) => getStarterCost(toID(a)) - getStarterCost(toID(b)));
-	} else if (sort === 'costDesc') {
-		filtered.sort((a, b) => getStarterCost(toID(b)) - getStarterCost(toID(a)));
-	}
-
-	let buf = `<h2 class="pr-choice-heading">Choose your starter!</h2>`;
-	buf += `<div style="text-align:center;font-size:11px;margin:-6px 0 12px">`;
-	buf += `Total Cost: <b>${currentCost}/${maxCost}</b>`;
-	buf += `</div>`;
-
-	if (state.team && state.team.length > 0) {
-		buf += `<div class="pr-section-title">Selected Starters</div>`;
-		buf += `<table style="width:100%;border-collapse:collapse;table-layout:fixed;margin-bottom:12px;"><tbody>`;
-
-		const TEAM_COLS = 4;
-		for (let i = 0; i < state.team.length; i += TEAM_COLS) {
-			buf += `<tr>`;
-			for (let j = i; j < i + TEAM_COLS; j++) {
-				buf += `<td style="width:25%;text-align:center;padding:4px 2px;vertical-align:top;">`;
-				if (j < state.team.length) {
-					const mon = state.team[j];
-					const cost = getStarterCost(mon.species);
-					const spData = Dex.species.get(mon.species);
-
-					buf += `<div style="font-size:9px;margin:2px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">`;
-					buf += Utils.escapeHTML(spData.name);
-					if (mon.shiny) buf += ` <span style="color:#fda085"></span>`;
-					buf += `</div>`;
-					buf += `<div style="font-size:9px; color:#fac000;">Cost: ${cost}</div>`;
-					buf += getSprite(mon.species, 40, mon.shiny);
-					buf += `<div style="margin-top:2px;">${renderBtn(`/pokerogue view stats ${j}`, 'Config', 'pr-btn', 'width:90%;padding:2px 0;font-size:10px;')}</div>`;
-					buf += `<div style="margin-top:2px;">${renderBtn(`/pokerogue removestarter ${j}`, 'Remove', 'pr-btn danger', 'width:90%;padding:2px 0;font-size:10px;')}</div>`;
-				}
-				buf += `</td>`;
+				buf += `<div style="font-size:9px;margin:2px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">`;
+				buf += Utils.escapeHTML(spData.name);
+				if (mon.shiny) buf += ` <span style="color:#fda085"></span>`;
+				buf += `</div>`;
+				buf += `<div style="font-size:9px; color:#fac000;">Cost: ${cost}</div>`;
+				buf += getSprite(mon.species, 40, mon.shiny);
+				buf += `<div style="margin-top:2px;">${renderBtn(`/pokerogue view stats ${j}`, 'Config', 'pr-btn', 'width:90%;padding:2px 0;font-size:10px;')}</div>`;
+				buf += `<div style="margin-top:2px;">${renderBtn(`/pokerogue removestarter ${j}`, 'Remove', 'pr-btn danger', 'width:90%;padding:2px 0;font-size:10px;')}</div>`;
 			}
-			buf += `</tr>`;
+			buf += `</td>`;
 		}
-		buf += `</tbody></table>`;
-		buf += `<div style="text-align:center;margin-bottom:12px;">${renderBtn('/pokerogue startrun', 'Start Run!', 'pr-btn primary', 'font-size:14px;padding:6px 12px;')}</div>`;
+		buf += `</tr>`;
 	}
+	buf += `</tbody></table>`;
+	buf += `<div style="text-align:center;margin-bottom:12px;">${renderBtn('/pokerogue startrun', 'Start Run!', 'pr-btn primary', 'font-size:14px;padding:6px 12px;')}</div>`;
+	return buf;
+}
 
-	buf += `<form data-submitsend="/pokerogue startersearch {data}" style="text-align:center;margin-bottom:12px">`;
-	const displaySearch = (state.starterSearch || '');
+function renderStarterSearchForm(displaySearch: string): string {
+	let buf = `<form data-submitsend="/pokerogue startersearch {data}" style="text-align:center;margin-bottom:12px">`;
 	buf += `<input name="data" value="${Utils.escapeHTML(displaySearch)}" placeholder="Name, type, 'shiny', 'egg', 'cost+', 'cost-'" ` +
 		`style="padding:5px 10px;border-radius:6px;border:1px solid rgba(150,150,150,0.4);background:rgba(0,0,0,0.2);color:inherit;font-size:12px;width:240px;" />`;
 	buf += `&nbsp;&nbsp;<button type="submit" class="pr-btn" style="font-size:11px;padding:5px 10px;">Search</button>`;
@@ -674,28 +632,21 @@ export function renderStarterSelectionView(state: PokeRogueState, user: User): s
 		buf += `&nbsp;&nbsp;` + renderBtn('/pokerogue startersearch', 'Clear', 'pr-btn', 'font-size:11px;padding:5px 10px');
 	}
 	buf += `</form>`;
+	return buf;
+}
 
-	if (filtered.length === 0) {
-		buf += `<div style="text-align:center;padding:16px;color:#888;">No Pokémon found for "<b>${Utils.escapeHTML(displaySearch)}</b>".</div>`;
-		return buf;
-	}
-
-	const ITEMS_PER_PAGE = 40;
-	const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
-	let currentPage = state.starterPage || 0;
-
-	if (currentPage >= totalPages) currentPage = Math.max(0, totalPages - 1);
-
-	const paginated = filtered.slice(currentPage * ITEMS_PER_PAGE, (currentPage + 1) * ITEMS_PER_PAGE);
-
-	buf += `<div style="text-align:center; margin-bottom: 8px;">`;
+function renderStarterPagination(currentPage: number, totalPages: number): string {
+	if (totalPages <= 1) return '';
+	let buf = `<div style="text-align:center; margin-bottom: 8px; margin-top: 12px;">`;
 	buf += renderBtn(currentPage > 0 ? `/pokerogue starterpage ${currentPage - 1}` : null, '&#9664; Prev', 'pr-btn', 'font-size:10px;padding:3px 8px;', currentPage === 0);
 	buf += `<span style="font-size:11px; margin: 0 12px;">Page <b>${currentPage + 1}</b> of ${totalPages}</span>`;
 	buf += renderBtn(currentPage < totalPages - 1 ? `/pokerogue starterpage ${currentPage + 1}` : null, 'Next &#9654;', 'pr-btn', 'font-size:10px;padding:3px 8px;', currentPage >= totalPages - 1);
 	buf += `</div>`;
+	return buf;
+}
 
-	buf += `<table style="width:100%;border-collapse:collapse;table-layout:fixed;"><tbody>`;
-
+function renderStarterGrid(paginated: string[], pending: string[], userData: any, state: PokeRogueState, currentCost: number, maxCost: number): string {
+	let buf = `<table style="width:100%;border-collapse:collapse;table-layout:fixed;"><tbody>`;
 	const COLS = 4;
 	for (let i = 0; i < paginated.length; i += COLS) {
 		buf += `<tr>`;
@@ -736,16 +687,62 @@ export function renderStarterSelectionView(state: PokeRogueState, user: User): s
 		}
 		buf += `</tr>`;
 	}
-
 	buf += `</tbody></table>`;
+	return buf;
+}
 
-	if (totalPages > 1) {
-		buf += `<div style="text-align:center; margin-top: 12px;">`;
-		buf += renderBtn(currentPage > 0 ? `/pokerogue starterpage ${currentPage - 1}` : null, '&#9664; Prev', 'pr-btn', 'font-size:10px;padding:3px 8px;', currentPage === 0);
-		buf += `<span style="font-size:11px; margin: 0 12px;">Page <b>${currentPage + 1}</b> of ${totalPages}</span>`;
-		buf += renderBtn(currentPage < totalPages - 1 ? `/pokerogue starterpage ${currentPage + 1}` : null, 'Next &#9654;', 'pr-btn', 'font-size:10px;padding:3px 8px;', currentPage >= totalPages - 1);
-		buf += `</div>`;
-	}
+function filterPendingStarters(pending: string[], userData: any, search: string, filterEgg: boolean): string[] {
+	return pending.filter(sid => {
+		const sp = Dex.species.get(toID(sid));
+		const saved = userData.starters[toID(sid)];
+		if (filterEgg && (!saved?.unlockedEggMoves || saved.unlockedEggMoves.length === 0)) return false;
+		if (search.length > 0) {
+			if (search === 'shiny') return !!saved?.shiny;
+			const types = (sp.types ?? []).map(t => t.toLowerCase());
+			if (types.includes(search)) return true;
+			return sp.name.toLowerCase().includes(search) || toID(sid).includes(search);
+		}
+		return true;
+	});
+}
+
+export function renderStarterSelectionView(state: PokeRogueState, user: User): string {
+	const pending = state.pendingChoice || [];
+	const userData = getUserData(user.id);
+	let rawSearch = (state.starterSearch || '').toLowerCase().trim();
+	let sort: 'costAsc' | 'costDesc' | null = null;
+	let filterEgg = false;
+
+	if (rawSearch.includes('cost +') || rawSearch.includes('cost+')) { sort = 'costDesc'; rawSearch = rawSearch.replace(/cost\s*\+/, '').trim(); }
+	else if (rawSearch.includes('cost -') || rawSearch.includes('cost-')) { sort = 'costAsc'; rawSearch = rawSearch.replace(/cost\s*-/, '').trim(); }
+	if (/\begg\b/.test(rawSearch)) { filterEgg = true; rawSearch = rawSearch.replace(/\begg\b/, '').trim(); }
+
+	let currentCost = 0;
+	if (state.team) for (const mon of state.team) currentCost += getStarterCost(mon.species);
+	const config = MODE_CONFIGS[state.gameMode] || MODE_CONFIGS['classic'];
+	const maxCost = config.maxStarterCost || 10;
+
+	const filtered = filterPendingStarters(pending, userData, rawSearch, filterEgg);
+	if (sort === 'costAsc') filtered.sort((a, b) => getStarterCost(toID(a)) - getStarterCost(toID(b)));
+	else if (sort === 'costDesc') filtered.sort((a, b) => getStarterCost(toID(b)) - getStarterCost(toID(a)));
+
+	let buf = `<h2 class="pr-choice-heading">Choose your starter!</h2>`;
+	buf += `<div style="text-align:center;font-size:11px;margin:-6px 0 12px">Total Cost: <b>${currentCost}/${maxCost}</b></div>`;
+
+	if (state.team && state.team.length > 0) buf += renderSelectedStarters(state);
+	buf += renderStarterSearchForm(state.starterSearch || '');
+
+	if (filtered.length === 0) return buf + `<div style="text-align:center;padding:16px;color:#888;">No Pokémon found for "<b>${Utils.escapeHTML(state.starterSearch || '')}</b>".</div>`;
+
+	const ITEMS_PER_PAGE = 40;
+	const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+	let currentPage = state.starterPage || 0;
+	if (currentPage >= totalPages) currentPage = Math.max(0, totalPages - 1);
+	const paginated = filtered.slice(currentPage * ITEMS_PER_PAGE, (currentPage + 1) * ITEMS_PER_PAGE);
+
+	buf += renderStarterPagination(currentPage, totalPages);
+	buf += renderStarterGrid(paginated, pending, userData, state, currentCost, maxCost);
+	buf += renderStarterPagination(currentPage, totalPages);
 
 	return buf;
 }
@@ -828,18 +825,8 @@ export function renderItemOptions(state: PokeRogueState): string {
 	return buf;
 }
 
-export function renderGiveItem(state: PokeRogueState): string {
-	const dexItem = Dex.items.get(state.pendingItemName);
-	const pendingItemId = toID(state.pendingItemName);
-
-	let actionVerb = 'Give';
-	if (state.pendingItemIsEvo) actionVerb = 'Evolve';
-	if (state.pendingItemIsMega) actionVerb = 'Mega Evolve';
-	if (state.pendingItemIsGmax) actionVerb = 'Gigantamax';
-
-	let buf = `<h2 class="pr-choice-heading">${actionVerb} ${Utils.escapeHTML(dexItem.name || state.pendingItemName!)}?</h2>`;
-	buf += `<div style="font-size:12px;color:#aaa;margin-bottom:8px">Choose a Pokémon:</div><div class="pr-choice-grid">`;
-
+function renderGiveItemChoices(state: PokeRogueState, pendingItemId: string, dexItem: any, actionVerb: string): string {
+	let buf = `<div class="pr-choice-grid">`;
 	for (let i = 0; i < state.team.length; i++) {
 		const mon = state.team[i];
 		const dexSpecies = Dex.species.get(toID(mon.species));
@@ -851,7 +838,6 @@ export function renderGiveItem(state: PokeRogueState): string {
 
 		if (state.pendingItemIsEvo) {
 			const evoList = dexSpecies.evos;
-
 			if (evoList) {
 				for (const newEvo of evoList) {
 					const evoData = Dex.species.get(newEvo);
@@ -892,97 +878,89 @@ export function renderGiveItem(state: PokeRogueState): string {
 		}
 
 		const btnHtml = isCompatible ? renderBtn(`/pokerogue resolve giveitem ${i + 1}`, actionVerb, 'pr-pick-btn') : '';
-
 		buf += renderChoiceRow(getSpriteWithBall(mon.species, 40, mon.ball), flexHtml, btnHtml, isCompatible ? '' : 'opacity:.4;filter:grayscale(80%);');
 	}
+	return buf;
+}
+
+export function renderGiveItem(state: PokeRogueState): string {
+	const dexItem = Dex.items.get(state.pendingItemName);
+	const pendingItemId = toID(state.pendingItemName);
+
+	let actionVerb = 'Give';
+	if (state.pendingItemIsEvo) actionVerb = 'Evolve';
+	if (state.pendingItemIsMega) actionVerb = 'Mega Evolve';
+	if (state.pendingItemIsGmax) actionVerb = 'Gigantamax';
+
+	let buf = `<h2 class="pr-choice-heading">${actionVerb} ${Utils.escapeHTML(dexItem.name || state.pendingItemName!)}?</h2>`;
+	buf += `<div style="font-size:12px;color:#aaa;margin-bottom:8px">Choose a Pokémon:</div>`;
+
+	buf += renderGiveItemChoices(state, pendingItemId, dexItem, actionVerb);
 
 	const cancelText = state.pendingDraftPick ? 'Cancel <small style="color:#888">(return to draft)</small>' : 'Cancel <small style="color:#888">(refund)</small>';
 	buf += renderBtn('/pokerogue resolve giveitem skip', cancelText, 'pr-btn', 'width:100%;padding:8px;margin-top:2px') + `</div>`;
 	return buf;
 }
 
-export function renderConsumable(state: PokeRogueState): string {
-	const activeShop = MODE_REGISTRY[state.gameMode]?.shop || SHOP_ITEMS;
-	const consumableItem = activeShop[state.purchasedItem!];
-	const consumableType = state.pendingConsumableType!;
+function getVitaminEligibility(mon: PokemonEntry, hp: number, consumableItem: any): { disabled: boolean, reason: string } {
+	const evStat = (consumableItem)?.evStat;
+	if (!evStat) return { disabled: true, reason: 'invalid' };
+	if (!mon.evs) mon.evs = { hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 };
+	let totalEvs = 0;
+	for (const val of Object.values(mon.evs as Record<string, number>)) totalEvs += val;
+	const statEv = mon.evs[evStat as StatID] ?? 0;
+	const disabled = hp <= 0 || totalEvs >= 508 || statEv >= 252;
+	const reason = hp <= 0 ? 'fainted' : totalEvs >= 508 ? 'EVs full' : statEv >= 252 ? `${evStat} maxed` : '';
+	return { disabled, reason };
+}
 
-	let buf = `<h2 class="pr-choice-heading">Use ${Utils.escapeHTML(consumableItem?.name ?? state.purchasedItem!)}?</h2>`;
-	buf += `<div style="font-size:12px;color:#aaa;margin-bottom:8px">Choose a Pokémon:</div><div class="pr-choice-grid">`;
+function getTMEligibility(mon: PokemonEntry, hp: number, consumableItem: any, state: PokeRogueState): { disabled: boolean, reason: string } {
+	const moveId = state.purchasedItem!.includes('_') ?
+		state.purchasedItem!.substring(state.purchasedItem!.indexOf('_') + 1).replace(/[^a-z0-9]/g, '') :
+		toID(consumableItem.name.replace(/^TM\d+\s*/i, ''));
+	const moveData = Dex.moves.get(moveId);
+	if (!moveData.exists) return { disabled: true, reason: 'invalid TM' };
+	if (hp <= 0) return { disabled: true, reason: 'fainted' };
+	if (mon.moves.includes(moveData.id)) return { disabled: true, reason: 'already knows' };
+	let canLearn = false, spData = Dex.species.get(mon.species);
+	while (spData && !canLearn) {
+		const learnsetData = Dex.species.getLearnsetData(spData.id)?.learnset;
+		if (learnsetData?.[moveData.id]) canLearn = true;
+		if (spData.prevo) spData = Dex.species.get(spData.prevo);
+		else if (spData.baseSpecies && toID(spData.baseSpecies) !== spData.id) spData = Dex.species.get(spData.baseSpecies);
+		else break;
+	}
+	if (!canLearn) return { disabled: true, reason: 'incompatible' };
+	return { disabled: false, reason: '' };
+}
 
+function getConsumableEligibility(mon: PokemonEntry, consumableType: string, hp: number, consumableItem: any, state: PokeRogueState): { disabled: boolean, reason: string } {
+	let disabled = false, reason = '';
+	switch (consumableType) {
+	case 'healHP': return { disabled: hp >= 100 || hp <= 0, reason: hp <= 0 ? 'fainted' : hp >= 100 ? 'full HP' : '' };
+	case 'revive': return { disabled: hp > 0, reason: hp > 0 ? 'not fainted' : '' };
+	case 'cureStatus': return { disabled: !mon.status || hp <= 0, reason: hp <= 0 ? 'fainted' : !mon.status ? 'no status' : '' };
+	case 'vitamin': return getVitaminEligibility(mon, hp, consumableItem);
+	case 'tm': return getTMEligibility(mon, hp, consumableItem, state);
+	case 'mint':
+	case 'rareCandy':
+		if (hp <= 0) { disabled = true; reason = 'fainted'; }
+		break;
+	case 'xItem':
+		if (hp <= 0) { disabled = true; reason = 'fainted'; }
+		const buffStat = consumableItem?.buffStat;
+		if (buffStat && mon.activeBuffs?.[buffStat]) reason = `active: ${mon.activeBuffs[buffStat]} left`;
+		break;
+	}
+	return { disabled, reason };
+}
+
+function renderConsumableChoices(state: PokeRogueState, consumableType: string, consumableItem: any): string {
+	let buf = `<div class="pr-choice-grid">`;
 	for (let i = 0; i < state.team.length; i++) {
 		const mon = state.team[i];
 		const hp = mon.currentHp ?? 100;
-		let disabled = false, reason = '';
-
-		switch (consumableType) {
-		case 'healHP':
-			disabled = hp >= 100 || hp <= 0;
-			reason = hp <= 0 ? 'fainted' : hp >= 100 ? 'full HP' : '';
-			break;
-		case 'revive':
-			disabled = hp > 0;
-			reason = hp > 0 ? 'not fainted' : '';
-			break;
-		case 'cureStatus':
-			disabled = !mon.status || hp <= 0;
-			reason = hp <= 0 ? 'fainted' : !mon.status ? 'no status' : '';
-			break;
-		case 'vitamin':
-			const evStat = (consumableItem)?.evStat;
-			if (!evStat) { disabled = true; reason = 'invalid'; break; }
-			if (!mon.evs) mon.evs = { hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 };
-			let totalEvs = 0;
-			for (const val of Object.values(mon.evs as Record<string, number>)) totalEvs += val;
-			const statEv = mon.evs[evStat as StatID] ?? 0;
-			disabled = hp <= 0 || totalEvs >= 508 || statEv >= 252;
-			reason = hp <= 0 ? 'fainted' : totalEvs >= 508 ? 'EVs full' : statEv >= 252 ? `${evStat} maxed` : '';
-			break;
-		case 'tm': {
-			const moveId = state.purchasedItem!.includes('_') ?
-				state.purchasedItem!.substring(state.purchasedItem!.indexOf('_') + 1).replace(/[^a-z0-9]/g, '') :
-				toID(consumableItem.name.replace(/^TM\d+\s*/i, ''));
-
-			const moveData = Dex.moves.get(moveId);
-			if (!moveData.exists) { disabled = true; reason = 'invalid TM'; break; }
-			if (hp <= 0) { disabled = true; reason = 'fainted'; break; }
-			if (mon.moves.includes(moveData.id)) { disabled = true; reason = 'already knows'; break; }
-
-			let canLearn = false;
-			let spData = Dex.species.get(mon.species);
-
-			while (spData && !canLearn) {
-				const learnsetData = Dex.species.getLearnsetData(spData.id)?.learnset;
-				if (learnsetData?.[moveData.id]) canLearn = true;
-
-				if (spData.prevo) {
-					spData = Dex.species.get(spData.prevo);
-				} else if (spData.baseSpecies && toID(spData.baseSpecies) !== spData.id) {
-					spData = Dex.species.get(spData.baseSpecies);
-				} else {
-					break;
-				}
-			}
-
-			if (!canLearn) { disabled = true; reason = 'incompatible'; }
-			break;
-		}
-		case 'mint': {
-			if (hp <= 0) { disabled = true; reason = 'fainted'; break; }
-			break;
-		}
-		case 'rareCandy': {
-			if (hp <= 0) { disabled = true; reason = 'fainted'; break; }
-			break;
-		}
-		case 'xItem': {
-			if (hp <= 0) { disabled = true; reason = 'fainted'; break; }
-			const buffStat = consumableItem?.buffStat;
-			if (buffStat && mon.activeBuffs?.[buffStat]) {
-				reason = `active: ${mon.activeBuffs[buffStat]} left`;
-			}
-			break;
-		}
-		}
+		const { disabled, reason } = getConsumableEligibility(mon, consumableType, hp, consumableItem, state);
 
 		let flexHtml = `<span style="font-size:12px;font-weight:500">${Dex.species.get(toID(mon.species)).name}</span> <span style="font-size:10px;color:#888">Lv. ${mon.level}${reason ? ` (${reason})` : ''}</span>`;
 		if (mon.status) flexHtml += `<div style="font-size:9px;color:#ff9800">${mon.status.toUpperCase()}</div>`;
@@ -1003,6 +981,18 @@ export function renderConsumable(state: PokeRogueState): string {
 		const btnHtml = disabled ? '' : renderBtn(`/pokerogue resolve useshopitem ${i + 1}`, 'Use', 'pr-pick-btn');
 		buf += renderChoiceRow(getSpriteWithBall(mon.species, 40, mon.ball), flexHtml, btnHtml, disabled ? 'opacity:.45' : '');
 	}
+	return buf;
+}
+
+export function renderConsumable(state: PokeRogueState): string {
+	const activeShop = MODE_REGISTRY[state.gameMode]?.shop || SHOP_ITEMS;
+	const consumableItem = activeShop[state.purchasedItem!];
+	const consumableType = state.pendingConsumableType!;
+
+	let buf = `<h2 class="pr-choice-heading">Use ${Utils.escapeHTML(consumableItem?.name ?? state.purchasedItem!)}?</h2>`;
+	buf += `<div style="font-size:12px;color:#aaa;margin-bottom:8px">Choose a Pokémon:</div>`;
+
+	buf += renderConsumableChoices(state, consumableType, consumableItem);
 
 	const cancelText = state.pendingDraftPick ? 'Cancel <small style="color:#888">(return to draft)</small>' : 'Cancel <small style="color:#888">(refund)</small>';
 	buf += renderBtn('/pokerogue resolve useshopitem skip', cancelText, 'pr-btn', 'width:100%;padding:8px;margin-top:2px') + `</div>`;
@@ -1133,10 +1123,7 @@ export interface StatsViewModel {
 	teamNav: { isMe: boolean, slot: number, name: string }[];
 }
 
-export function buildStatsViewModel(state: PokeRogueState, user: User, slot: number, activeTab: number): StatsViewModel {
-	const mon = state.team[slot];
-	const spData = Dex.species.get(toID(mon.species));
-
+function buildStatsModelBase(mon: PokemonEntry, spData: any, state: PokeRogueState, user: User) {
 	let showAbilityArrows = false;
 	let showNatureArrows = false;
 	let showTeraArrows = false;
@@ -1153,31 +1140,19 @@ export function buildStatsViewModel(state: PokeRogueState, user: User, slot: num
 		if (starterData) {
 			if ((starterData.unlockedAbilities?.length || 0) > 1) showAbilityArrows = true;
 			if ((starterData.unlockedNatures?.length || 0) > 1) showNatureArrows = true;
-
 			const hasTera = !!MODE_CONFIGS[state.gameMode]?.mechanicUnlocks?.terastallize;
 			if (hasTera && (starterData.unlockedTeraTypes?.length || 0) > 1) showTeraArrows = true;
 		}
 	}
+	return { showAbilityArrows, showNatureArrows, showTeraArrows };
+}
 
-	const natureName = mon.nature || 'Hardy';
-	const nature = Dex.natures.get(natureName) ?? Dex.natures.get('Hardy');
-	const naturePlus = nature?.plus ?? null;
-	const natureMinus = nature?.minus ?? null;
-
-	const abilities = spData.abilities;
-	const rawAbility = mon.ability || abilities[0] || '';
-	const abilityDex = rawAbility ? Dex.abilities.get(rawAbility) : null;
-	const abilityName = abilityDex?.name || rawAbility || 'Unknown';
-	const abilityDesc = abilityDex?.shortDesc || abilityDex?.desc || '';
-
+function calculateStatsAndMax(mon: PokemonEntry, spData: any, naturePlus: string | null, natureMinus: string | null, state: PokeRogueState) {
 	const bs = spData.baseStats ?? { hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 };
 	const ivs = mon.ivs || { hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31 };
 	const evs = mon.evs || { hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 };
 	const statKeys: StatID[] = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'];
-	const statLabels: Record<string, string> = { hp: 'HP', atk: 'Atk', def: 'Def', spa: 'SPA', spd: 'SPD', spe: 'SPE' };
-	const statColors: Record<string, string> = { hp: '#FF5959', atk: '#F5AC78', def: '#FAE078', spa: '#9DB7F5', spd: '#A7DB8D', spe: '#FA92B2' };
-
-	const stats: Record<string, number> = {};
+	const stats: Record<string, number> = {}, maxStats: Record<string, number> = {};
 	for (const stat of statKeys) {
 		if (stat === 'hp') {
 			stats.hp = Math.floor((2 * bs.hp + ivs.hp + Math.floor(evs[stat] / 4)) * mon.level / 100) + mon.level + 10;
@@ -1191,7 +1166,6 @@ export function buildStatsViewModel(state: PokeRogueState, user: User, slot: num
 	if (spData.id === 'shedinja') stats.hp = 1;
 
 	const maxStatLevel = MODE_CONFIGS[state.gameMode]?.maxLevel ?? 200;
-	const maxStats: Record<string, number> = {};
 	for (const stat of statKeys) {
 		if (stat === 'hp') {
 			maxStats.hp = spData.id === 'shedinja' ? 1 : Math.floor((2 * bs.hp + 31 + Math.floor(252 / 4)) * maxStatLevel / 100) + maxStatLevel + 10;
@@ -1199,6 +1173,27 @@ export function buildStatsViewModel(state: PokeRogueState, user: User, slot: num
 			maxStats[stat] = Math.floor((Math.floor((2 * bs[stat] + 31 + Math.floor(252 / 4)) * maxStatLevel / 100) + 5) * 1.1);
 		}
 	}
+	return { bs, ivs, evs, statKeys, stats, maxStats };
+}
+
+export function buildStatsViewModel(state: PokeRogueState, user: User, slot: number, activeTab: number): StatsViewModel {
+	const mon = state.team[slot];
+	const spData = Dex.species.get(toID(mon.species));
+	const { showAbilityArrows, showNatureArrows, showTeraArrows } = buildStatsModelBase(mon, spData, state, user);
+
+	const natureName = mon.nature || 'Hardy';
+	const nature = Dex.natures.get(natureName) ?? Dex.natures.get('Hardy');
+	const naturePlus = nature?.plus ?? null, natureMinus = nature?.minus ?? null;
+
+	const abilities = spData.abilities;
+	const rawAbility = mon.ability || abilities[0] || '';
+	const abilityDex = rawAbility ? Dex.abilities.get(rawAbility) : null;
+	const abilityName = abilityDex?.name || rawAbility || 'Unknown';
+	const abilityDesc = abilityDex?.shortDesc || abilityDex?.desc || '';
+
+	const { bs, ivs, evs, statKeys, stats, maxStats } = calculateStatsAndMax(mon, spData, naturePlus, natureMinus, state);
+	const statLabels: Record<string, string> = { hp: 'HP', atk: 'Atk', def: 'Def', spa: 'SPA', spd: 'SPD', spe: 'SPE' };
+	const statColors: Record<string, string> = { hp: '#FF5959', atk: '#F5AC78', def: '#FAE078', spa: '#9DB7F5', spd: '#A7DB8D', spe: '#FA92B2' };
 
 	const hpPct = mon.currentHp ?? 100;
 	const hpColor = hpPct > 50 ? '#4caf50' : hpPct > 25 ? '#ff9800' : '#f44336';
@@ -1217,14 +1212,8 @@ export function buildStatsViewModel(state: PokeRogueState, user: User, slot: num
 	}
 
 	const tabNames = ['Info', 'Stats', 'Moves'];
-	const prevTab = (activeTab - 1 + tabNames.length) % tabNames.length;
-	const nextTab = (activeTab + 1) % tabNames.length;
-
-	const teamNav = state.team.map((m, i) => ({
-		isMe: i === slot,
-		slot: i,
-		name: Dex.species.get(toID(m.species)).name,
-	}));
+	const prevTab = (activeTab - 1 + tabNames.length) % tabNames.length, nextTab = (activeTab + 1) % tabNames.length;
+	const teamNav = state.team.map((m, i) => ({ isMe: i === slot, slot: i, name: Dex.species.get(toID(m.species)).name }));
 
 	let totalEvs = 0;
 	for (const val of Object.values(evs as Record<string, number>)) totalEvs += val;
@@ -1232,203 +1221,190 @@ export function buildStatsViewModel(state: PokeRogueState, user: User, slot: num
 	return {
 		mon, spData, showAbilityArrows, showNatureArrows, showTeraArrows, natureName, naturePlus, natureMinus,
 		abilityName, abilityDesc, bs, ivs, evs, stats, maxStats, totalEvs, hpPct, hpColor,
-		dateStr, heldItem, genderHtml, statusHtml, statKeys, statLabels, statColors,
-		tabNames, prevTab, nextTab, teamNav,
+		dateStr, heldItem, genderHtml, statusHtml, statKeys, statLabels, statColors, tabNames, prevTab, nextTab, teamNav,
 	};
 }
 
-export function renderStatsView(state: PokeRogueState, user: User): string {
-	const slot = state.pendingStatsSlot;
-	const activeTab: number = state.statsTab ?? 0;
-	if (slot === undefined || slot < 0 || slot >= state.team.length) {
-		return `<div class="pr-warning-box">Error loading stats.</div>`;
+function renderStatsTab0(vm: StatsViewModel, state: PokeRogueState, slot: number): string {
+	let buf = `<div class="pr-sv-row"><span class="pr-sv-row-label">Ability</span><div class="pr-sv-row-val">`;
+	if (vm.showAbilityArrows) {
+		buf += `<b>${Utils.escapeHTML(vm.abilityName)}</b>&nbsp;&nbsp;&nbsp;${renderBtn(`/pokerogue cyclestarter ability next ${slot}`, 'Change', 'pr-btn', 'font-size:8px;padding:3px 6px')}`;
+	} else {
+		buf += `<b>${Utils.escapeHTML(vm.abilityName)}</b>`;
+	}
+	if (vm.abilityDesc) buf += `<div class="pr-sv-subdesc">${Utils.escapeHTML(vm.abilityDesc)}</div>`;
+	buf += `</div></div>`;
+
+	let natureSuffix = `<span class="pr-sv-subdesc"></span>`;
+	if (vm.naturePlus && vm.natureMinus) {
+		natureSuffix = ` <span style="color:#16a34a;font-size:10px;font-weight:600">▲${vm.statLabels[vm.naturePlus]}</span> <span style="color:#dc2626;font-size:10px;font-weight:600">▼${vm.statLabels[vm.natureMinus]}</span>`;
+	}
+	buf += `<div class="pr-sv-row"><span class="pr-sv-row-label">Nature</span><div class="pr-sv-row-val">`;
+	if (vm.showNatureArrows) {
+		buf += `<b>${Utils.escapeHTML(vm.natureName)}</b>&nbsp;&nbsp;${natureSuffix}&nbsp;&nbsp;&nbsp;${renderBtn(`/pokerogue cyclestarter nature next ${slot}`, 'Change', 'pr-btn', 'font-size:8px;padding:3px 6px')}`;
+	} else {
+		buf += `<b>${Utils.escapeHTML(vm.natureName)}</b>&nbsp;&nbsp;${natureSuffix}`;
+	}
+	buf += `</div></div>`;
+
+	buf += `<div class="pr-sv-row"><span class="pr-sv-row-label">Item</span><div class="pr-sv-row-val">`;
+	if (vm.heldItem) {
+		buf += `<div style="display:flex; justify-content:space-between; align-items:center;"><div>${getShopItemIcon(vm.heldItem.name, 14)} <b>${Utils.escapeHTML(vm.heldItem.name)}</b>`;
+		if (vm.heldItem.shortDesc) buf += `<div class="pr-sv-subdesc">${Utils.escapeHTML(vm.heldItem.shortDesc)}</div>`;
+		buf += `</div>${renderBtn(`/pokerogue unequip ${slot + 1}`, 'Take Item', 'pr-shop-buy', 'padding:5px 10px; font-size:11px; margin-left: 10px; white-space:nowrap;')}</div>`;
+	} else {
+		buf += `<span style="color:#aaa">None</span>`;
+	}
+	buf += `</div></div>`;
+
+	const hasTera = !!MODE_CONFIGS[state.gameMode]?.mechanicUnlocks?.terastallize;
+	if (vm.mon.teraType && hasTera) {
+		buf += `<div class="pr-sv-row"><span class="pr-sv-row-label">Tera</span><div class="pr-sv-row-val">`;
+		if (vm.showTeraArrows) {
+			buf += `${renderTypeBadge([vm.mon.teraType])}&nbsp;&nbsp;&nbsp;${renderBtn(`/pokerogue cyclestarter tera next ${slot}`, 'Change', 'pr-btn', 'font-size:8px;padding:3px 6px')}`;
+		} else {
+			buf += `${renderTypeBadge([vm.mon.teraType])}`;
+		}
+		buf += `</div></div>`;
 	}
 
-	const vm = buildStatsViewModel(state, user, slot, activeTab);
+	buf += `<div class="pr-sv-divider"></div>`;
 
-	let buf = `<div class="pr-sv-wrap">`;
+	const memo: [string, string][] = [
+		['OT', Utils.escapeHTML(vm.mon.originalTrainer || 'Unknown')],
+		['ID No.', vm.mon.otId || '??????'],
+		['Met at', Utils.escapeHTML(vm.mon.metLocation || 'Unknown')],
+		['Met Lv.', String(vm.mon.metLevel ?? '?')],
+		['Date', vm.dateStr],
+		['Ball', Utils.escapeHTML(vm.mon.ball ? vm.mon.ball.replace('ball', ' Ball').replace(/^./, c => c.toUpperCase()) : 'Poké Ball')],
+	];
+	for (const [label, val] of memo) {
+		buf += `<div class="pr-sv-row"><span class="pr-sv-row-label">${label}</span><div class="pr-sv-row-val">${val}</div></div>`;
+	}
+	return buf;
+}
 
-	buf += `<div class="pr-sv-header">`;
+function renderStatsTab1(vm: StatsViewModel): string {
+	let buf = `<div class="pr-sv-stat-row" style="font-size:9px;color:#888;margin-bottom:4px;font-weight:600"><span class="pr-sv-stat-label"></span><div class="pr-sv-bar-wrap"></div><span class="pr-sv-stat-val">Stat</span><span class="pr-sv-stat-iv">IV</span><span class="pr-sv-stat-iv">EV</span></div>`;
+
+	for (const stat of vm.statKeys) {
+		const iv = vm.ivs[stat] ?? 31;
+		const ev = vm.evs[stat] ?? 0;
+		const actual = vm.stats[stat] ?? 0;
+		const barPct = Math.min(100, Math.round((actual / (vm.maxStats[stat] || 1)) * 100));
+		const isPlus = vm.naturePlus === stat;
+		const isMinus = vm.natureMinus === stat;
+		const valStyle = isPlus ? 'color:#16a34a;font-weight:700' : isMinus ? 'color:#dc2626;font-weight:700' : '';
+		const evStyle = ev > 0 ? 'color:#c4a8ff;font-weight:600' : 'color:#555';
+
+		buf += `<div class="pr-sv-stat-row"><span class="pr-sv-stat-label">${vm.statLabels[stat]}</span>`;
+		buf += `<div class="pr-sv-bar-wrap"><div class="pr-sv-bar" style="width:${barPct}%;background:${vm.statColors[stat]}"></div></div>`;
+		buf += `<span class="pr-sv-stat-val"${valStyle ? ` style="${valStyle}"` : ''}>${actual}</span>`;
+		buf += `<span class="pr-sv-stat-iv" title="IV: ${iv}/31">${iv}</span>`;
+		buf += `<span class="pr-sv-stat-iv" style="${evStyle}" title="EV: ${ev}/252">${ev}</span></div>`;
+	}
+
+	buf += `<div class="pr-sv-bst">EVs <b style="color:#c4a8ff">${vm.totalEvs}</b><span style="color:#555">/508</span></div>`;
+	return buf;
+}
+
+function renderStatsTab2(vm: StatsViewModel, state: PokeRogueState, slot: number, user: User): string {
+	let buf = '';
+	const moves = vm.mon.moves || [];
+	let hasAltMoves = false;
+	if (state.isConfiguringStarter) {
+		let baseSpecies = toID(vm.mon.species);
+		while (true) {
+			const sp = Dex.species.get(baseSpecies);
+			if (!sp.prevo) break;
+			baseSpecies = toID(sp.prevo);
+		}
+		const starterData = getUserData(user.id).starters[baseSpecies];
+		const config = MODE_CONFIGS[state.gameMode] || MODE_CONFIGS['classic'];
+		const allLevel = getAllLevelUpMoves(baseSpecies, vm.mon.level, config.generation || 9);
+		const validEggMoves = getEggMoves(baseSpecies, config.generation || 9);
+		const legalUnlockedEggMoves = (starterData?.unlockedEggMoves || []).filter(m => validEggMoves.includes(m));
+		const pool = new Set([...allLevel, ...legalUnlockedEggMoves]);
+		if (pool.size > moves.length) hasAltMoves = true;
+	}
+
+	for (let i = 0; i < 4; i++) {
+		if (i < moves.length) {
+			const move = Dex.moves.get(moves[i]);
+			const maxPp = Math.floor((move.pp || 5) * (8 / 5));
+			const mColor = '#' + typeColor(move.type);
+			const catIcon = move.category === 'Physical' ? '' : move.category === 'Special' ? '◆' : '●';
+			const moveDesc = move.shortDesc || move.desc || '';
+
+			buf += `<div class="pr-sv-move" style="border-left:3px solid ${mColor}"><div class="pr-sv-move-top" style="display:flex;justify-content:space-between;align-items:flex-start;">`;
+			buf += `<b class="pr-sv-move-name">${Utils.escapeHTML(move.name)}</b>`;
+			buf += `<div style="text-align:right;">`;
+			buf += `<span class="pr-type" style="background:${mColor};color:#fff;font-size:9px;display:inline-block;">${move.type}</span>`;
+			if (state.isConfiguringStarter && hasAltMoves) {
+				buf += `<br>${renderBtn(`/pokerogue cyclestarter move next ${slot} ${i}`, 'Change', 'pr-btn', 'font-size:8px;padding:2px 4px;margin-top:4px;')}`;
+			}
+			buf += `</div></div>`;
+			buf += `<div class="pr-sv-move-meta">${catIcon} ${move.category} &nbsp;·&nbsp; Pwr: <b>${move.basePower || '—'}</b> &nbsp;·&nbsp; Acc: <b>${move.accuracy === true ? '—' : (move.accuracy || '—')}</b> &nbsp;·&nbsp; Pri: <b>${move.priority > 0 ? `+${move.priority}` : move.priority}</b> &nbsp;·&nbsp; PP: <b>${maxPp}/${maxPp}</b></div>`;
+			if (moveDesc) buf += `<div class="pr-sv-subdesc" style="margin-top:3px">${Utils.escapeHTML(moveDesc)}</div>`;
+			buf += `</div>`;
+		} else {
+			buf += `<div class="pr-sv-move pr-sv-move-empty" style="display:flex;justify-content:space-between;align-items:center;">`;
+			buf += `<span>— empty —</span>`;
+			if (state.isConfiguringStarter && hasAltMoves) {
+				buf += renderBtn(`/pokerogue cyclestarter move next ${slot} ${i}`, 'Add Move', 'pr-btn', 'font-size:8px;padding:2px 4px;');
+			}
+			buf += `</div>`;
+		}
+	}
+	return buf;
+}
+
+function renderStatsHeader(vm: StatsViewModel): string {
+	let buf = `<div class="pr-sv-header">`;
 	buf += `<div class="pr-sv-sprite-col">${getSprite(vm.mon.species, 80, vm.mon.shiny, 'pr-sv-sprite')}</div>&nbsp;&nbsp;`;
 	buf += `<div class="pr-sv-info-col">`;
 	buf += `<div class="pr-sv-name">${Utils.escapeHTML(vm.spData.name)} ${vm.genderHtml}${vm.mon.shiny ? ' <span class="pr-sv-shiny"></span>' : ''}&nbsp;&nbsp;<span class="pr-level-badge">Lv.${vm.mon.level}</span></div>`;
 	buf += `<div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:4px;">${renderTypeBadge(vm.spData.types ?? [])}</div>`;
-	buf += `<div class="pr-sv-hp-row">`;
-	buf += `<span class="pr-sv-hp-label">HP</span>`;
+	buf += `<div class="pr-sv-hp-row"><span class="pr-sv-hp-label">HP</span>`;
 	buf += `<div class="pr-bar-track" style="flex:1"><div class="pr-bar-fill" style="width:${vm.hpPct}%;background:${vm.hpColor}"></div></div>`;
 	buf += `<span class="pr-sv-hp-pct" style="color:${vm.hpColor}">${vm.hpPct}%</span>`;
 	if (vm.statusHtml) buf += vm.statusHtml;
 	buf += `</div></div></div>`;
+	return buf;
+}
 
-	buf += `<div class="pr-sv-nav">`;
-	buf += renderBtn(`/pokerogue statstab prev`, '&#9664;', 'pr-sv-arrow');
-	for (let i = 0; i < vm.tabNames.length; i++) {
-		buf += renderBtn(i === activeTab ? null : `/pokerogue statstab ${i}`, vm.tabNames[i], `pr-sv-dot${i === activeTab ? ' active' : ''}`);
-	}
-	buf += renderBtn(`/pokerogue statstab next`, '&#9654;', 'pr-sv-arrow');
-	buf += `</div>`;
+export function renderStatsView(state: PokeRogueState, user: User): string {
+	const slot = state.pendingStatsSlot, activeTab = state.statsTab ?? 0;
+	if (slot === undefined || slot < 0 || slot >= state.team.length) return `<div class="pr-warning-box">Error loading stats.</div>`;
+
+	const vm = buildStatsViewModel(state, user, slot, activeTab);
+	let buf = `<div class="pr-sv-wrap">${renderStatsHeader(vm)}`;
+
+	buf += `<div class="pr-sv-nav">${renderBtn(`/pokerogue statstab prev`, '&#9664;', 'pr-sv-arrow')}`;
+	for (let i = 0; i < vm.tabNames.length; i++) buf += renderBtn(i === activeTab ? null : `/pokerogue statstab ${i}`, vm.tabNames[i], `pr-sv-dot${i === activeTab ? ' active' : ''}`);
+	buf += `${renderBtn(`/pokerogue statstab next`, '&#9654;', 'pr-sv-arrow')}</div>`;
 
 	buf += `<div class="pr-sv-tab">`;
-
-	if (activeTab === 0) {
-		buf += `<div class="pr-sv-row"><span class="pr-sv-row-label">Ability</span><div class="pr-sv-row-val">`;
-		if (vm.showAbilityArrows) {
-			buf += `<b>${Utils.escapeHTML(vm.abilityName)}</b>&nbsp;&nbsp;&nbsp;${renderBtn(`/pokerogue cyclestarter ability next ${slot}`, 'Change', 'pr-btn', 'font-size:8px;padding:3px 6px')}`;
-		} else {
-			buf += `<b>${Utils.escapeHTML(vm.abilityName)}</b>`;
-		}
-		if (vm.abilityDesc) buf += `<div class="pr-sv-subdesc">${Utils.escapeHTML(vm.abilityDesc)}</div>`;
-		buf += `</div></div>`;
-
-		let natureSuffix = `<span class="pr-sv-subdesc"></span>`;
-		if (vm.naturePlus && vm.natureMinus) {
-			natureSuffix = ` <span style="color:#16a34a;font-size:10px;font-weight:600">▲${vm.statLabels[vm.naturePlus]}</span> <span style="color:#dc2626;font-size:10px;font-weight:600">▼${vm.statLabels[vm.natureMinus]}</span>`;
-		}
-		buf += `<div class="pr-sv-row"><span class="pr-sv-row-label">Nature</span><div class="pr-sv-row-val">`;
-		if (vm.showNatureArrows) {
-			buf += `<b>${Utils.escapeHTML(vm.natureName)}</b>&nbsp;&nbsp;${natureSuffix}&nbsp;&nbsp;&nbsp;${renderBtn(`/pokerogue cyclestarter nature next ${slot}`, 'Change', 'pr-btn', 'font-size:8px;padding:3px 6px')}`;
-		} else {
-			buf += `<b>${Utils.escapeHTML(vm.natureName)}</b>&nbsp;&nbsp;${natureSuffix}`;
-		}
-		buf += `</div></div>`;
-
-		buf += `<div class="pr-sv-row"><span class="pr-sv-row-label">Item</span><div class="pr-sv-row-val">`;
-		if (vm.heldItem) {
-			buf += `<div style="display:flex; justify-content:space-between; align-items:center;"><div>${getShopItemIcon(vm.heldItem.name, 14)} <b>${Utils.escapeHTML(vm.heldItem.name)}</b>`;
-			if (vm.heldItem.shortDesc) buf += `<div class="pr-sv-subdesc">${Utils.escapeHTML(vm.heldItem.shortDesc)}</div>`;
-			buf += `</div>${renderBtn(`/pokerogue unequip ${slot + 1}`, 'Take Item', 'pr-shop-buy', 'padding:5px 10px; font-size:11px; margin-left: 10px; white-space:nowrap;')}</div>`;
-		} else {
-			buf += `<span style="color:#aaa">None</span>`;
-		}
-		buf += `</div></div>`;
-
-		const hasTera = !!MODE_CONFIGS[state.gameMode]?.mechanicUnlocks?.terastallize;
-		if (vm.mon.teraType && hasTera) {
-			buf += `<div class="pr-sv-row"><span class="pr-sv-row-label">Tera</span><div class="pr-sv-row-val">`;
-			if (vm.showTeraArrows) {
-				buf += `${renderTypeBadge([vm.mon.teraType])}&nbsp;&nbsp;&nbsp;${renderBtn(`/pokerogue cyclestarter tera next ${slot}`, 'Change', 'pr-btn', 'font-size:8px;padding:3px 6px')}`;
-			} else {
-				buf += `${renderTypeBadge([vm.mon.teraType])}`;
-			}
-			buf += `</div></div>`;
-		}
-
-		buf += `<div class="pr-sv-divider"></div>`;
-
-		const memo: [string, string][] = [
-			['OT', Utils.escapeHTML(vm.mon.originalTrainer || 'Unknown')],
-			['ID No.', vm.mon.otId || '??????'],
-			['Met at', Utils.escapeHTML(vm.mon.metLocation || 'Unknown')],
-			['Met Lv.', String(vm.mon.metLevel ?? '?')],
-			['Date', vm.dateStr],
-			['Ball', Utils.escapeHTML(vm.mon.ball ? vm.mon.ball.replace('ball', ' Ball').replace(/^./, c => c.toUpperCase()) : 'Poké Ball')],
-		];
-		for (const [label, val] of memo) {
-			buf += `<div class="pr-sv-row"><span class="pr-sv-row-label">${label}</span><div class="pr-sv-row-val">${val}</div></div>`;
-		}
-	}
-
-	if (activeTab === 1) {
-		buf += `<div class="pr-sv-stat-row" style="font-size:9px;color:#888;margin-bottom:4px;font-weight:600"><span class="pr-sv-stat-label"></span><div class="pr-sv-bar-wrap"></div><span class="pr-sv-stat-val">Stat</span><span class="pr-sv-stat-iv">IV</span><span class="pr-sv-stat-iv">EV</span></div>`;
-
-		for (const stat of vm.statKeys) {
-			const iv = vm.ivs[stat] ?? 31;
-			const ev = vm.evs[stat] ?? 0;
-			const actual = vm.stats[stat] ?? 0;
-			const barPct = Math.min(100, Math.round((actual / (vm.maxStats[stat] || 1)) * 100));
-			const isPlus = vm.naturePlus === stat;
-			const isMinus = vm.natureMinus === stat;
-			const valStyle = isPlus ? 'color:#16a34a;font-weight:700' : isMinus ? 'color:#dc2626;font-weight:700' : '';
-			const evStyle = ev > 0 ? 'color:#c4a8ff;font-weight:600' : 'color:#555';
-
-			buf += `<div class="pr-sv-stat-row"><span class="pr-sv-stat-label">${vm.statLabels[stat]}</span>`;
-			buf += `<div class="pr-sv-bar-wrap"><div class="pr-sv-bar" style="width:${barPct}%;background:${vm.statColors[stat]}"></div></div>`;
-			buf += `<span class="pr-sv-stat-val"${valStyle ? ` style="${valStyle}"` : ''}>${actual}</span>`;
-			buf += `<span class="pr-sv-stat-iv" title="IV: ${iv}/31">${iv}</span>`;
-			buf += `<span class="pr-sv-stat-iv" style="${evStyle}" title="EV: ${ev}/252">${ev}</span></div>`;
-		}
-
-		buf += `<div class="pr-sv-bst">EVs <b style="color:#c4a8ff">${vm.totalEvs}</b><span style="color:#555">/508</span></div>`;
-	}
-
-	if (activeTab === 2) {
-		const moves = vm.mon.moves || [];
-		let hasAltMoves = false;
-		if (state.isConfiguringStarter) {
-			let baseSpecies = toID(vm.mon.species);
-			while (true) {
-				const sp = Dex.species.get(baseSpecies);
-				if (!sp.prevo) break;
-				baseSpecies = toID(sp.prevo);
-			}
-			const starterData = getUserData(user.id).starters[baseSpecies];
-			const config = MODE_CONFIGS[state.gameMode] || MODE_CONFIGS['classic'];
-			const allLevel = getAllLevelUpMoves(baseSpecies, vm.mon.level, config.generation || 9);
-			const validEggMoves = getEggMoves(baseSpecies, config.generation || 9);
-
-			const legalUnlockedEggMoves = (starterData?.unlockedEggMoves || []).filter(m => validEggMoves.includes(m));
-
-			const pool = new Set([...allLevel, ...legalUnlockedEggMoves]);
-			if (pool.size > moves.length) hasAltMoves = true;
-		}
-
-		for (let i = 0; i < 4; i++) {
-			if (i < moves.length) {
-				const move = Dex.moves.get(moves[i]);
-				const maxPp = Math.floor((move.pp || 5) * (8 / 5));
-				const mColor = '#' + typeColor(move.type);
-				const catIcon = move.category === 'Physical' ? '' : move.category === 'Special' ? '◆' : '●';
-				const moveDesc = move.shortDesc || move.desc || '';
-
-				buf += `<div class="pr-sv-move" style="border-left:3px solid ${mColor}"><div class="pr-sv-move-top" style="display:flex;justify-content:space-between;align-items:flex-start;">`;
-				buf += `<b class="pr-sv-move-name">${Utils.escapeHTML(move.name)}</b>`;
-				buf += `<div style="text-align:right;">`;
-				buf += `<span class="pr-type" style="background:${mColor};color:#fff;font-size:9px;display:inline-block;">${move.type}</span>`;
-				if (state.isConfiguringStarter && hasAltMoves) {
-					buf += `<br>${renderBtn(`/pokerogue cyclestarter move next ${slot} ${i}`, 'Change', 'pr-btn', 'font-size:8px;padding:2px 4px;margin-top:4px;')}`;
-				}
-				buf += `</div></div>`;
-				buf += `<div class="pr-sv-move-meta">${catIcon} ${move.category} &nbsp;·&nbsp; Pwr: <b>${move.basePower || '—'}</b> &nbsp;·&nbsp; Acc: <b>${move.accuracy === true ? '—' : (move.accuracy || '—')}</b> &nbsp;·&nbsp; Pri: <b>${move.priority > 0 ? `+${move.priority}` : move.priority}</b> &nbsp;·&nbsp; PP: <b>${maxPp}/${maxPp}</b></div>`;
-				if (moveDesc) buf += `<div class="pr-sv-subdesc" style="margin-top:3px">${Utils.escapeHTML(moveDesc)}</div>`;
-				buf += `</div>`;
-			} else {
-				buf += `<div class="pr-sv-move pr-sv-move-empty" style="display:flex;justify-content:space-between;align-items:center;">`;
-				buf += `<span>— empty —</span>`;
-				if (state.isConfiguringStarter && hasAltMoves) {
-					buf += renderBtn(`/pokerogue cyclestarter move next ${slot} ${i}`, 'Add Move', 'pr-btn', 'font-size:8px;padding:2px 4px;');
-				}
-				buf += `</div>`;
-			}
-		}
-	}
-
+	if (activeTab === 0) buf += renderStatsTab0(vm, state, slot);
+	if (activeTab === 1) buf += renderStatsTab1(vm);
+	if (activeTab === 2) buf += renderStatsTab2(vm, state, slot, user);
 	buf += `</div>`;
 
 	if (vm.teamNav.length > 1 && !state.isConfiguringStarter) {
 		buf += `<div class="pr-sv-team-nav">`;
 		for (const nav of vm.teamNav) {
-			if (nav.isMe) {
-				buf += `<span class="pr-sv-team-pip active" title="${Utils.escapeHTML(nav.name)}"></span>`;
-			} else {
-				buf += `<button name="send" value="/pokerogue view stats ${nav.slot}" class="pr-sv-team-btn" title="${Utils.escapeHTML(nav.name)}"><span class="pr-sv-team-pip"></span></button>`;
-			}
+			if (nav.isMe) buf += `<span class="pr-sv-team-pip active" title="${Utils.escapeHTML(nav.name)}"></span>`;
+			else buf += `<button name="send" value="/pokerogue view stats ${nav.slot}" class="pr-sv-team-btn" title="${Utils.escapeHTML(nav.name)}"><span class="pr-sv-team-pip"></span></button>`;
 		}
 		buf += `</div>`;
 	}
-
 	buf += `</div>`;
 
 	if (state.isConfiguringStarter) {
-		const modeData = MODE_REGISTRY[state.gameMode] || MODE_REGISTRY['classic'];
-		const useNewStarterSelectionUI = modeData.useNewStarterSelectionUI !== false;
-
-		if (useNewStarterSelectionUI) {
-			buf += `<div style="text-align:center;margin-bottom:8px">${renderBtn('/pokerogue view starterselect', 'Back to Selection', 'pr-btn primary', 'font-size:16px;padding:5px 10px')}</div>`;
-		} else {
-			buf += `<div style="text-align:center;margin-bottom:8px">${renderBtn('/pokerogue confirmstarter', 'Choose & Start', 'pr-btn primary', 'font-size:16px;padding:5px 10px')}</div>`;
-		}
+		const useNewStarterSelectionUI = (MODE_REGISTRY[state.gameMode] || MODE_REGISTRY['classic']).useNewStarterSelectionUI !== false;
+		if (useNewStarterSelectionUI) buf += `<div style="text-align:center;margin-bottom:8px">${renderBtn('/pokerogue view starterselect', 'Back to Selection', 'pr-btn primary', 'font-size:16px;padding:5px 10px')}</div>`;
+		else buf += `<div style="text-align:center;margin-bottom:8px">${renderBtn('/pokerogue confirmstarter', 'Choose & Start', 'pr-btn primary', 'font-size:16px;padding:5px 10px')}</div>`;
 	}
-
 	return buf;
 }
 
@@ -1483,48 +1459,30 @@ export function renderMainView(state: PokeRogueState, user: User): string {
 	return buf;
 }
 
-export function renderTopView(mode = 'classic'): string {
-	let buf = `<div class="pr-section-title">Ladder</div>`;
+function renderTopEntriesForEggsOrShinies(mode: string): string {
+	const statKey = mode === 'eggs' ? 'eggsHatched' : 'shiniesUnlocked';
+	const statName = mode === 'eggs' ? 'Eggs Hatched' : 'Shinies Unlocked';
+	const customEntries = Object.entries(globalStats)
+		.map(([userid, s]) => ({ userid, displayName: s.displayName, statValue: s[statKey] || 0 }))
+		.filter(data => data.statValue > 0)
+		.sort((a, b) => b.statValue - a.statValue)
+		.slice(0, 100);
 
-	buf += `<div style="display:flex;flex-wrap:wrap;justify-content:center;align-items:center;margin-bottom:12px;width:100%;">`;
-	let first = true;
-	for (const m of Object.keys(MODE_CONFIGS)) {
-		const isSelected = m === mode;
-		const mName = MODE_CONFIGS[m].name || m.charAt(0).toUpperCase() + m.slice(1);
-		const cls = isSelected ? 'pr-btn primary' : 'pr-btn';
-		if (!first) buf += `&nbsp;&nbsp;`;
-		first = false;
-		buf += renderBtn(`/pokerogue view top ${m}`, mName, cls, 'font-size:11px;padding:4px 8px;');
+	if (!customEntries.length) return `<div style="text-align:center;padding:16px;color:#888;font-size:13px">No records yet!</div>`;
+
+	let buf = `<table class="pr-table" style="width:100%;border-collapse:collapse;">`;
+	buf += `<thead><tr><th>Rank</th><th>Player</th><th>${statName}</th></tr></thead><tbody>`;
+
+	let i = 0;
+	for (const { userid, displayName, statValue } of customEntries) {
+		buf += `<tr><td class="pr-td-desc" style="font-weight:500;white-space:nowrap;">#${i + 1}</td><td class="pr-td-name" style="white-space:nowrap;">${nameColor(displayName || userid, true, false)}</td>`;
+		buf += `<td class="pr-td-desc" style="white-space:nowrap;text-align:center;">${statValue}</td></tr>`;
+		i++;
 	}
-	if (!first) buf += `&nbsp;&nbsp;`;
-	buf += renderBtn(`/pokerogue view top eggs`, 'Eggs Hatched', mode === 'eggs' ? 'pr-btn primary' : 'pr-btn', 'font-size:11px;padding:4px 8px;');
-	buf += `&nbsp;&nbsp;`;
-	buf += renderBtn(`/pokerogue view top shinies`, 'Shinies Unlocked', mode === 'shinies' ? 'pr-btn primary' : 'pr-btn', 'font-size:11px;padding:4px 8px;');
-	buf += `</div>`;
+	return buf + `</tbody></table>`;
+}
 
-	if (mode === 'eggs' || mode === 'shinies') {
-		const statKey = mode === 'eggs' ? 'eggsHatched' : 'shiniesUnlocked';
-		const statName = mode === 'eggs' ? 'Eggs Hatched' : 'Shinies Unlocked';
-		const customEntries = Object.entries(globalStats)
-			.map(([userid, s]) => ({ userid, displayName: s.displayName, statValue: s[statKey] || 0 }))
-			.filter(data => data.statValue > 0)
-			.sort((a, b) => b.statValue - a.statValue)
-			.slice(0, 100);
-
-		if (!customEntries.length) return buf + `<div style="text-align:center;padding:16px;color:#888;font-size:13px">No records yet!</div>`;
-
-		buf += `<table class="pr-table" style="width:100%;border-collapse:collapse;">`;
-		buf += `<thead><tr><th>Rank</th><th>Player</th><th>${statName}</th></tr></thead><tbody>`;
-
-		let i = 0;
-		for (const { userid, displayName, statValue } of customEntries) {
-			buf += `<tr><td class="pr-td-desc" style="font-weight:500;white-space:nowrap;">#${i + 1}</td><td class="pr-td-name" style="white-space:nowrap;">${nameColor(displayName || userid, true, false)}</td>`;
-			buf += `<td class="pr-td-desc" style="white-space:nowrap;text-align:center;">${statValue}</td></tr>`;
-			i++;
-		}
-		return buf + `</tbody></table>`;
-	}
-
+function renderTopEntriesForClassic(mode: string): string {
 	const entries = Object.entries(globalStats)
 		.map(([userid, s]) => {
 			let statsForMode = s.stats?.[mode];
@@ -1552,9 +1510,9 @@ export function renderTopView(mode = 'classic'): string {
 		})
 		.slice(0, 100);
 
-	if (!entries.length) return buf + `<div style="text-align:center;padding:16px;color:#888;font-size:13px">No records yet!</div>`;
+	if (!entries.length) return `<div style="text-align:center;padding:16px;color:#888;font-size:13px">No records yet!</div>`;
 
-	buf += `<table class="pr-table" style="width:100%;border-collapse:collapse;">`;
+	let buf = `<table class="pr-table" style="width:100%;border-collapse:collapse;">`;
 	buf += `<thead><tr><th>Rank</th><th>Player</th><th>Wins</th><th>Highest Floor</th><th>Active Floor</th></tr></thead><tbody>`;
 
 	let i = 0;
@@ -1567,6 +1525,32 @@ export function renderTopView(mode = 'classic'): string {
 	}
 
 	return buf + `</tbody></table>`;
+}
+
+export function renderTopView(mode = 'classic'): string {
+	let buf = `<div class="pr-section-title">Ladder</div>`;
+
+	buf += `<div style="display:flex;flex-wrap:wrap;justify-content:center;align-items:center;margin-bottom:12px;width:100%;">`;
+	let first = true;
+	for (const m of Object.keys(MODE_CONFIGS)) {
+		const isSelected = m === mode;
+		const mName = MODE_CONFIGS[m].name || m.charAt(0).toUpperCase() + m.slice(1);
+		const cls = isSelected ? 'pr-btn primary' : 'pr-btn';
+		if (!first) buf += `&nbsp;&nbsp;`;
+		first = false;
+		buf += renderBtn(`/pokerogue view top ${m}`, mName, cls, 'font-size:11px;padding:4px 8px;');
+	}
+	if (!first) buf += `&nbsp;&nbsp;`;
+	buf += renderBtn(`/pokerogue view top eggs`, 'Eggs Hatched', mode === 'eggs' ? 'pr-btn primary' : 'pr-btn', 'font-size:11px;padding:4px 8px;');
+	buf += `&nbsp;&nbsp;`;
+	buf += renderBtn(`/pokerogue view top shinies`, 'Shinies Unlocked', mode === 'shinies' ? 'pr-btn primary' : 'pr-btn', 'font-size:11px;padding:4px 8px;');
+	buf += `</div>`;
+
+	if (mode === 'eggs' || mode === 'shinies') {
+		return buf + renderTopEntriesForEggsOrShinies(mode);
+	}
+
+	return buf + renderTopEntriesForClassic(mode);
 }
 
 export function renderResetConfirmView(state: PokeRogueState): string {
@@ -1583,65 +1567,62 @@ export function renderGameOverView(state: PokeRogueState): string {
 		renderBtn('/pokerogue view welcome', 'Start new run', 'pr-newrun-btn') + `</div>`;
 }
 
+function renderSlotsTableHeader(): string {
+	let buf = `<div class="pr-table-container"><table class="pr-table" style="width:100%;border-collapse:collapse;">`;
+	buf += `<thead><tr>`;
+	buf += `<th style="padding:4px 6px;text-align:left;">Slot</th>`;
+	buf += `<th style="padding:4px 6px;text-align:left;">Mode</th>`;
+	buf += `<th style="padding:4px 6px;text-align:left;">Floor</th>`;
+	buf += `<th style="padding:4px 6px;text-align:right;">Action</th>`;
+	buf += `</tr></thead><tbody>`;
+	return buf;
+}
+
+function renderSlotRow(i: number, slotData: any, action: 'save' | 'load'): string {
+	let buf = `<tr style="border-bottom:1px solid rgba(150,150,150,0.1);">`;
+	buf += `<td class="pr-td-name" style="padding:8px 6px;">Slot ${i}</td>`;
+	if (slotData) {
+		const mName = MODE_CONFIGS[slotData.gameMode]?.name || slotData.gameMode.charAt(0).toUpperCase() + slotData.gameMode.slice(1);
+		buf += `<td class="pr-td-desc" style="padding:8px 6px;font-size:11px;">${mName}</td>`;
+		buf += `<td class="pr-td-desc" style="padding:8px 6px;font-size:11px;">Floor ${slotData.floor}</td>`;
+		buf += `<td class="pr-td-action" style="padding:8px 6px;text-align:right;">`;
+		if (action === 'save') {
+			buf += renderBtn(`/pokerogue savegame ${i}`, 'Overwrite', 'pr-btn danger', 'padding:4px 8px;font-size:10px;');
+		} else {
+			buf += renderBtn(`/pokerogue loadgame ${i}`, 'Load', 'pr-pick-btn', 'padding:4px 8px;font-size:10px;');
+		}
+		buf += `</td>`;
+	} else {
+		buf += `<td class="pr-td-desc" style="padding:8px 6px;font-size:11px;color:#888;">Empty</td>`;
+		buf += `<td class="pr-td-desc" style="padding:8px 6px;">-</td>`;
+		buf += `<td class="pr-td-action" style="padding:8px 6px;text-align:right;">`;
+		if (action === 'save') {
+			buf += renderBtn(`/pokerogue savegame ${i}`, 'Save', 'pr-btn primary', 'padding:4px 8px;font-size:10px;');
+		} else {
+			buf += `<span style="font-size:10px;color:#888;">-</span>`;
+		}
+		buf += `</td>`;
+	}
+	buf += `</tr>`;
+	return buf;
+}
+
 export function renderSlotsView(user: User, action: 'save' | 'load'): string {
 	const userData = getUserData(user.id);
-
 	let buf = `<div class="pr-section-title">${action === 'save' ? 'Save & Quit' : 'Load Game'}</div>`;
 	buf += `<div style="text-align:center;color:#aaa;font-size:12px;margin-bottom:14px;">`;
 	buf += action === 'save' ?
 		`Choose a slot to save and suspend your current run. <br><b style="color:#f87171">This will pause and remove your active run from play until you load it again.</b>` :
 		`Choose a saved game to load. This will overwrite your current active run. <br><b style="color:#f87171">Loading a save slot permanently removes it.</b>`;
 	buf += `</div>`;
-
-	buf += `<div class="pr-table-container"><table class="pr-table" style="width:100%;border-collapse:collapse;">`;
-	buf += `<thead><tr>`;
-	buf += `<th style="padding:4px 6px;text-align:left;">Slot</th>`;
-	buf += `<th style="padding:4px 6px;text-align:left;">Mode</th>`;
-	buf += `<th style="padding:4px 6px;text-align:left;">Floor</th>`;
-	buf += `<th style="padding:4px 6px;text-align:left;">Team</th>`;
-	buf += `<th style="padding:4px 6px;text-align:right;">Action</th>`;
-	buf += `</tr></thead><tbody>`;
-
+	buf += renderSlotsTableHeader();
 	for (let i = 1; i <= 3; i++) {
-		const slotData = userData.saveSlots?.[i];
-		const mode = slotData ?
-			slotData.gameMode.charAt(0).toUpperCase() + slotData.gameMode.slice(1) :
-			'—';
-
-		buf += `<tr style="border-bottom:1px solid rgba(150,150,150,0.1);">`;
-
-		buf += `<td class="pr-td-name" style="padding:6px;font-weight:500;white-space:nowrap;">Slot ${i}</td>`;
-
-		if (slotData) {
-			buf += `<td class="pr-td-desc" style="padding:6px;white-space:nowrap;">${mode}</td>`;
-			buf += `<td class="pr-td-desc" style="padding:6px;white-space:nowrap;">Floor ${slotData.floor}</td>`;
-			buf += `<td style="padding:6px;"><div class="pr-lb-team">`;
-			for (const mon of slotData.team || []) {
-				buf += getSprite(mon.species, 28);
-			}
-			buf += `</div></td>`;
-			buf += `<td class="pr-td-action" style="padding:6px;text-align:right;">`;
-			if (action === 'save') {
-				buf += renderBtn(`/pokerogue saveslot ${i}`, 'Save & Quit', 'pr-shop-buy', 'padding:3px 8px;font-size:11px;');
-			} else {
-				buf += renderBtn(`/pokerogue loadslot ${i}`, 'Load', 'pr-shop-buy', 'padding:3px 8px;font-size:11px;');
-			}
-			buf += `</td>`;
-		} else {
-			buf += `<td class="pr-td-desc" style="padding:6px;color:#555;font-style:italic;" colspan="3">Empty</td>`;
-			buf += `<td class="pr-td-action" style="padding:6px;text-align:right;">`;
-			if (action === 'save') {
-				buf += renderBtn(`/pokerogue saveslot ${i}`, 'Save & Quit', 'pr-shop-buy', 'padding:3px 8px;font-size:11px;');
-			} else {
-				buf += renderBtn(null, 'Empty', 'pr-shop-buy', 'padding:3px 8px;font-size:11px;opacity:0.4;', true);
-			}
-			buf += `</td>`;
-		}
-
-		buf += `</tr>`;
+		buf += renderSlotRow(i, userData.saves?.[i], action);
 	}
-
 	buf += `</tbody></table></div>`;
+	buf += `<div style="text-align:center;margin-top:12px;">`;
+	buf += renderBtn('/pokerogue view main', 'Cancel', 'pr-btn', 'padding:6px 12px;font-size:11px;');
+	buf += `</div>`;
 	return buf;
 }
 
