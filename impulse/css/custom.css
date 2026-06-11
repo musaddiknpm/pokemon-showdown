@@ -1,10 +1,14 @@
-/* PokeRogue CSS Starts */
+/* ==========================================
+ * PokéRogue Render UI (Light Mode)
+ * ==========================================
+ */
 
+/* Base & Global Rules */
 .pr {
     font-family: system-ui, sans-serif;
-    color: #ddd6fe;
+    color: #1a1a2e;
     max-width: 680px;
-    background: #13111e;
+    background: #f0edf7;
     border-radius: 12px;
     min-height: 200px;
 }
@@ -13,9 +17,13 @@
     text-shadow: none !important;
 }
 
+/* ==========================================
+ * Components
+ * ========================================== */
+
 .pr-card {
-    background: #1e1b2e;
-    border: 1px solid #2e2a45;
+    background: #ffffff;
+    border: 1px solid #d4cee3;
     border-radius: 12px;
     padding: 12px 14px;
     margin-bottom: 10px;
@@ -26,7 +34,7 @@
     align-items: center;
     justify-content: space-between;
     padding: 10px 14px;
-    border-bottom: 1px solid #2e2a45;
+    border-bottom: 1px solid #d4cee3;
     margin-bottom: 10px;
 }
 
@@ -34,7 +42,7 @@
     font-size: 16px;
     font-weight: 600;
     margin: 0;
-    color: #ede9ff;
+    color: #1a1a2e;
 }
 
 .pr-statbar {
@@ -48,8 +56,8 @@
 }
 
 .pr-stat {
-    background: #1e1b2e;
-    border: 1px solid #2e2a45;
+    background: #ffffff;
+    border: 1px solid #d4cee3;
     border-radius: 8px;
     padding: 7px 10px;
     text-align: center;
@@ -57,7 +65,7 @@
 
 .pr-stat-label {
     font-size: 10px;
-    color: #9d93c8;
+    color: #5a4e7c;
     margin-bottom: 2px;
     font-weight: 500;
     text-transform: uppercase;
@@ -67,13 +75,13 @@
 .pr-stat-val {
     font-size: 15px;
     font-weight: 600;
-    color: #ede9ff;
+    color: #1a1a2e;
 }
 
 .pr-section-title {
     font-size: 10px;
     font-weight: 600;
-    color: #9d93c8;
+    color: #5a4e7c;
     text-transform: uppercase;
     letter-spacing: 0.07em;
     margin-bottom: 6px;
@@ -88,7 +96,7 @@
 
 .pr-mon-lv {
     font-size: 10px;
-    color: #9d93c8;
+    color: #5a4e7c;
     font-weight: normal;
 }
 
@@ -113,9 +121,9 @@
     font-weight: 500;
     padding: 1px 5px;
     border-radius: 3px;
-    color: #93c5fd;
-    background: #1e3a5f;
-    border: 1px solid #1d4ed8;
+    color: #1e3a5f;
+    background: #dbeafe;
+    border: 1px solid #93c5fd;
     vertical-align: middle;
     line-height: 1.4;
 }
@@ -127,10 +135,14 @@
     padding: 1px 5px;
     border-radius: 3px;
     color: #ffffff;
-    background: #6d64b0;
+    background: #7c72c0;
     vertical-align: middle;
     line-height: 1.4;
 }
+
+/* ==========================================
+ * Move pill list
+ * ========================================== */
 
 .pr-move-list {
     display: flex;
@@ -145,8 +157,12 @@
     font-weight: 500;
     padding: 1px 5px;
     border-radius: 3px;
-
+    /* background and color are set inline via type colour */
 }
+
+/* ==========================================
+ * Bars
+ * ========================================== */
 
 .pr-bars {
     display: flex;
@@ -165,7 +181,7 @@
     flex: 1;
     height: 4px;
     border-radius: 2px;
-    background: #2a2640;
+    background: #e5e0f0;
     overflow: hidden;
 }
 
@@ -176,14 +192,14 @@
 
 .pr-bar-label {
     font-size: 9px;
-    color: #9d93c8;
+    color: #5a4e7c;
     min-width: 36px;
     text-align: right;
 }
 
 .pr-item-tag {
     font-size: 9px;
-    color: #93c5fd;
+    color: #1e3a5f;
     margin-top: 3px;
     white-space: nowrap;
     overflow: hidden;
@@ -197,44 +213,48 @@
     margin-top: 4px;
 }
 
+/* ==========================================
+ * Buttons
+ * ========================================== */
+
 .pr-btn {
-    background: #1e1b2e;
-    border: 1px solid #3a3558;
+    background: #ffffff;
+    border: 1px solid #c4bcd8;
     border-radius: 8px;
     padding: 7px 8px;
     font-size: 12px;
     font-weight: 500;
-    color: #ddd6fe;
+    color: #1a1a2e;
     cursor: pointer;
     text-align: center;
     white-space: nowrap;
 }
 
 .pr-btn:hover {
-    background: #262040;
-    border-color: #5548a0;
+    background: #f5f2ff;
+    border-color: #7c72c0;
 }
 
 .pr-btn.primary {
-    background: #5b50c8;
-    border-color: #7068d8;
+    background: #7c72c0;
+    border-color: #5b50c8;
     color: #ffffff;
 }
 
 .pr-btn.primary:hover {
-    background: #6b60d8;
-    border-color: #7b70e8;
+    background: #8b82d0;
+    border-color: #6b60d8;
 }
 
 .pr-btn.danger {
-    background: #2d1515;
-    border-color: #7f1d1d;
-    color: #fca5a5;
+    background: #fef2f2;
+    border-color: #fca5a5;
+    color: #991b1b;
 }
 
 .pr-btn.danger:hover {
-    background: #3f1919;
-    border-color: #991b1b;
+    background: #fee2e2;
+    border-color: #f87171;
 }
 
 .pr-btn[disabled] {
@@ -242,9 +262,13 @@
     cursor: default;
 }
 
+/* ==========================================
+ * Tables (Team / Shop / Leaderboard)
+ * ========================================== */
+
 .pr-table-container {
-    background: #1a1728;
-    border: 1px solid #2e2a45;
+    background: #faf8ff;
+    border: 1px solid #d4cee3;
     border-radius: 8px;
     overflow-x: hidden;
     overflow-y: auto;
@@ -261,23 +285,24 @@
 }
 .pr-table th {
     font-weight: 600;
-    color: #9d93c8;
+    color: #5a4e7c;
     text-transform: uppercase;
     font-size: 10px;
     letter-spacing: 0.05em;
     padding: 8px 10px;
-    border-bottom: 1px solid #2e2a45;
-    background: #13111e;
+    border-bottom: 1px solid #d4cee3;
+    background: #f0edf7;
 }
 .pr-table td {
     padding: 8px 10px;
-    border-bottom: 1px solid #232038;
+    border-bottom: 1px solid #e5e0f0;
     vertical-align: middle;
 }
 .pr-table tr:last-child td {
     border-bottom: none;
 }
 
+/* Team rows are expanded — allow more height */
 .pr-team-row td {
     vertical-align: top;
     padding-top: 10px;
@@ -285,27 +310,27 @@
 }
 
 .pr-td-icon { width: 44px; text-align: center; padding-right: 0 !important; }
-.pr-td-team-main {  }
-.pr-td-name { font-weight: 600; color: #ede9ff; font-size: 13px; }
-.pr-td-desc { color: #9d93c8; font-size: 11px; }
-.pr-td-cost { font-weight: 600; color: #c4b8ff; white-space: nowrap; }
+.pr-td-team-main { /* expanded details column — no fixed width */ }
+.pr-td-name { font-weight: 600; color: #1a1a2e; font-size: 13px; }
+.pr-td-desc { color: #5a4e7c; font-size: 11px; }
+.pr-td-cost { font-weight: 600; color: #4a3fb8; white-space: nowrap; }
 .pr-td-action { text-align: right; white-space: nowrap; width: 60px; }
 .pr-td-bars { width: 35%; min-width: 120px; }
 
 .pr-shop-buy {
     font-size: 11px;
     padding: 4px 10px;
-    border: 1px solid #3a3558;
+    border: 1px solid #c4bcd8;
     border-radius: 6px;
-    background: #1e1b2e;
-    color: #ddd6fe;
+    background: #ffffff;
+    color: #1a1a2e;
     cursor: pointer;
     white-space: nowrap;
 }
 
 .pr-shop-buy:hover {
-    background: #262040;
-    border-color: #5548a0;
+    background: #f5f2ff;
+    border-color: #7c72c0;
 }
 
 .pr-shop-buy[disabled] {
@@ -324,13 +349,17 @@
     gap: 2px;
 }
 
+/* ==========================================
+ * Specific Views & Elements
+ * ========================================== */
+
 .pr-notification {
-    background: #1e3a5f;
-    border: 1px solid #1d4ed8;
+    background: #dbeafe;
+    border: 1px solid #93c5fd;
     border-radius: 8px;
     padding: 7px 10px;
     font-size: 12px;
-    color: #93c5fd;
+    color: #1e3a5f;
     margin-bottom: 8px;
     display: flex;
     justify-content: space-between;
@@ -361,20 +390,20 @@
     align-items: flex-start;
     gap: 10px;
     padding: 8px 10px;
-    background: #1e1b2e;
+    background: #ffffff;
     border-radius: 12px;
-    border: 1px solid #2e2a45;
+    border: 1px solid #d4cee3;
 }
 
 .pr-choice-row.leg {
-    border-color: #5548a0;
-    background: #1c1838;
+    border-color: #7c72c0;
+    background: #f5f2ff;
 }
 
 .pr-ct-name {
     font-size: 13px;
     font-weight: 500;
-    color: #ede9ff;
+    color: #1a1a2e;
     margin-bottom: 3px;
 }
 
@@ -387,24 +416,24 @@
 
 .pr-ct-stats span {
     font-size: 9px;
-    color: #7d74a8;
+    color: #6b6089;
 }
 
 .pr-ct-stats span b {
-    color: #c4b8ff;
+    color: #4a3fb8;
 }
 
 .pr-ct-ability {
     font-size: 10px;
-    color: #9d93c8;
+    color: #5a4e7c;
     margin-top: 2px;
 }
 
 .pr-legendary-badge {
     font-size: 9px;
     font-weight: 500;
-    color: #c4b8ff;
-    background: #2a2450;
+    color: #4a3fb8;
+    background: #e5e0f0;
     border-radius: 3px;
     padding: 1px 5px;
     display: inline-block;
@@ -428,26 +457,26 @@
 .pr-pick-btn {
     font-size: 12px;
     padding: 5px 12px;
-    border: 0.5px solid #7068d8;
+    border: 0.5px solid #5b50c8;
     border-radius: 8px;
-    background: #5b50c8;
+    background: #7c72c0;
     color: #ffffff;
     cursor: pointer;
     white-space: nowrap;
     flex-shrink: 0;
-
+    /* align to top of card */
     align-self: flex-start;
 }
 
 .pr-pick-btn:hover {
-    background: #6b60d8;
-    border-color: #7b70e8;
+    background: #8b82d0;
+    border-color: #6b60d8;
 }
 
 .pr-expbar {
     height: 3px;
     border-radius: 2px;
-    background: #2a2640;
+    background: #e5e0f0;
     overflow: hidden;
     margin-top: 2px;
 }
@@ -461,7 +490,7 @@
 .pr-hpbar {
     height: 4px;
     border-radius: 2px;
-    background: #2a2640;
+    background: #e5e0f0;
     overflow: hidden;
 }
 
@@ -478,34 +507,34 @@
 .pr-go-title {
     font-size: 22px;
     font-weight: 500;
-    color: #fca5a5;
+    color: #991b1b;
     margin-bottom: 8px;
 }
 
 .pr-go-sub {
     font-size: 13px;
-    color: #9d93c8;
+    color: #5a4e7c;
     margin-bottom: 20px;
 }
 
 .pr-newrun-btn {
     font-size: 14px;
     padding: 9px 24px;
-    border: 1px solid #7068d8;
+    border: 1px solid #5b50c8;
     border-radius: 8px;
-    background: #5b50c8;
+    background: #7c72c0;
     color: #ffffff;
     cursor: pointer;
 }
 
 .pr-newrun-btn:hover {
-    background: #6b60d8;
+    background: #8b82d0;
 }
 
 .pr-choice-heading {
     font-size: 15px;
     font-weight: 500;
-    color: #ede9ff;
+    color: #1a1a2e;
     margin: 0 0 8px;
 }
 
@@ -516,15 +545,16 @@
 }
 
 .pr-warning-box {
-    background: #2d1515;
-    border: 1px solid #7f1d1d;
+    background: #fef2f2;
+    border: 1px solid #fca5a5;
     border-radius: 8px;
     padding: 8px 12px;
-    color: #fca5a5;
+    color: #991b1b;
     font-size: 12px;
     text-align: center;
     margin-bottom: 10px;
 }
+
 
 @media (max-width: 600px) {
     .pr-actions {
@@ -538,17 +568,22 @@
     gap: 8px;
 }
 
+/* ==========================================
+ * Stats View (compact, tabbed)
+ * ========================================== */
+
 .pr-sv-wrap {
     font-size: 12px;
 }
 
+/* Header strip */
 .pr-sv-header {
     display: flex;
     align-items: center;
     gap: 10px;
     padding: 8px 10px;
-    background: #1e1b2e;
-    border: 1px solid #2e2a45;
+    background: #ffffff;
+    border: 1px solid #d4cee3;
     border-radius: 8px;
     margin-bottom: 6px;
 }
@@ -561,11 +596,11 @@
 .pr-sv-name {
     font-size: 14px;
     font-weight: 600;
-    color: #ede9ff;
+    color: #1a1a2e;
     margin-bottom: 3px;
 }
 
-.pr-sv-shiny { color: #d4a017; font-size: 12px; }
+.pr-sv-shiny { color: #b8860b; font-size: 12px; }
 
 .pr-sv-hp-row {
     display: flex;
@@ -576,7 +611,7 @@
 .pr-sv-hp-label {
     font-size: 9px;
     font-weight: 600;
-    color: #9d93c8;
+    color: #5a4e7c;
     text-transform: uppercase;
     min-width: 14px;
 }
@@ -587,6 +622,7 @@
     text-align: right;
 }
 
+/* Nav bar */
 .pr-sv-nav {
     display: flex;
     align-items: center;
@@ -595,54 +631,56 @@
 }
 .pr-sv-arrow {
     background: none;
-    border: 1px solid #3a3558;
+    border: 1px solid #c4bcd8;
     border-radius: 6px;
     width: 26px;
     height: 26px;
     font-size: 10px;
-    color: #9d93c8;
+    color: #5a4e7c;
     cursor: pointer;
     flex-shrink: 0;
     padding: 0;
     line-height: 1;
 }
 
-.pr-sv-arrow:hover { background: #262040; }
+.pr-sv-arrow:hover { background: #f5f2ff; }
 
 .pr-sv-dot {
     flex: 1;
-    background: #1e1b2e;
-    border: 1px solid #3a3558;
+    background: #ffffff;
+    border: 1px solid #c4bcd8;
     border-radius: 6px;
     padding: 4px 0;
     font-size: 10px;
     font-weight: 500;
-    color: #9d93c8;
+    color: #5a4e7c;
     cursor: pointer;
     text-align: center;
 }
 
 .pr-sv-dot.active {
-    background: #5b50c8;
-    border-color: #7068d8;
+    background: #7c72c0;
+    border-color: #5b50c8;
     color: #fff;
     font-weight: 600;
 }
 
+/* Tab panels */
 .pr-sv-tab {
-    background: #1e1b2e;
-    border: 1px solid #2e2a45;
+    background: #ffffff;
+    border: 1px solid #d4cee3;
     border-radius: 8px;
     padding: 8px 10px;
     margin-bottom: 6px;
 }
 
+/* Info tab rows */
 .pr-sv-row {
     display: flex;
     align-items: baseline;
     gap: 8px;
     padding: 4px 0;
-    border-bottom: 1px solid #2e2a45;
+    border-bottom: 1px solid #d4cee3;
     font-size: 11px;
 }
 
@@ -651,28 +689,29 @@
 .pr-sv-row-label {
     font-size: 10px;
     font-weight: 600;
-    color: #9d93c8;
+    color: #5a4e7c;
     text-transform: uppercase;
     letter-spacing: 0.04em;
     min-width: 52px;
     flex-shrink: 0;
 }
 
-.pr-sv-row-val { flex: 1; color: #ddd6fe; }
+.pr-sv-row-val { flex: 1; color: #1a1a2e; }
 
 .pr-sv-subdesc {
     font-size: 9px;
-    color: #9d93c8;
+    color: #5a4e7c;
     margin-top: 2px;
     line-height: 1.4;
 }
 
 .pr-sv-divider {
     height: 1px;
-    background: #2e2a45;
+    background: #d4cee3;
     margin: 5px 0;
 }
 
+/* Stats tab */
 .pr-sv-stat-row {
     display: grid;
     grid-template-columns: 46px 1fr 38px 22px 22px;
@@ -683,18 +722,18 @@
 .pr-sv-stat-label {
     font-size: 10px;
     font-weight: 600;
-    color: #9d93c8;
+    color: #5a4e7c;
     text-align: right;
     text-transform: uppercase;
 }
 .pr-sv-stat-base {
     font-size: 10px;
-    color: #9d93c8;
+    color: #5a4e7c;
     text-align: right;
 }
 .pr-sv-bar-wrap {
     height: 7px;
-    background: #2a2640;
+    background: #e5e0f0;
     border-radius: 3px;
     overflow: hidden;
 }
@@ -702,33 +741,34 @@
 .pr-sv-stat-val {
     font-size: 11px;
     font-weight: 600;
-    color: #ede9ff;
+    color: #1a1a2e;
     text-align: right;
 }
 .pr-sv-stat-iv {
     font-size: 9px;
-    color: #9d93c8;
+    color: #5a4e7c;
     text-align: center;
 }
 .pr-sv-bst {
     text-align: right;
     font-size: 10px;
-    color: #9d93c8;
-    border-top: 1px solid #2e2a45;
+    color: #5a4e7c;
+    border-top: 1px solid #d4cee3;
     margin-top: 4px;
     padding-top: 4px;
 }
 
+/* Moves tab */
 .pr-sv-move {
     padding: 6px 8px;
     border-radius: 0;
     border-left: 3px solid #888;
     margin-bottom: 4px;
-    background: #13111e;
+    background: #f0edf7;
 }
 .pr-sv-move:last-child { margin-bottom: 0; }
 .pr-sv-move-empty {
-    color: #aaa;
+    color: #666;
     font-size: 11px;
     text-align: center;
     border-left-color: #b8b4b0 !important;
@@ -742,11 +782,11 @@
 }
 .pr-sv-move-name {
     font-size: 12px;
-    color: #ede9ff;
+    color: #1a1a2e;
 }
 .pr-sv-move-meta {
     font-size: 10px;
-    color: #9d93c8;
+    color: #5a4e7c;
     margin-bottom: 4px;
 }
 .pr-sv-move-pp-row {
@@ -755,6 +795,7 @@
     gap: 5px;
 }
 
+/* Team slot nav dots */
 .pr-sv-team-nav {
     display: flex;
     justify-content: center;
@@ -767,13 +808,13 @@
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: #3a3558;
-    border: 1px solid #5a5468;
+    background: #c4bcd8;
+    border: 1px solid #a69fba;
     vertical-align: middle;
 }
 .pr-sv-team-pip.active {
-    background: #5b50c8;
-    border-color: #4a3fb8;
+    background: #7c72c0;
+    border-color: #5b50c8;
 }
 .pr-sv-team-btn {
     background: none !important;
@@ -789,7 +830,836 @@
     }
 }
 
-/* PokeRogue CSS Ends */
+/* * ==========================================
+ * PokéRogue Render UI
+ * ==========================================
+ */
+
+/* Base & Global Rules */
+.pr {
+    font-family: system-ui, sans-serif;
+    color: #ddd6fe;
+    max-width: 680px;
+    background: #13111e;
+    border-radius: 12px;
+    min-height: 200px;
+}
+
+.pr, .pr * {
+    text-shadow: none !important;
+}
+
+/* ==========================================
+ * Components
+ * ========================================== */
+
+.dark .pr-card {
+    background: #1e1b2e;
+    border: 1px solid #2e2a45;
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+}
+
+.dark .pr-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    border-bottom: 1px solid #2e2a45;
+    margin-bottom: 10px;
+}
+
+.dark .pr-header h2 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0;
+    color: #ede9ff;
+}
+
+.dark .pr-statbar {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin-bottom: 10px;
+}
+.dark .pr-statbar.cols2 {
+    grid-template-columns: repeat(2, 1fr);
+}
+
+.dark .pr-stat {
+    background: #1e1b2e;
+    border: 1px solid #2e2a45;
+    border-radius: 8px;
+    padding: 7px 10px;
+    text-align: center;
+}
+
+.dark .pr-stat-label {
+    font-size: 10px;
+    color: #9d93c8;
+    margin-bottom: 2px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.dark .pr-stat-val {
+    font-size: 15px;
+    font-weight: 600;
+    color: #ede9ff;
+}
+
+.dark .pr-section-title {
+    font-size: 10px;
+    font-weight: 600;
+    color: #9d93c8;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    margin-bottom: 6px;
+}
+
+.dark .pr-mon-img {
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+    image-rendering: pixelated;
+}
+
+.dark .pr-mon-lv {
+    font-size: 10px;
+    color: #9d93c8;
+    font-weight: normal;
+}
+
+.dark .pr-types {
+    display: flex;
+    gap: 3px;
+    margin-bottom: 4px;
+    margin-top: 2px;
+    flex-wrap: wrap;
+}
+
+.dark .pr-type {
+    font-size: 9px;
+    font-weight: 500;
+    padding: 1px 5px;
+    border-radius: 3px;
+}
+
+.dark .pr-held-badge {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 500;
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: #93c5fd;
+    background: #1e3a5f;
+    border: 1px solid #1d4ed8;
+    vertical-align: middle;
+    line-height: 1.4;
+}
+
+.dark .pr-level-badge {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 600;
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: #ffffff;
+    background: #6d64b0;
+    vertical-align: middle;
+    line-height: 1.4;
+}
+
+/* ==========================================
+ * Move pill list
+ * ========================================== */
+
+.dark .pr-move-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    margin-top: 5px;
+}
+
+.dark .pr-move-pill {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 500;
+    padding: 1px 5px;
+    border-radius: 3px;
+    /* background and color are set inline via type colour */
+}
+
+/* ==========================================
+ * Bars
+ * ========================================== */
+
+.dark .pr-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+}
+
+.dark .pr-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.dark .pr-bar-track {
+    flex: 1;
+    height: 4px;
+    border-radius: 2px;
+    background: #2a2640;
+    overflow: hidden;
+}
+
+.dark .pr-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+}
+
+.dark .pr-bar-label {
+    font-size: 9px;
+    color: #9d93c8;
+    min-width: 36px;
+    text-align: right;
+}
+
+.dark .pr-item-tag {
+    font-size: 9px;
+    color: #93c5fd;
+    margin-top: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.dark .pr-actions {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+    gap: 5px;
+    margin-top: 4px;
+}
+
+/* ==========================================
+ * Buttons
+ * ========================================== */
+
+.dark .pr-btn {
+    background: #1e1b2e;
+    border: 1px solid #3a3558;
+    border-radius: 8px;
+    padding: 7px 8px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #ddd6fe;
+    cursor: pointer;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.dark .pr-btn:hover {
+    background: #262040;
+    border-color: #5548a0;
+}
+
+.dark .pr-btn.primary {
+    background: #5b50c8;
+    border-color: #7068d8;
+    color: #ffffff;
+}
+
+.dark .pr-btn.primary:hover {
+    background: #6b60d8;
+    border-color: #7b70e8;
+}
+
+.dark .pr-btn.danger {
+    background: #2d1515;
+    border-color: #7f1d1d;
+    color: #fca5a5;
+}
+
+.dark .pr-btn.danger:hover {
+    background: #3f1919;
+    border-color: #991b1b;
+}
+
+.dark .pr-btn[disabled] {
+    opacity: 0.4;
+    cursor: default;
+}
+
+/* ==========================================
+ * Tables (Team / Shop / Leaderboard)
+ * ========================================== *
+.dark .pr-table-container {
+    background: #1a1728;
+    border: 1px solid #2e2a45;
+    border-radius: 8px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    max-height: 520px;
+    margin-bottom: 10px;
+}
+
+.dark .pr-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    text-align: left;
+    table-layout: auto;
+}
+.dark .pr-table th {
+    font-weight: 600;
+    color: #9d93c8;
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 0.05em;
+    padding: 8px 10px;
+    border-bottom: 1px solid #2e2a45;
+    background: #13111e;
+}
+.dark .pr-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid #232038;
+    vertical-align: middle;
+}
+.dark .pr-table tr:last-child td {
+    border-bottom: none;
+}
+
+/* Team rows are expanded — allow more height */
+.dark .pr-team-row td {
+    vertical-align: top;
+    padding-top: 10px;
+    padding-bottom: 10px;
+}
+
+.dark .pr-td-icon { width: 44px; text-align: center; padding-right: 0 !important; }
+.dark .pr-td-team-main { /* expanded details column — no fixed width */ }
+.dark .pr-td-name { font-weight: 600; color: #ede9ff; font-size: 13px; }
+.dark .pr-td-desc { color: #9d93c8; font-size: 11px; }
+.dark .pr-td-cost { font-weight: 600; color: #c4b8ff; white-space: nowrap; }
+.dark .pr-td-action { text-align: right; white-space: nowrap; width: 60px; }
+.dark .pr-td-bars { width: 35%; min-width: 120px; }
+
+.dark .pr-shop-buy {
+    font-size: 11px;
+    padding: 4px 10px;
+    border: 1px solid #3a3558;
+    border-radius: 6px;
+    background: #1e1b2e;
+    color: #ddd6fe;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.dark .pr-shop-buy:hover {
+    background: #262040;
+    border-color: #5548a0;
+}
+
+.dark .pr-shop-buy[disabled] {
+    opacity: 0.4;
+    cursor: default;
+}
+.dark .pr-shop-icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    image-rendering: pixelated;
+    vertical-align: middle;
+}
+.dark .pr-lb-team {
+    display: flex;
+    gap: 2px;
+}
+
+/* ==========================================
+ * Specific Views & Elements
+ * ========================================== */
+
+.dark .pr-notification {
+    background: #1e3a5f;
+    border: 1px solid #1d4ed8;
+    border-radius: 8px;
+    padding: 7px 10px;
+    font-size: 12px;
+    color: #93c5fd;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.dark .pr-notification-dismiss {
+    font-size: 11px;
+    opacity: 0.6;
+    cursor: pointer;
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    color: inherit;
+    padding: 0;
+}
+
+.dark .pr-choice-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.dark .pr-choice-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 8px 10px;
+    background: #1e1b2e;
+    border-radius: 12px;
+    border: 1px solid #2e2a45;
+}
+
+.dark .pr-choice-row.leg {
+    border-color: #5548a0;
+    background: #1c1838;
+}
+
+.dark .pr-ct-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: #ede9ff;
+    margin-bottom: 3px;
+}
+
+.dark .pr-ct-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 3px;
+}
+
+.dark .pr-ct-stats span {
+    font-size: 9px;
+    color: #7d74a8;
+}
+
+.dark .pr-ct-stats span b {
+    color: #c4b8ff;
+}
+
+.dark .pr-ct-ability {
+    font-size: 10px;
+    color: #9d93c8;
+    margin-top: 2px;
+}
+
+.dark .pr-legendary-badge {
+    font-size: 9px;
+    font-weight: 500;
+    color: #c4b8ff;
+    background: #2a2450;
+    border-radius: 3px;
+    padding: 1px 5px;
+    display: inline-block;
+    margin-top: 3px;
+}
+
+.dark .pr-sprite-wrap {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.dark .pr-pokeball-overlay {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 14px;
+    height: 14px;
+    image-rendering: pixelated;
+}
+
+.dark .pr-pick-btn {
+    font-size: 12px;
+    padding: 5px 12px;
+    border: 0.5px solid #7068d8;
+    border-radius: 8px;
+    background: #5b50c8;
+    color: #ffffff;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    /* align to top of card */
+    align-self: flex-start;
+}
+
+.dark .pr-pick-btn:hover {
+    background: #6b60d8;
+    border-color: #7b70e8;
+}
+
+.dark .pr-expbar {
+    height: 3px;
+    border-radius: 2px;
+    background: #2a2640;
+    overflow: hidden;
+    margin-top: 2px;
+}
+
+.dark .pr-expbar-fill {
+    height: 100%;
+    border-radius: 2px;
+    background: #7F77DD;
+}
+
+.dark .pr-hpbar {
+    height: 4px;
+    border-radius: 2px;
+    background: #2a2640;
+    overflow: hidden;
+}
+
+.dark .pr-hpbar-fill {
+    height: 100%;
+    border-radius: 2px;
+}
+
+.dark .pr-gameover {
+    text-align: center;
+    padding: 28px 20px;
+}
+
+.dark .pr-go-title {
+    font-size: 22px;
+    font-weight: 500;
+    color: #fca5a5;
+    margin-bottom: 8px;
+}
+
+.dark .pr-go-sub {
+    font-size: 13px;
+    color: #9d93c8;
+    margin-bottom: 20px;
+}
+
+.dark .pr-newrun-btn {
+    font-size: 14px;
+    padding: 9px 24px;
+    border: 1px solid #7068d8;
+    border-radius: 8px;
+    background: #5b50c8;
+    color: #ffffff;
+    cursor: pointer;
+}
+
+.dark .pr-newrun-btn:hover {
+    background: #6b60d8;
+}
+
+.dark .pr-choice-heading {
+    font-size: 15px;
+    font-weight: 500;
+    color: #ede9ff;
+    margin: 0 0 8px;
+}
+
+.dark .pr-popup-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.dark .pr-warning-box {
+    background: #2d1515;
+    border: 1px solid #7f1d1d;
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: #fca5a5;
+    font-size: 12px;
+    text-align: center;
+    margin-bottom: 10px;
+}
+
+
+@media (max-width: 600px) {
+    .pr-actions {
+        grid-template-columns: 1fr;
+    }
+}
+
+.dark .pr-devtools-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+/* ==========================================
+ * Stats View (compact, tabbed)
+ * ========================================== */
+
+.dark .pr-sv-wrap {
+    font-size: 12px;
+}
+
+/* Header strip */
+.dark .pr-sv-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    background: #1e1b2e;
+    border: 1px solid #2e2a45;
+    border-radius: 8px;
+    margin-bottom: 6px;
+}
+
+.dark .pr-sv-sprite-col { flex-shrink: 0; width: 52px; text-align: center; }
+.dark .pr-sv-sprite { width: 52px; height: 52px; image-rendering: pixelated; display: block; }
+
+.dark .pr-sv-info-col { flex: 1; min-width: 0; }
+
+.dark .pr-sv-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #ede9ff;
+    margin-bottom: 3px;
+}
+
+.dark .pr-sv-shiny { color: #d4a017; font-size: 12px; }
+
+.dark .pr-sv-hp-row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 4px;
+}
+.dark .pr-sv-hp-label {
+    font-size: 9px;
+    font-weight: 600;
+    color: #9d93c8;
+    text-transform: uppercase;
+    min-width: 14px;
+}
+.dark .pr-sv-hp-pct {
+    font-size: 10px;
+    font-weight: 600;
+    min-width: 30px;
+    text-align: right;
+}
+
+/* Nav bar */
+.dark .pr-sv-nav {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 4px;
+}
+.dark .pr-sv-arrow {
+    background: none;
+    border: 1px solid #3a3558;
+    border-radius: 6px;
+    width: 26px;
+    height: 26px;
+    font-size: 10px;
+    color: #9d93c8;
+    cursor: pointer;
+    flex-shrink: 0;
+    padding: 0;
+    line-height: 1;
+}
+
+.dark .pr-sv-arrow:hover { background: #262040; }
+
+.dark .pr-sv-dot {
+    flex: 1;
+    background: #1e1b2e;
+    border: 1px solid #3a3558;
+    border-radius: 6px;
+    padding: 4px 0;
+    font-size: 10px;
+    font-weight: 500;
+    color: #9d93c8;
+    cursor: pointer;
+    text-align: center;
+}
+
+.dark .pr-sv-dot.active {
+    background: #5b50c8;
+    border-color: #7068d8;
+    color: #fff;
+    font-weight: 600;
+}
+
+/* Tab panels */
+.dark .pr-sv-tab {
+    background: #1e1b2e;
+    border: 1px solid #2e2a45;
+    border-radius: 8px;
+    padding: 8px 10px;
+    margin-bottom: 6px;
+}
+
+/* Info tab rows */
+.dark .pr-sv-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 4px 0;
+    border-bottom: 1px solid #2e2a45;
+    font-size: 11px;
+}
+
+.dark .pr-sv-row:last-child { border-bottom: none; }
+
+.dark .pr-sv-row-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: #9d93c8;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    min-width: 52px;
+    flex-shrink: 0;
+}
+
+.dark .pr-sv-row-val { flex: 1; color: #ddd6fe; }
+
+.dark .pr-sv-subdesc {
+    font-size: 9px;
+    color: #9d93c8;
+    margin-top: 2px;
+    line-height: 1.4;
+}
+
+.dark .pr-sv-divider {
+    height: 1px;
+    background: #2e2a45;
+    margin: 5px 0;
+}
+
+/* Stats tab */
+.dark .pr-sv-stat-row {
+    display: grid;
+    grid-template-columns: 46px 1fr 38px 22px 22px;
+    align-items: center;
+    gap: 5px;
+    margin-bottom: 4px;
+}
+.dark .pr-sv-stat-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: #9d93c8;
+    text-align: right;
+    text-transform: uppercase;
+}
+.dark .pr-sv-stat-base {
+    font-size: 10px;
+    color: #9d93c8;
+    text-align: right;
+}
+.dark .pr-sv-bar-wrap {
+    height: 7px;
+    background: #2a2640;
+    border-radius: 3px;
+    overflow: hidden;
+}
+.dark .pr-sv-bar { height: 100%; border-radius: 3px; }
+.dark .pr-sv-stat-val {
+    font-size: 11px;
+    font-weight: 600;
+    color: #ede9ff;
+    text-align: right;
+}
+.dark .pr-sv-stat-iv {
+    font-size: 9px;
+    color: #9d93c8;
+    text-align: center;
+}
+.dark .pr-sv-bst {
+    text-align: right;
+    font-size: 10px;
+    color: #9d93c8;
+    border-top: 1px solid #2e2a45;
+    margin-top: 4px;
+    padding-top: 4px;
+}
+
+/* Moves tab */
+.dark .pr-sv-move {
+    padding: 6px 8px;
+    border-radius: 0;
+    border-left: 3px solid #888;
+    margin-bottom: 4px;
+    background: #13111e;
+}
+.dark .pr-sv-move:last-child { margin-bottom: 0; }
+.dark .pr-sv-move-empty {
+    color: #aaa;
+    font-size: 11px;
+    text-align: center;
+    border-left-color: #b8b4b0 !important;
+    padding: 8px;
+}
+.dark .pr-sv-move-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 3px;
+}
+.dark .pr-sv-move-name {
+    font-size: 12px;
+    color: #ede9ff;
+}
+.dark .pr-sv-move-meta {
+    font-size: 10px;
+    color: #9d93c8;
+    margin-bottom: 4px;
+}
+.dark .pr-sv-move-pp-row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+/* Team slot nav dots */
+.dark .pr-sv-team-nav {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+}
+.dark .pr-sv-team-pip {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #3a3558;
+    border: 1px solid #5a5468;
+    vertical-align: middle;
+}
+.dark .pr-sv-team-pip.active {
+    background: #5b50c8;
+    border-color: #4a3fb8;
+}
+.dark .pr-sv-team-btn {
+    background: none !important;
+    border: none !important;
+    padding: 2px !important;
+    cursor: pointer;
+    line-height: 1;
+}
+
+@media (max-width: 600px) {
+    .dark .pr-devtools-actions {
+        grid-template-columns: 1fr;
+    }
+}
 
 /* Themed Table CSS Starts */
 
