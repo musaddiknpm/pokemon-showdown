@@ -836,7 +836,7 @@
  */
 
 /* Base & Global Rules */
-.pr {
+.dark .pr {
     font-family: system-ui, sans-serif;
     color: #ddd6fe;
     max-width: 680px;
@@ -845,7 +845,7 @@
     min-height: 200px;
 }
 
-.pr, .pr * {
+.dark .pr, .pr * {
     text-shadow: none !important;
 }
 
