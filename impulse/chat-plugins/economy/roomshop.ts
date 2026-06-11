@@ -180,10 +180,11 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			const bal = await getBalance(user.id);
 			if (bal < item.cost) return this.errorReply(`Insufficient ${CURRENCY_NAME}. (Cost: ${item.cost}, Bal: ${bal})`);
 
-			const bankBal = await getBalance(data.bank);
-			
-			await setBalance(user.id, bal - item.cost);
-			await setBalance(data.bank, bankBal + item.cost);
+			if (user.id !== data.bank) {
+				const bankBal = await getBalance(data.bank);
+				await setBalance(user.id, bal - item.cost);
+				await setBalance(data.bank, bankBal + item.cost);
+			}
 
 			await RoomShopManager.addLog(room.roomid, user.name, itemName);
 
