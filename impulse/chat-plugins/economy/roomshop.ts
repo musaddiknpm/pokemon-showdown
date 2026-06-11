@@ -187,7 +187,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 
 			await RoomShopManager.addLog(room.roomid, user.name, itemName);
 
-			this.sendReply(`Purchased <b>${itemName}</b> for <b>${item.cost}</b> ${CURRENCY_NAME}.`);
+			this.sendReplyBox(`Purchased <b>${itemName}</b> for <b>${item.cost}</b> ${CURRENCY_NAME}.`);
 		},
 
 		async bank(target, room, user) {
@@ -199,7 +199,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			const data = await RoomShopManager.getRoomData(room.roomid);
 			await RoomShopManager.setRoomConfig(room.roomid, data.enabled, targetId);
 			
-			this.sendReply(`|raw|Room bank set to: ${nameColor(targetId, true)}`);
+			this.sendReplyBox(`|raw|Room bank set to: ${nameColor(targetId, true)}`);
 		},
 
 		async showbank(target, room, user) {
@@ -222,7 +222,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			if (!data.enabled) return this.errorReply("Room shop is not enabled.");
 
 			await RoomShopManager.setRoomItem(room.roomid, name, desc, cost);
-			this.sendReply(`Item <b>${name}</b> has been added/updated.`);
+			this.sendReplyBox(`Item <b>${name}</b> has been added/updated.`);
 		},
 
 		async remove(target, room, user) {
@@ -234,7 +234,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			if (!data.items[name]) return this.errorReply(`Item "${name}" not found.`);
 			
 			await RoomShopManager.removeRoomItem(room.roomid, name);
-			this.sendReply(`Item "${name}" removed.`);
+			this.sendReplyBox(`Item "${name}" removed.`);
 		},
 
 		async enable(target, room, user) {
@@ -243,7 +243,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			const data = await RoomShopManager.getRoomData(room.roomid);
 			
 			await RoomShopManager.setRoomConfig(room.roomid, true, data.bank);
-			this.sendReply("Room Shop enabled.");
+			this.sendReplyBox("Room Shop enabled.");
 		},
 
 		async disable(target, room, user) {
@@ -252,7 +252,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			const data = await RoomShopManager.getRoomData(room.roomid);
 			
 			await RoomShopManager.setRoomConfig(room.roomid, false, data.bank);
-			this.sendReply("Room Shop disabled.");
+			this.sendReplyBox("Room Shop disabled.");
 		},
 
 		async logs(target, room, user) {
