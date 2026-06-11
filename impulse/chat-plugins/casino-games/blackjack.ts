@@ -399,6 +399,21 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			activeGames.delete(room.roomid);
 
 			await refundAll(game, `Cancelled by ${user.name}.`);
+		},
+
+		help() {
+			this.runBroadcast();
+			this.sendReplyBox(
+				`<center><b>Blackjack Commands</b></center><hr>` +
+				`<b>/bj start [bet]</b>: Start a Blackjack game with the specified bet.<hr>` +
+				`<b>/bj join</b>: Join the current Blackjack game.<hr>` +
+				`<b>/bj deal</b>: Deal the cards and start playing (Host only).<hr>` +
+				`<b>/bj hit</b>: Draw another card.<hr>` +
+				`<b>/bj stand</b>: End your turn.<hr>` +
+				`<b>/bj end</b>: Cancel the game (Host/Moderator only).`
+			);
 		}
-	}
+	},
+	blackjackhelp: 'blackjack help',
+	bjhelp: 'blackjack help',
 });
