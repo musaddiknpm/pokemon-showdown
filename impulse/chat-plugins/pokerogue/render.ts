@@ -1587,9 +1587,9 @@ function renderSlotRow(i: number, slotData: any, action: 'save' | 'load'): strin
 		buf += `<td class="pr-td-desc" style="padding:8px 6px;font-size:11px;">Floor ${slotData.floor}</td>`;
 		buf += `<td class="pr-td-action" style="padding:8px 6px;text-align:right;">`;
 		if (action === 'save') {
-			buf += renderBtn(`/pokerogue savegame ${i}`, 'Overwrite', 'pr-btn danger', 'padding:4px 8px;font-size:10px;');
+			buf += renderBtn(`/pokerogue saveslot ${i}`, 'Overwrite', 'pr-btn danger', 'padding:4px 8px;font-size:10px;');
 		} else {
-			buf += renderBtn(`/pokerogue loadgame ${i}`, 'Load', 'pr-pick-btn', 'padding:4px 8px;font-size:10px;');
+			buf += renderBtn(`/pokerogue loadslot ${i}`, 'Load', 'pr-pick-btn', 'padding:4px 8px;font-size:10px;');
 		}
 		buf += `</td>`;
 	} else {
@@ -1597,7 +1597,7 @@ function renderSlotRow(i: number, slotData: any, action: 'save' | 'load'): strin
 		buf += `<td class="pr-td-desc" style="padding:8px 6px;">-</td>`;
 		buf += `<td class="pr-td-action" style="padding:8px 6px;text-align:right;">`;
 		if (action === 'save') {
-			buf += renderBtn(`/pokerogue savegame ${i}`, 'Save', 'pr-btn primary', 'padding:4px 8px;font-size:10px;');
+			buf += renderBtn(`/pokerogue saveslot ${i}`, 'Save', 'pr-btn primary', 'padding:4px 8px;font-size:10px;');
 		} else {
 			buf += `<span style="font-size:10px;color:#888;">-</span>`;
 		}
