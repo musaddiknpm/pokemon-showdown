@@ -145,5 +145,16 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			activeGames.delete(room.roomid);
 			room.add(`|uhtmlchange|${game.uid}|${resultHtml}`).update();
 		},
+
+		help() {
+			this.runBroadcast();
+			this.sendReplyBox(
+				`<center><b>Dice Commands</b></center><hr>` +
+				`<b>/dice start [bet]</b>: Start a Dice game with the specified bet.<hr>` +
+				`<b>/dice join</b>: Join the current Dice game.<hr>` +
+				`<b>/dice end</b>: Cancel the game (Host/Moderator only).`
+			);
+		}
 	},
+	dicehelp: 'dice help',
 });
