@@ -100,12 +100,12 @@ function updateLobby(game: BaccaratGame) {
 	}
 	
 	html += `<br>`;
-	html += `<button class="button" name="send" value="/bac join player" style="padding:6px 20px;margin-right:5px;">Bet Player (2x)</button>`;
-	html += `<button class="button" name="send" value="/bac join banker" style="padding:6px 20px;margin-right:5px;">Bet Banker (2x)</button>`;
-	html += `<button class="button" name="send" value="/bac join tie" style="padding:6px 20px;margin-right:5px;">Bet Tie (9x)</button>`;
+	html += `<button class="button" name="send" value="/bacc join player" style="padding:6px 20px;margin-right:5px;">Bet Player (2x)</button>`;
+	html += `<button class="button" name="send" value="/bacc join banker" style="padding:6px 20px;margin-right:5px;">Bet Banker (2x)</button>`;
+	html += `<button class="button" name="send" value="/bacc join tie" style="padding:6px 20px;margin-right:5px;">Bet Tie (9x)</button>`;
 	html += `<br><br>`;
-	html += `<button class="button" name="send" value="/bac deal" style="padding:6px 20px;margin-right:5px;">Deal (Host)</button>`;
-	html += `<button class="button" name="send" value="/bac end" style="padding:6px 20px;">Cancel Game</button>`;
+	html += `<button class="button" name="send" value="/bacc deal" style="padding:6px 20px;margin-right:5px;">Deal (Host)</button>`;
+	html += `<button class="button" name="send" value="/bacc end" style="padding:6px 20px;">Cancel Game</button>`;
 	html += `<br><br><small>This game will automatically expire in 60 seconds if not dealt.</small>`;
 	html += `</div>`;
 	
@@ -180,11 +180,11 @@ async function dealGame(game: BaccaratGame) {
 			if (result === 'tie') {
 				const winAmount = p.bet * 9;
 				await updateBalance(p.id, winAmount);
-				payoutHtml += `${nameColor(p.name, true)} won <b>${winAmount}</b> (Bet Tie)<br>`;
+				payoutHtml += `${nameColor(p.name, true)} won <b>${winAmount}</b> ${CURRENCY_NAME} (Bet Tie)<br>`;
 			} else {
 				const winAmount = p.bet * 2;
 				await updateBalance(p.id, winAmount);
-				payoutHtml += `${nameColor(p.name, true)} won <b>${winAmount}</b> (Bet ${p.choice === 'player' ? 'Player' : 'Banker'})<br>`;
+				payoutHtml += `${nameColor(p.name, true)} won <b>${winAmount}</b> ${CURRENCY_NAME} (Bet ${p.choice === 'player' ? 'Player' : 'Banker'})<br>`;
 			}
 		} else if (result === 'tie' && (p.choice === 'player' || p.choice === 'banker')) {
 			await updateBalance(p.id, p.bet);
@@ -210,13 +210,13 @@ async function dealGame(game: BaccaratGame) {
 }
 
 export const commands: Chat.ChatCommands = wrapCommands({
-	bac: 'baccarat',
+	bacc: 'baccarat',
 	baccarat: {
 		async start(target, room, user) {
 			if (!room || room.battle || room.roomid !== CASINO_ROOM) return this.errorReply("This command can only be used in the Casino room.");
 
 			const bet = parseInt(target.trim());
-			if (isNaN(bet) || bet <= 0) return this.errorReply("Usage: /bac start [coins]");
+			if (isNaN(bet) || bet <= 0) return this.errorReply("Usage: /bacc start [coins]");
 
 			if (activeGames.has(room.roomid)) return this.errorReply("A baccarat game is already running in this room.");
 
@@ -252,12 +252,12 @@ export const commands: Chat.ChatCommands = wrapCommands({
 				html += `<b>Players in lobby:</b><br>`;
 				html += `<i>No players yet</i><br>`;
 				html += `<br>`;
-				html += `<button class="button" name="send" value="/bac join player" style="padding:6px 20px;margin-right:5px;">Bet Player (2x)</button>`;
-				html += `<button class="button" name="send" value="/bac join banker" style="padding:6px 20px;margin-right:5px;">Bet Banker (2x)</button>`;
-				html += `<button class="button" name="send" value="/bac join tie" style="padding:6px 20px;margin-right:5px;">Bet Tie (9x)</button>`;
+				html += `<button class="button" name="send" value="/bacc join player" style="padding:6px 20px;margin-right:5px;">Bet Player (2x)</button>`;
+				html += `<button class="button" name="send" value="/bacc join banker" style="padding:6px 20px;margin-right:5px;">Bet Banker (2x)</button>`;
+				html += `<button class="button" name="send" value="/bacc join tie" style="padding:6px 20px;margin-right:5px;">Bet Tie (9x)</button>`;
 				html += `<br><br>`;
-				html += `<button class="button" name="send" value="/bac deal" style="padding:6px 20px;margin-right:5px;">Deal (Host)</button>`;
-				html += `<button class="button" name="send" value="/bac end" style="padding:6px 20px;">Cancel Game</button>`;
+				html += `<button class="button" name="send" value="/bacc deal" style="padding:6px 20px;margin-right:5px;">Deal (Host)</button>`;
+				html += `<button class="button" name="send" value="/bacc end" style="padding:6px 20px;">Cancel Game</button>`;
 				html += `<br><br><small>This game will automatically expire in 60 seconds if not dealt.</small>`;
 				html += `</div>`;
 				roomObj.add(`|uhtml|${game.uid}|${html}`).update();
@@ -322,13 +322,13 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			this.runBroadcast();
 			this.sendReplyBox(
 				`<center><b>Baccarat Commands</b></center><hr>` +
-				`<b>/bac start [bet]</b>: Start a Baccarat game with the specified bet.<hr>` +
-				`<b>/bac join [player|banker|tie]</b>: Join the current Baccarat game.<hr>` +
-				`<b>/bac deal</b>: Deal the cards (Host only).<hr>` +
-				`<b>/bac end</b>: Cancel the game (Host/Moderator only).`
+				`<b>/bacc start [bet]</b>: Start a Baccarat game with the specified bet.<hr>` +
+				`<b>/bacc join [player|banker|tie]</b>: Join the current Baccarat game.<hr>` +
+				`<b>/bacc deal</b>: Deal the cards (Host only).<hr>` +
+				`<b>/bacc end</b>: Cancel the game (Host/Moderator only).`
 			);
 		}
 	},
 	baccarathelp: 'baccarat help',
-	bachelp: 'baccarat help',
+	bacchelp: 'baccarat help',
 });
