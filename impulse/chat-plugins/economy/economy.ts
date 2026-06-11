@@ -101,7 +101,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 		this.sendReplyBox(`${nameColor(targetId, true)} has <b>${balance}</b> ${CONFIG.CURRENCY}.`);
 	},
 
-	async daily(target, room, user) {
+	async claimdaily(target, room, user) {
 		const now = Date.now();
 		const lastDaily = await EconomyManager.getLastClaim(user.id);
 		const remaining = (lastDaily + CONFIG.DAILY_COOLDOWN) - now;
@@ -116,7 +116,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 		await updateBalance(user.id, reward);
 
 		const newBal = await getBalance(user.id);
-		this.sendReply(`You received <b>${reward}</b> daily ${CONFIG.CURRENCY}! Your new balance: <b>${newBal}</b>.`);
+		this.sendReplyBox(`You received <b>${reward}</b> daily ${CONFIG.CURRENCY}! Your new balance: <b>${newBal}</b>.`);
 	},
 
 	async transfer(target, room, user) {
@@ -133,7 +133,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 		await updateBalance(user.id, -amount);
 		await updateBalance(targetId, amount);
 
-		this.sendReply(`Sent <b>${amount}</b> ${CONFIG.CURRENCY} to ${targetName}.`);
+		this.sendReplyBox(`Sent <b>${amount}</b> ${CONFIG.CURRENCY} to ${targetName}.`);
 		EconomyManager.notify(targetId, `${nameColor(user.name, true)} sent you <b>${amount}</b> ${CONFIG.CURRENCY}.`);
 	},
 
@@ -146,7 +146,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 		if (!targetId || isNaN(amount) || amount <= 0) return this.errorReply("Usage: /givemoney [user], [amount]");
 
 		await updateBalance(targetId, amount);
-		this.sendReply(`Gave <b>${amount}</b> ${CONFIG.CURRENCY} to ${targetName}.`);
+		this.sendReplyBox(`Gave <b>${amount}</b> ${CONFIG.CURRENCY} to ${targetName}.`);
 
 		Rooms.get('staff')?.add(`|html|<div class="infobox">${user.name} gave <b>${amount}</b> ${CONFIG.CURRENCY} to ${targetName}.</div>`).update();
 		EconomyManager.notify(targetId, `You received <b>${amount}</b> ${CONFIG.CURRENCY} from staff.`);
@@ -161,7 +161,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 		if (!targetId || isNaN(amount) || amount <= 0) return this.errorReply("Usage: /takemoney [user], [amount]");
 
 		await updateBalance(targetId, -amount);
-		this.sendReply(`Took <b>${amount}</b> ${CONFIG.CURRENCY} from ${targetName}.`);
+		this.sendReplyBox(`Took <b>${amount}</b> ${CONFIG.CURRENCY} from ${targetName}.`);
 
 		Rooms.get('staff')?.add(`|html|<div class="infobox">${user.name} took <b>${amount}</b> ${CONFIG.CURRENCY} from ${targetName}.</div>`).update();
 		EconomyManager.notify(targetId, `Staff took <b>${amount}</b> ${CONFIG.CURRENCY} from your balance.`);
@@ -195,7 +195,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 		this.sendReplyBox(
 			`<center><b>Economy Commands</b></center><hr>` +
 			`<b>/bal [user]</b>: Check balance.<hr>` +
-			`<b>/daily</b>: Claim 1-5 ${CONFIG.CURRENCY} every 24h.<hr>` +
+			`<b>/claimdaily</b>: Claim 1-5 ${CONFIG.CURRENCY} every 24h.<hr>` +
 			`<b>/transfer [user], [amt]</b>: Send ${CONFIG.CURRENCY}.<hr>` +
 			`<b>/richu</b>: See leaderboard.<hr>` +
 			`<b>/givemoney/takemoney [user], [amt]</b>: Staff only.`
