@@ -180,12 +180,16 @@ function updateRoom(game: BlackjackGame) {
 	if (!room) return;
 	
 	let html = `<div class="infobox" style="padding:12px 16px; text-align:center;">`;
-	html += `<b>Blackjack</b> (Bet: <b>${game.bet}</b> ${CURRENCY_NAME})<hr>`;
+	html += `<b>Blackjack</b> (Bet: <b>${game.bet}</b> ${CURRENCY_NAME})<br>Host: ${nameColor(game.hostName, true)}<hr>`;
 	
 	if (game.state === 'lobby') {
 		html += `<b>Players in lobby:</b><br>`;
-		for (const p of game.players) {
-			html += `${nameColor(p.name, true)}<br>`;
+		if (game.players.length === 0) {
+			html += `<i>No players yet</i><br>`;
+		} else {
+			for (const p of game.players) {
+				html += `${nameColor(p.name, true)}<br>`;
+			}
 		}
 		html += `<br>`;
 		html += `<button class="button" name="send" value="/bj join" style="padding:6px 20px;margin-right:5px;">Join Game</button>`;
@@ -261,10 +265,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 
 			if (activeGames.has(room.roomid)) return this.errorReply("A blackjack game is already running in this room.");
 
-			const bal = await getBalance(user.id);
-			if (bal < bet) return this.errorReply(`You don't have enough ${CURRENCY_NAME}. (Balance: ${bal})`);
-
-			await updateBalance(user.id, -bet);
+			// Host no longer auto-joins, so balance check is deferred to join command
 
 			const uid = `bj-${room.roomid}-${Date.now()}`;
 			
@@ -275,13 +276,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 				hostName: user.name,
 				bet,
 				state: 'lobby',
-				players: [{
-					id: user.id,
-					name: user.name,
-					hand: [],
-					status: 'playing',
-					bet
-				}],
+				players: [],
 				dealerHand: [],
 				turnIndex: 0,
 				timer: null,
@@ -290,7 +285,14 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			game.timer = setTimeout(() => {
 				if (activeGames.has(room.roomid)) {
 					const g = activeGames.get(room.roomid)!;
-					if (g.state === 'lobby') void startDealing(g);
+					if (g.state === 'lobby') {
+						if (g.players.length > 0) {
+							void startDealing(g);
+						} else {
+							void refundAll(g, 'Lobby timed out.');
+							activeGames.delete(room.roomid);
+						}
+					}
 				}
 			}, LOBBY_TIMEOUT);
 
@@ -299,9 +301,9 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			const roomObj = Rooms.get(game.roomid);
 			if (roomObj) {
 				let html = `<div class="infobox" style="padding:12px 16px; text-align:center;">`;
-				html += `<b>Blackjack</b> (Bet: <b>${game.bet}</b> ${CURRENCY_NAME})<hr>`;
+				html += `<b>Blackjack</b> (Bet: <b>${game.bet}</b> ${CURRENCY_NAME})<br>Host: ${nameColor(game.hostName, true)}<hr>`;
 				html += `<b>Players in lobby:</b><br>`;
-				html += `${nameColor(user.name, true)}<br>`;
+				html += `<i>No players yet</i><br>`;
 				html += `<br>`;
 				html += `<button class="button" name="send" value="/bj join" style="padding:6px 20px;margin-right:5px;">Join Game</button>`;
 				html += `<button class="button" name="send" value="/bj deal" style="padding:6px 20px;margin-right:5px;">Deal (Host)</button>`;
@@ -342,6 +344,8 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			
 			const isHost = typeof user === 'string' ? user === game.host : user.id === game.host;
 			if (!isHost) return this.errorReply("Only the host can start dealing.");
+
+			if (game.players.length === 0) return this.errorReply("Cannot deal without any players.");
 
 			void startDealing(game);
 		},
