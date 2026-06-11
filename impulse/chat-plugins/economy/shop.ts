@@ -120,7 +120,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			await setBalance(user.id, bal - item.cost);
 			await GlobalShopManager.addLog(user.name, itemName);
 
-			this.sendReply(`Purchased <b>${itemName}</b> for <b>${item.cost}</b> ${CURRENCY_NAME}.`);
+			this.sendReplyBox(`Purchased <b>${itemName}</b> for <b>${item.cost}</b> ${CURRENCY_NAME}.`);
 
 			const staffRoom = Rooms.get('staff');
 			if (staffRoom) {
@@ -137,7 +137,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			if (!name || !desc || isNaN(cost) || cost <= 0) return this.errorReply("Usage: /shop add [name], [desc], [cost]");
 
 			await GlobalShopManager.setItem(name, desc, cost);
-			this.sendReply(`Item <b>${name}</b> has been added/updated.`);
+			this.sendReplyBox(`Item <b>${name}</b> has been added/updated.`);
 		},
 
 		async remove(target, room, user) {
@@ -147,7 +147,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			if (!item) return this.errorReply(`Item "${name}" not found.`);
 
 			await GlobalShopManager.removeItem(name);
-			this.sendReply(`Item "${name}" removed from the global shop.`);
+			this.sendReplyBox(`Item "${name}" removed from the global shop.`);
 		},
 
 		async logs(target, room, user) {
