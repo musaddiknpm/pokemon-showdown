@@ -87,7 +87,7 @@ function updateLobby(game: BaccaratGame) {
 	if (!room) return;
 	
 	let html = `<div class="infobox" style="padding:12px 16px; text-align:center;">`;
-	html += `<b>Baccarat</b> (Bet: <b>${game.bet}</b> ${CURRENCY_NAME})<hr>`;
+	html += `<b>Baccarat</b> (Bet: <b>${game.bet}</b> ${CURRENCY_NAME})<br>Host: ${nameColor(game.hostName, true)}<hr>`;
 	html += `<b>Players in lobby:</b><br>`;
 	
 	if (game.players.length === 0) {
@@ -106,7 +106,7 @@ function updateLobby(game: BaccaratGame) {
 	html += `<br><br>`;
 	html += `<button class="button" name="send" value="/bacc deal" style="padding:6px 20px;margin-right:5px;">Deal (Host)</button>`;
 	html += `<button class="button" name="send" value="/bacc end" style="padding:6px 20px;">Cancel Game</button>`;
-	html += `<br><br><small>This game will automatically expire in 60 seconds if not dealt.</small>`;
+	html += `<br><br><small>This game will automatically start in 60 seconds.</small>`;
 	html += `</div>`;
 	
 	room.add(`|uhtmlchange|${game.uid}|${html}`).update();
@@ -237,8 +237,12 @@ export const commands: Chat.ChatCommands = wrapCommands({
 				if (activeGames.has(room.roomid)) {
 					const g = activeGames.get(room.roomid)!;
 					if (g.state === 'lobby') {
-						void refundAll(g, 'Lobby timed out.');
-						activeGames.delete(room.roomid);
+						if (g.players.length > 0) {
+							void dealGame(g);
+						} else {
+							void refundAll(g, 'Lobby timed out.');
+							activeGames.delete(room.roomid);
+						}
 					}
 				}
 			}, LOBBY_TIMEOUT);
@@ -248,7 +252,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			const roomObj = Rooms.get(game.roomid);
 			if (roomObj) {
 				let html = `<div class="infobox" style="padding:12px 16px; text-align:center;">`;
-				html += `<b>Baccarat</b> (Bet: <b>${game.bet}</b> ${CURRENCY_NAME})<hr>`;
+				html += `<b>Baccarat</b> (Bet: <b>${game.bet}</b> ${CURRENCY_NAME})<br>Host: ${nameColor(game.hostName, true)}<hr>`;
 				html += `<b>Players in lobby:</b><br>`;
 				html += `<i>No players yet</i><br>`;
 				html += `<br>`;
@@ -258,7 +262,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 				html += `<br><br>`;
 				html += `<button class="button" name="send" value="/bacc deal" style="padding:6px 20px;margin-right:5px;">Deal (Host)</button>`;
 				html += `<button class="button" name="send" value="/bacc end" style="padding:6px 20px;">Cancel Game</button>`;
-				html += `<br><br><small>This game will automatically expire in 60 seconds if not dealt.</small>`;
+				html += `<br><br><small>This game will automatically start in 60 seconds.</small>`;
 				html += `</div>`;
 				roomObj.add(`|uhtml|${game.uid}|${html}`).update();
 			}
