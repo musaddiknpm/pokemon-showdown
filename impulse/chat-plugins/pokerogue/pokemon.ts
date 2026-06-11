@@ -188,8 +188,7 @@ export function getLevelScaling(floor: number, config?: ModeConfig): { cap: numb
 
 	const bossInterval = config?.bossInterval || 10;
 	const bossFloor = Math.ceil(Math.max(1, floor) / bossInterval) * bossInterval;
-	const bossEffectiveFloor = bossFloor - 1;
-	const bossBaseLevel = Math.floor((Math.max(1, bossEffectiveFloor) - 1) / 2) + 3;
+	const bossBaseLevel = Math.floor((Math.max(1, bossFloor - 1) - 1) / 2) + 3;
 	const cap = bossBaseLevel + 2;
 
 	const isBossFloor = floor % bossInterval === 0;
@@ -200,11 +199,8 @@ export function getLevelScaling(floor: number, config?: ModeConfig): { cap: numb
 	if (!isBossFloor) {
 		const prevBossFloor = Math.floor((floor - 1) / bossInterval) * bossInterval;
 		if (prevBossFloor > 0) {
-			const prevBossEffectiveFloor = prevBossFloor - 1;
-			const prevBossLevel = Math.floor((Math.max(1, prevBossEffectiveFloor) - 1) / 2) + 3 + 1;
-			if (level <= prevBossLevel) {
-				level = prevBossLevel + 1;
-			}
+			const prevBossLevel = Math.floor((Math.max(1, prevBossFloor - 1) - 1) / 2) + 3 + 1;
+			if (level <= prevBossLevel) level = prevBossLevel + 1;
 		}
 	}
 
@@ -229,9 +225,7 @@ export function getLevelUpEvo(speciesId: string, currentHappiness = 70): { evoTo
 		const evo = Dex.species.get(toID(evoName));
 		if (evo.evoType === 'other') continue;
 		if (evo.evoType === 'levelFriendship') {
-			if (currentHappiness >= 160) {
-				validEvos.push({ evoTo: toID(evoName), evoLevel: 1 });
-			}
+			if (currentHappiness >= 160) validEvos.push({ evoTo: toID(evoName), evoLevel: 1 });
 			continue;
 		}
 		const fallback = evo.evoType ? (EVO_TYPE_FALLBACK_LEVEL[evo.evoType] ?? 36) : 36;
@@ -301,9 +295,7 @@ export function applyExpAndLevelUp(
 	const expType = mon.expType ?? getExpType(mon.species);
 
 	const maxExpAllowed = expForLevel(levelCap, expType);
-	if (mon.exp > maxExpAllowed) {
-		mon.exp = maxExpAllowed;
-	}
+	if (mon.exp > maxExpAllowed) mon.exp = maxExpAllowed;
 
 	let leveledUp = false;
 	while (mon.level < levelCap && mon.exp >= expForLevel(mon.level + 1, expType)) {
@@ -311,12 +303,9 @@ export function applyExpAndLevelUp(
 		leveledUp = true;
 	}
 
-	if (leveledUp) {
-		mon.happiness = Math.min(255, (mon.happiness ?? 70) + 5);
-	}
+	if (leveledUp) mon.happiness = Math.min(255, (mon.happiness ?? 70) + 5);
 
 	const evolved = processLevelUpEvolutions(mon);
-
 	return { evolved, oldLevel };
 }
 
@@ -325,10 +314,7 @@ function calculateExpectedHits(move: Move): number {
 	if (!move.multihit) return acc;
 	if (Array.isArray(move.multihit)) {
 		const [min, max] = move.multihit;
-		if (min === 2 && max === 5) {
-			const expectedHits = 2 * (1 / 6) + 3 * (1 / 3) + 4 * (1 / 3) + 5 * (1 / 6);
-			return acc * expectedHits;
-		}
+		if (min === 2 && max === 5) return acc * (2 * (1 / 6) + 3 * (1 / 3) + 4 * (1 / 3) + 5 * (1 / 6));
 		if (min === 2 && max === 3) return acc * (1 + acc + acc ** 2) / 2;
 		let expected = 0;
 		for (let hits = min; hits <= max; hits++) {
@@ -357,8 +343,7 @@ function calculateEffectivePower(move: Move): number {
 	if ((move as { delayedAttack?: boolean }).delayedAttack) turns = 3;
 
 	if (move.multihit) {
-		const expectedHits = calculateExpectedHits(move);
-		return Math.floor((bp * expectedHits) / turns);
+		return Math.floor((bp * calculateExpectedHits(move)) / turns);
 	}
 
 	const acc = typeof move.accuracy === 'number' ? move.accuracy / 100 : 1;
@@ -369,10 +354,7 @@ export function getAllLevelUpMoves(speciesId: string, level: number, genNumber =
 	const id = toID(speciesId);
 	let gen = genNumber;
 	while (gen > 1) {
-		if (Dex.mod(`gen${gen}`).species.get(id).isNonstandard) {
-			gen--;
-			continue;
-		}
+		if (Dex.mod(`gen${gen}`).species.get(id).isNonstandard) { gen--; continue; }
 		break;
 	}
 
@@ -405,10 +387,7 @@ export function getEggMoves(speciesId: string, genNumber = 9): string[] {
 	const id = toID(speciesId);
 	let gen = genNumber;
 	while (gen > 1) {
-		if (Dex.mod(`gen${gen}`).species.get(id).isNonstandard) {
-			gen--;
-			continue;
-		}
+		if (Dex.mod(`gen${gen}`).species.get(id).isNonstandard) { gen--; continue; }
 		break;
 	}
 
@@ -435,12 +414,8 @@ export function getMovesLearnedBetween(speciesId: string, oldLevel: number, newL
 	const sp = Dex.species.get(id);
 	const learnsetData = Dex.species.getLearnsetData(id);
 	const baseLearnsetData = (sp.baseSpecies && toID(sp.baseSpecies) !== id) ?
-		Dex.species.getLearnsetData(toID(sp.baseSpecies)) :
-		null;
-	const learnset = {
-		...(baseLearnsetData?.learnset ?? {}),
-		...(learnsetData?.learnset ?? {}),
-	};
+		Dex.species.getLearnsetData(toID(sp.baseSpecies)) : null;
+	const learnset = { ...(baseLearnsetData?.learnset ?? {}), ...(learnsetData?.learnset ?? {}) };
 	if (!Object.keys(learnset).length) return [];
 
 	const learned: string[] = [];
@@ -459,17 +434,7 @@ export function getMovesLearnedBetween(speciesId: string, oldLevel: number, newL
 	return Array.from(new Set(learned));
 }
 
-function pickBestMoves(speciesId: string, chosenLevel: number, genNumber: number, floor: number, config?: ModeConfig): string[] {
-	if (config?.randomizeMoves) {
-		const allMoves = Dex.moves.all().filter(m => !m.isNonstandard && m.category !== 'Status' && !m.isZ && !m.isMax && m.id !== 'struggle');
-		const randomMoves: string[] = [];
-		for (let i = 0; i < 4; i++) {
-			randomMoves.push(allMoves[Math.floor(Math.random() * allMoves.length)].id);
-		}
-		return randomMoves;
-	}
-
-	const species = Dex.species.get(toID(speciesId));
+function collectViableMoves(speciesId: string, chosenLevel: number, genNumber: number, floor: number): string[] {
 	const fullLearn = Dex.species.getFullLearnset(toID(speciesId));
 	const viableMoves: string[] = [];
 
@@ -488,121 +453,104 @@ function pickBestMoves(speciesId: string, chosenLevel: number, genNumber: number
 	}
 
 	if (floor > 100) {
-		const learnsetData = Dex.species.getLearnsetData(toID(speciesId));
-		const learnset = learnsetData?.learnset ?? {};
+		const learnset = Dex.species.getLearnsetData(toID(speciesId))?.learnset ?? {};
 		for (const move in learnset) {
-			if (viableMoves.includes(move)) continue;
-			if ((learnset[move] as string[]).some((src: string) => src.startsWith(`${genNumber}E`))) {
+			if (!viableMoves.includes(move) && (learnset[move] as string[]).some((src: string) => src.startsWith(`${genNumber}E`))) {
 				viableMoves.push(move);
 			}
 		}
 	}
 
-	if (!viableMoves.length) return ['tackle'];
+	return viableMoves.length ? viableMoves : ['tackle'];
+}
 
+function pickMovesEarlyFloor(viableMoves: string[], species: Species): string[] {
 	const isPhysical = species.baseStats.atk >= species.baseStats.spa;
+	const damaging = viableMoves
+		.map(moveId => {
+			const move = Dex.moves.get(moveId);
+			if (!move.exists || move.category === 'Status') return null;
+			let score = calculateEffectivePower(move);
+			if (isPhysical && move.category === 'Physical') score *= 1.2;
+			if (!isPhysical && move.category === 'Special') score *= 1.2;
+			return { moveId, score, type: move.type };
+		})
+		.filter((m): m is { moveId: string, score: number, type: string } => m !== null)
+		.sort((a, b) => b.score - a.score);
 
-	if (floor <= 100) {
-		const damaging = viableMoves
-			.map(moveId => {
-				const move = Dex.moves.get(moveId);
-				if (!move.exists || move.category === 'Status') return null;
-				let score = calculateEffectivePower(move);
-				if (isPhysical && move.category === 'Physical') score *= 1.2;
-				if (!isPhysical && move.category === 'Special') score *= 1.2;
-				return { moveId, score, type: move.type };
-			})
-			.filter((m): m is { moveId: string, score: number, type: string } => m !== null)
-			.sort((a, b) => b.score - a.score);
+	const picked: string[] = [];
+	const usedTypes = new Set<string>();
+	const stabMove = damaging.find(m => species.types.includes(m.type));
+	if (stabMove) { picked.push(stabMove.moveId); usedTypes.add(stabMove.type); }
 
-		const picked: string[] = [];
-		const usedTypes = new Set<string>();
-
-		const stabMove = damaging.find(m => species.types.includes(m.type));
-		if (stabMove) {
-			picked.push(stabMove.moveId);
-			usedTypes.add(stabMove.type);
-		}
-
-		for (const { moveId, type } of damaging) {
-			if (picked.length >= 2) break;
-			if (!picked.includes(moveId) && !usedTypes.has(type)) {
-				picked.push(moveId);
-				usedTypes.add(type);
-			}
-		}
-
-		for (const { moveId } of damaging) {
-			if (picked.length >= 2) break;
-			if (!picked.includes(moveId)) picked.push(moveId);
-		}
-
-		const remaining = viableMoves.filter(m => !picked.includes(m));
-		for (let i = remaining.length - 1; i > 0; i--) {
-			const j = Math.floor(Math.random() * (i + 1));
-			[remaining[i], remaining[j]] = [remaining[j], remaining[i]];
-		}
-		for (const moveId of remaining) {
-			if (picked.length >= 4) break;
-			picked.push(moveId);
-		}
-
-		return picked.slice(0, 4).map(m => Dex.moves.get(m).id || toID(m));
+	for (const { moveId, type } of damaging) {
+		if (picked.length >= 2) break;
+		if (!picked.includes(moveId) && !usedTypes.has(type)) { picked.push(moveId); usedTypes.add(type); }
+	}
+	for (const { moveId } of damaging) {
+		if (picked.length >= 2) break;
+		if (!picked.includes(moveId)) picked.push(moveId);
 	}
 
+	const remaining = viableMoves.filter(m => !picked.includes(m));
+	for (let i = remaining.length - 1; i > 0; i--) {
+		const j = Math.floor(Math.random() * (i + 1));
+		[remaining[i], remaining[j]] = [remaining[j], remaining[i]];
+	}
+	for (const moveId of remaining) {
+		if (picked.length >= 4) break;
+		picked.push(moveId);
+	}
+	return picked.slice(0, 4).map(m => Dex.moves.get(m).id || toID(m));
+}
+
+function pickMovesLateFloor(viableMoves: string[], species: Species): string[] {
+	const isPhysical = species.baseStats.atk >= species.baseStats.spa;
 	const scored = viableMoves.map(moveId => {
 		const move = Dex.moves.get(moveId);
 		if (!move.exists) return { moveId, score: 0, type: 'Normal', isStatus: false };
-
 		const isStatus = move.category === 'Status';
-		let score = 0;
-
-		if (isStatus) {
-			score = GOOD_STATUS_MOVES.has(moveId) ? 40 : 8;
-		} else {
-			score = calculateEffectivePower(move);
+		let score = isStatus ? (GOOD_STATUS_MOVES.has(moveId) ? 40 : 8) : calculateEffectivePower(move);
+		if (!isStatus) {
 			if (species.types.includes(move.type)) score *= 1.5;
 			if (isPhysical && move.category === 'Physical') score *= 1.2;
 			if (!isPhysical && move.category === 'Special') score *= 1.2;
 		}
-
 		return { moveId, score, type: move.type, isStatus };
-	});
-
-	scored.sort((a, b) => b.score - a.score);
+	}).sort((a, b) => b.score - a.score);
 
 	const picked: string[] = [];
 	const usedTypes = new Set<string>();
 	let statusCount = 0;
 
 	const stabMove = scored.find(({ type, isStatus }) => !isStatus && species.types.includes(type));
-	if (stabMove) {
-		picked.push(stabMove.moveId);
-		usedTypes.add(stabMove.type);
-	}
+	if (stabMove) { picked.push(stabMove.moveId); usedTypes.add(stabMove.type); }
 
 	for (const { moveId, type, isStatus } of scored) {
 		if (picked.length >= 4) break;
 		if (picked.includes(moveId)) continue;
-		if (isStatus) {
-			if (statusCount === 0) {
-				picked.push(moveId);
-				statusCount++;
-			}
-			continue;
-		}
-		if (!usedTypes.has(type)) {
-			picked.push(moveId);
-			usedTypes.add(type);
-		}
+		if (isStatus) { if (statusCount === 0) { picked.push(moveId); statusCount++; } continue; }
+		if (!usedTypes.has(type)) { picked.push(moveId); usedTypes.add(type); }
 	}
-
 	for (const { moveId } of scored) {
 		if (picked.length >= 4) break;
 		if (!picked.includes(moveId)) picked.push(moveId);
 	}
-
 	return picked.slice(0, 4).map(m => Dex.moves.get(m).id || toID(m));
+}
+
+function pickBestMoves(speciesId: string, chosenLevel: number, genNumber: number, floor: number, config?: ModeConfig): string[] {
+	if (config?.randomizeMoves) {
+		const allMoves = Dex.moves.all().filter(m => !m.isNonstandard && m.category !== 'Status' && !m.isZ && !m.isMax && m.id !== 'struggle');
+		return Array.from({ length: 4 }, () => allMoves[Math.floor(Math.random() * allMoves.length)].id);
+	}
+
+	const species = Dex.species.get(toID(speciesId));
+	const viableMoves = collectViableMoves(speciesId, chosenLevel, genNumber, floor);
+
+	return floor <= 100
+		? pickMovesEarlyFloor(viableMoves, species)
+		: pickMovesLateFloor(viableMoves, species);
 }
 
 function pickBestAbility(species: Species, floor: number, config?: ModeConfig, abilityCharms = 0): string {
@@ -620,16 +568,12 @@ function pickBestAbility(species: Species, floor: number, config?: ModeConfig, a
 		if (BANNED_ABILITIES.has(id)) continue;
 
 		let priority = 0;
-
 		if (slot === 'S') {
 			const chance = floor >= 150 ? 0.12 : floor >= 100 ? 0.06 : 0.02;
 			priority = Math.random() < chance ? 100 : 0;
 		} else if (slot === 'H') {
 			let baseChance = 1 / 128;
-			if (abilityCharms > 0) {
-				baseChance *= 2 ** Math.min(abilityCharms, 4);
-			}
-
+			if (abilityCharms > 0) baseChance *= 2 ** Math.min(abilityCharms, 4);
 			const chance = floor >= 99 ? Math.max(0.20, baseChance) : floor >= 60 ? Math.max(0.10, baseChance) : baseChance;
 			priority = Math.random() < chance ? 80 : 0;
 		} else if (slot === '1') {
@@ -639,12 +583,10 @@ function pickBestAbility(species: Species, floor: number, config?: ModeConfig, a
 		}
 
 		if (STRONG_ABILITIES.has(id)) priority += 20;
-
 		candidates.push({ id, priority });
 	}
 
 	if (!candidates.length) return abilities['0'] ?? '';
-
 	candidates.sort((a, b) => b.priority - a.priority);
 	return candidates[0].id;
 }
@@ -652,14 +594,10 @@ function pickBestAbility(species: Species, floor: number, config?: ModeConfig, a
 function pickNatureForSpecies(species: Species, floor: number): string {
 	const natures = Dex.natures.all().map(n => n.name);
 
-	if (floor <= 10) {
-		return natures[Math.floor(Math.random() * natures.length)] ?? 'Hardy';
-	}
+	if (floor <= 10) return natures[Math.floor(Math.random() * natures.length)] ?? 'Hardy';
 
 	const forceGood = floor > 150 || Math.random() < 0.5;
-	if (!forceGood) {
-		return natures[Math.floor(Math.random() * natures.length)] ?? 'Hardy';
-	}
+	if (!forceGood) return natures[Math.floor(Math.random() * natures.length)] ?? 'Hardy';
 
 	const bs = species.baseStats;
 	const isPhysical = bs.atk > bs.spa;
@@ -684,9 +622,7 @@ function calcEVSpread(_species: Species, _floor: number): StatTable {
 export function rollTeraTypeForSpecies(speciesName: string): string {
 	const dexSpecies = Dex.species.get(toID(speciesName));
 	const speciesTypes = dexSpecies.types.length ? dexSpecies.types : ['Normal'];
-	if (Math.random() < 0.8) {
-		return speciesTypes[Math.floor(Math.random() * speciesTypes.length)] || 'Normal';
-	}
+	if (Math.random() < 0.8) return speciesTypes[Math.floor(Math.random() * speciesTypes.length)] || 'Normal';
 	const allTypes = Dex.types.all().map(t => t.name);
 	return allTypes[Math.floor(Math.random() * allTypes.length)] || 'Normal';
 }
@@ -710,31 +646,24 @@ function rollRaritySpawn(floor: number, isBoss: boolean, isStarter: boolean, luc
 			if (rand < 70) return 'Common';
 			if (rand < 95) return 'Uncommon';
 			return 'Rare';
-		} else {
-			if (rand < 50) return 'Common';
-			if (rand < 80) return 'Uncommon';
-			if (rand < 95) return 'Rare';
-			return 'Super Rare';
 		}
+		if (rand < 50) return 'Common';
+		if (rand < 80) return 'Uncommon';
+		if (rand < 95) return 'Rare';
+		return 'Super Rare';
 	}
 
 	if (isBoss) {
 		const maxRoll = Math.max(1, 64 - Math.floor(luck / 2));
 		let roll = Math.floor(Math.random() * maxRoll) + 1;
-
-		if (floor < 70 && roll <= 6) {
-			roll = 7;
-		}
-
+		if (floor < 70 && roll <= 6) roll = 7;
 		if (roll <= 1) return 'Boss Ultra Rare';
 		if (roll <= 6) return 'Boss Super Rare';
 		if (roll <= 20) return 'Boss Rare';
 		return 'Boss';
 	}
 
-	const maxRoll = 512;
-	const roll = Math.floor(Math.random() * maxRoll) + 1;
-
+	const roll = Math.floor(Math.random() * 512) + 1;
 	if (roll <= 1) return 'Ultra Rare';
 	if (roll <= 6) return 'Super Rare';
 	if (roll <= 32) return 'Rare';
@@ -780,40 +709,27 @@ function buildSpawnPool(
 	data: ModeData | undefined
 ): BiomeEntry[] {
 	const rarity = rollRaritySpawn(floor, isBossFloor, starter, luck);
-	let pool: BiomeEntry[] = [];
 	const activeBiomes = data?.biomes || {};
 	const resolveBiome = data?.resolveBiome ?? defaultResolveBiome;
 	const activeBiome = currentBiome || config?.startingBiome || 'Town';
 	const biomeName = resolveBiome(floor, activeBiome, config ?? {} as ModeConfig);
 
-	if (starter) {
-		for (const b of Object.values(activeBiomes)) {
-			const tierPool = b[rarity];
-			if (tierPool && tierPool.length > 0) pool.push(...tierPool);
-		}
-	} else {
-		pool = activeBiomes[biomeName]?.[rarity] || activeBiomes[activeBiome]?.[rarity] || [];
-	}
+	let pool: BiomeEntry[] = starter
+		? Object.values(activeBiomes).flatMap(b => b[rarity] || [])
+		: activeBiomes[biomeName]?.[rarity] || activeBiomes[activeBiome]?.[rarity] || [];
 
-	if (!pool || pool.length === 0) {
+	if (!pool.length) {
 		if (config?.emptyPoolFallbackFn) {
 			pool = config.emptyPoolFallbackFn(floor, rarity, isBossFloor, activeBiomes);
 		} else {
-			pool = [];
 			const excludedBiomes = new Set(data?.excludedBiomes ?? []);
-			for (const [bName, biomeData] of Object.entries(activeBiomes)) {
-				if (excludedBiomes.has(bName)) continue;
-				const tierPool = biomeData[rarity];
-				if (tierPool && tierPool.length > 0) pool.push(...tierPool);
-			}
-			if (pool.length === 0) {
+			pool = Object.entries(activeBiomes)
+				.filter(([bName]) => !excludedBiomes.has(bName))
+				.flatMap(([, biomeData]) => biomeData[rarity] || []);
+			if (!pool.length) {
 				const fallbackTier: RarityTier = isBossFloor ? 'Boss' : 'Common';
 				for (const biomeData of Object.values(activeBiomes)) {
-					const tierPool = biomeData[fallbackTier];
-					if (tierPool && tierPool.length > 0) {
-						pool = tierPool;
-						break;
-					}
+					if (biomeData[fallbackTier]?.length) { pool = biomeData[fallbackTier]; break; }
 				}
 			}
 		}
@@ -831,7 +747,7 @@ function buildSpawnPool(
 		});
 	}
 
-	if (!pool || pool.length === 0) pool = [{ species: 'eevee', weight: 100 }, { species: 'porygon', weight: 100 }];
+	if (!pool.length) pool = [{ species: 'eevee', weight: 100 }, { species: 'porygon', weight: 100 }];
 	return pool;
 }
 
@@ -840,7 +756,6 @@ function applyBossEvolutions(speciesId: string, chosenLevel: number, floor: numb
 	while (true) {
 		const evo = getLevelUpEvo(finalSpeciesId);
 		if (!evo || chosenLevel < evo.evoLevel) break;
-
 		if (isBossFloor) {
 			if (floor <= 20) break;
 			if (floor <= 40) {
@@ -857,10 +772,7 @@ function getValidGeneration(speciesName: string, baseGen: number): number {
 	let genNumber = baseGen;
 	const speciesIdForGen = toID(speciesName);
 	while (genNumber > 1) {
-		if (Dex.mod(`gen${genNumber}`).species.get(speciesIdForGen).isNonstandard) {
-			genNumber--;
-			continue;
-		}
+		if (Dex.mod(`gen${genNumber}`).species.get(speciesIdForGen).isNonstandard) { genNumber--; continue; }
 		break;
 	}
 	return genNumber;
@@ -879,9 +791,8 @@ function rollIVs(floor: number): StatTable {
 	} else if (floor <= 30) {
 		const rollIv = () => 20 + Math.floor(Math.random() * 12);
 		return { hp: rollIv(), atk: rollIv(), def: rollIv(), spa: rollIv(), spd: rollIv(), spe: rollIv() };
-	} else {
-		return { hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31 };
 	}
+	return { hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31 };
 }
 
 function rollShiny(shinyCharms: number): boolean {
@@ -891,6 +802,59 @@ function rollShiny(shinyCharms: number): boolean {
 	else if (shinyCharms === 3) shinyRate = 64;
 	else if (shinyCharms >= 4) shinyRate = 32;
 	return Math.floor(Math.random() * shinyRate) === 0;
+}
+
+interface ForcedMonConfig {
+	exactSpecies: boolean;
+	forcedMoves?: string[];
+	forcedIvs?: StatTable;
+	forcedEvs?: StatTable;
+	forcedAbility?: string;
+	forcedTeraType?: string;
+	forcedItem?: string;
+	forcedShiny?: boolean;
+	forcedNature?: string;
+	forcedGender?: 'M' | 'F' | 'N';
+}
+
+function extractForcedConfig(forced: string | TrainerMon, speciesId: string): { finalSpeciesId: string } & ForcedMonConfig {
+	if (typeof forced === 'string') return { finalSpeciesId: toID(forced), exactSpecies: false };
+	return {
+		finalSpeciesId: toID(forced.species),
+		exactSpecies: !!forced.exactSpecies,
+		forcedMoves: forced.moves?.length ? forced.moves : undefined,
+		forcedIvs: forced.ivs,
+		forcedEvs: forced.evs,
+		forcedAbility: forced.ability,
+		forcedTeraType: forced.teraType,
+		forcedItem: forced.item,
+		forcedShiny: forced.shiny,
+		forcedNature: forced.nature,
+		forcedGender: forced.gender,
+	};
+}
+
+function resolveSpeciesForLevel(speciesId: string, chosenLevel: number, exactSpecies: boolean, floor: number, isBossFloor: boolean): string {
+	if (exactSpecies) return speciesId;
+	let finalId = speciesId;
+
+	while (true) {
+		const sp = Dex.species.get(finalId);
+		if (!sp.prevo) break;
+		const requiredLevel = sp.evoLevel ?? (sp.evoType ? EVO_TYPE_FALLBACK_LEVEL[sp.evoType] ?? 36 : 36);
+		if (chosenLevel >= requiredLevel) break;
+		finalId = toID(sp.prevo);
+	}
+
+	return applyBossEvolutions(finalId, chosenLevel, floor, isBossFloor);
+}
+
+function resolveAbility(finalSpecie: Species, forcedAbility: string | undefined, floor: number, config: ModeConfig | undefined, abilityCharms: number): string {
+	if (config?.randomizeAbilities) return pickBestAbility(finalSpecie, floor, config, abilityCharms);
+	if (!forcedAbility) return pickBestAbility(finalSpecie, floor, config, abilityCharms);
+	if (forcedAbility === 'Hidden') return finalSpecie.abilities['H'] || finalSpecie.abilities['0'];
+	if (forcedAbility === '0' || forcedAbility === '1') return finalSpecie.abilities[forcedAbility] || finalSpecie.abilities['0'];
+	return forcedAbility;
 }
 
 export function genPokemon(
@@ -907,137 +871,110 @@ export function genPokemon(
 	shinyCharms = 0,
 	abilityCharms = 0
 ): AIPokemonSet[] {
-	let minLevel: number;
-	let maxLevel: number;
-	if (typeof level === 'number') {
-		minLevel = level;
-		maxLevel = level;
-	} else {
-		minLevel = level[0];
-		maxLevel = level[1] ?? level[0];
-	}
-
+	const minLevel = typeof level === 'number' ? level : level[0];
+	const maxLevel = typeof level === 'number' ? level : (level[1] ?? level[0]);
 	const allTypes = Dex.types.all().map(t => t.name);
 	const gennedMons: AIPokemonSet[] = [];
-	let depth = 0;
 
-	while (gennedMons.length < quantity) {
+	for (let depth = 0; gennedMons.length < quantity; depth++) {
 		const chosenLevel = determineLevel(minLevel, maxLevel, depth);
-
-		let finalSpeciesId = '';
-		let exactSpecies = false;
-		let forcedMoves: string[] | undefined = undefined;
-		let forcedIvs: StatTable | undefined = undefined;
-		let forcedEvs: StatTable | undefined = undefined;
-		let forcedAbility: string | undefined = undefined;
-		let forcedTeraType: string | undefined = undefined;
-		let forcedItem: string | undefined = undefined;
-		let forcedShiny: boolean | undefined = undefined;
-		let forcedNature: string | undefined = undefined;
-		let forcedGender: 'M' | 'F' | 'N' | undefined = undefined;
-
 		const isForced = !!(forcedSpeciesPool && forcedSpeciesPool.length > depth);
 
+		let speciesId = '';
+		let cfg: ForcedMonConfig = { exactSpecies: false };
+
 		if (isForced) {
-			const forced = forcedSpeciesPool[depth];
-			if (typeof forced === 'string') {
-				finalSpeciesId = toID(forced);
-			} else {
-				finalSpeciesId = toID(forced.species);
-				exactSpecies = !!forced.exactSpecies;
-				if (forced.moves && forced.moves.length > 0) forcedMoves = forced.moves;
-				if (forced.ivs) forcedIvs = forced.ivs;
-				if (forced.evs) forcedEvs = forced.evs;
-				if (forced.ability) forcedAbility = forced.ability;
-				if (forced.teraType) forcedTeraType = forced.teraType;
-				if (forced.item) forcedItem = forced.item;
-				if (forced.shiny !== undefined) forcedShiny = forced.shiny;
-				if (forced.nature) forcedNature = forced.nature;
-				if (forced.gender) forcedGender = forced.gender;
-			}
+			const extracted = extractForcedConfig(forcedSpeciesPool![depth], '');
+			speciesId = extracted.finalSpeciesId;
+			cfg = extracted;
 		} else {
-			const pool = buildSpawnPool(floor, isBossFloor, starter, luck, currentBiome, config, data);
-			finalSpeciesId = getBaseSpecies(weightedPick(pool));
+			speciesId = getBaseSpecies(weightedPick(buildSpawnPool(floor, isBossFloor, starter, luck, currentBiome, config, data)));
 		}
 
-		if (!exactSpecies) {
-			while (true) {
-				const sp = Dex.species.get(finalSpeciesId);
-				if (!sp.prevo) break;
-
-				let requiredLevel = 36;
-				if (sp.evoLevel) {
-					requiredLevel = sp.evoLevel;
-				} else if (sp.evoType && EVO_TYPE_FALLBACK_LEVEL[sp.evoType]) {
-					requiredLevel = EVO_TYPE_FALLBACK_LEVEL[sp.evoType]!;
-				}
-
-				if (chosenLevel >= requiredLevel) break;
-
-				finalSpeciesId = toID(sp.prevo);
-			}
-
-			finalSpeciesId = applyBossEvolutions(finalSpeciesId, chosenLevel, floor, isBossFloor);
-		}
-
+		const finalSpeciesId = resolveSpeciesForLevel(speciesId, chosenLevel, cfg.exactSpecies, floor, isBossFloor);
 		const finalSpecie = Dex.species.get(finalSpeciesId);
-
 		const genNumber = getValidGeneration(finalSpecie.name, config?.generation || 9);
 
-		const ivs = forcedIvs ? { ...forcedIvs } : rollIVs(floor);
-		const evs = forcedEvs ? { ...forcedEvs } : calcEVSpread(finalSpecie, floor);
-		const nature = forcedNature ?? pickNatureForSpecies(finalSpecie, floor);
-
-		let ability = '';
-		if (config?.randomizeAbilities) {
-			ability = pickBestAbility(finalSpecie, floor, config, abilityCharms);
-		} else if (forcedAbility) {
-			if (forcedAbility === 'Hidden') {
-				ability = finalSpecie.abilities['H'] || finalSpecie.abilities['0'];
-			} else if (forcedAbility === '0' || forcedAbility === '1') {
-				ability = finalSpecie.abilities[forcedAbility] || finalSpecie.abilities['0'];
-			} else {
-				ability = forcedAbility;
-			}
-		} else {
-			ability = pickBestAbility(finalSpecie, floor, config, abilityCharms);
-		}
-
-		const shiny = forcedShiny ?? rollShiny(shinyCharms);
-
-		const item = forcedItem ?? pickRandomHeldItem(finalSpecie.name);
-		const teraType = forcedTeraType ?? (Math.floor(Math.random() * 20) === 0 ?
-			allTypes[Math.floor(Math.random() * allTypes.length)] :
-			finalSpecie.types[Math.floor(Math.random() * finalSpecie.types.length)]);
-
-		let moves: string[] = [];
-		if (config?.randomizeMoves) {
-			moves = pickBestMoves(finalSpecie.name, chosenLevel, genNumber, floor, config);
-		} else if (forcedMoves) {
-			moves = forcedMoves.slice(0, 4).map(m => Dex.moves.get(m).id || toID(m));
-		} else {
-			moves = pickBestMoves(finalSpecie.name, chosenLevel, genNumber, floor, config);
-		}
+		const ivs = cfg.forcedIvs ? { ...cfg.forcedIvs } : rollIVs(floor);
+		const evs = cfg.forcedEvs ? { ...cfg.forcedEvs } : calcEVSpread(finalSpecie, floor);
+		const nature = cfg.forcedNature ?? pickNatureForSpecies(finalSpecie, floor);
+		const ability = resolveAbility(finalSpecie, cfg.forcedAbility, floor, config, abilityCharms);
+		const shiny = cfg.forcedShiny ?? rollShiny(shinyCharms);
+		const item = cfg.forcedItem ?? pickRandomHeldItem(finalSpecie.name);
+		const teraType = cfg.forcedTeraType ?? (Math.floor(Math.random() * 20) === 0
+			? allTypes[Math.floor(Math.random() * allTypes.length)]
+			: finalSpecie.types[Math.floor(Math.random() * finalSpecie.types.length)]);
+		const moves = config?.randomizeMoves || !cfg.forcedMoves
+			? pickBestMoves(finalSpecie.name, chosenLevel, genNumber, floor, config)
+			: cfg.forcedMoves.slice(0, 4).map(m => Dex.moves.get(m).id || toID(m));
 
 		gennedMons.push({
 			species: finalSpecie.id,
 			name: finalSpecie.baseSpecies,
 			level: chosenLevel,
-			ability,
-			nature,
-			ivs,
-			evs,
-			item,
-			shiny,
-			teraType,
-			moves,
-			gender: forcedGender ?? (finalSpecie.gender || (Math.random() < 0.5 ? 'M' : 'F')),
+			ability, nature, ivs, evs, item, shiny, teraType, moves,
+			gender: cfg.forcedGender ?? (finalSpecie.gender || (Math.random() < 0.5 ? 'M' : 'F')),
 		});
-
-		depth++;
 	}
 
 	return gennedMons;
+}
+
+function resolveTrainerTeam(
+	floor: number,
+	forcedTrainer: string,
+	trainerKey: string,
+	config: ModeConfig,
+	data: ModeData
+): { forcedTeam: (string | TrainerMon)[] | undefined, actualQuantity: number, isTrainerBattle: boolean, trainerName: string | undefined, isTrainerDoubles: boolean } {
+	const trainerData = data.trainers?.[trainerKey]?.[forcedTrainer];
+	if (!config.hasTrainers || !trainerData) {
+		return { forcedTeam: undefined, actualQuantity: 0, isTrainerBattle: false, trainerName: undefined, isTrainerDoubles: false };
+	}
+
+	let forcedTeam: (string | TrainerMon)[] | undefined = undefined;
+	let actualQuantity = trainerData.teamSize;
+
+	if (!trainerData.random && (trainerData.pool || trainerData.slotPools || trainerData.memoryId)) {
+		forcedTeam = [];
+		const memoryKey = trainerData.memoryId;
+		const rememberedSpecies: string[] = (memoryKey && state) ? (state.trainerMemories?.[memoryKey] ?? []) : [];
+		if (memoryKey && state && !state.trainerMemories) state.trainerMemories = {};
+
+		const globalPool = trainerData.pool ? [...trainerData.pool].sort(() => 0.5 - Math.random()) : [];
+		let globalIdx = 0;
+
+		for (let i = 1; i <= trainerData.teamSize; i++) {
+			if (rememberedSpecies[i - 1]) {
+				let pick: TrainerMon = { species: rememberedSpecies[i - 1] };
+				if (trainerData.slotPools?.[i]?.length) {
+					const slotConfig = trainerData.slotPools[i][Math.floor(Math.random() * trainerData.slotPools[i].length)];
+					if (typeof slotConfig === 'object') pick = { ...slotConfig, species: rememberedSpecies[i - 1] };
+				}
+				if (trainerData.exactSpecies !== undefined && pick.exactSpecies === undefined) pick.exactSpecies = trainerData.exactSpecies;
+				forcedTeam.push(pick);
+			} else {
+				let rawPick: string | TrainerMon | undefined;
+				if (trainerData.slotPools?.[i]?.length) {
+					rawPick = trainerData.slotPools[i][Math.floor(Math.random() * trainerData.slotPools[i].length)];
+				} else if (globalIdx < globalPool.length) {
+					rawPick = globalPool[globalIdx++];
+				}
+				if (rawPick) {
+					const pick: TrainerMon = typeof rawPick === 'string' ? { species: rawPick } : { ...rawPick };
+					if (trainerData.exactSpecies !== undefined && pick.exactSpecies === undefined) pick.exactSpecies = trainerData.exactSpecies;
+					forcedTeam.push(pick);
+					if (memoryKey && state) {
+						state.trainerMemories[memoryKey] = state.trainerMemories[memoryKey] || [];
+						state.trainerMemories[memoryKey].push(pick.species);
+					}
+				}
+			}
+		}
+		actualQuantity = forcedTeam.length;
+	}
+
+	return { forcedTeam, actualQuantity, isTrainerBattle: true, trainerName: forcedTrainer, isTrainerDoubles: !!trainerData.doubles };
 }
 
 export function genAIPokemon(
@@ -1055,91 +992,20 @@ export function genAIPokemon(
 	const scale = getLevelScaling(floor, config);
 	const activeBossInterval = config?.bossInterval || 10;
 	const isBossFloor = floor % activeBossInterval === 0;
+	const effectiveScale: [number, number] = (isBossFloor && scale.bossLevel !== undefined)
+		? [scale.bossLevel, scale.bossLevel]
+		: [scale.min, scale.max];
 
-	let effectiveScale: [number, number];
-	if (isBossFloor && scale.bossLevel !== undefined) {
-		effectiveScale = [scale.bossLevel, scale.bossLevel];
-	} else {
-		effectiveScale = [scale.min, scale.max];
-	}
-
-	let forcedTeam: (string | TrainerMon)[] | undefined = undefined;
-	let actualQuantity = quantity;
-	let isTrainerBattle = false;
-	let trainerName: string | undefined = undefined;
-	let isTrainerDoubles = false;
 	const lookupKey = trainerKey || floor.toString();
+	let { forcedTeam, actualQuantity, isTrainerBattle, trainerName, isTrainerDoubles } = forcedTrainer && config && data
+		? resolveTrainerTeam(floor, forcedTrainer, lookupKey, config, data)
+		: { forcedTeam: undefined, actualQuantity: quantity, isTrainerBattle: false, trainerName: undefined, isTrainerDoubles: false };
 
-	if (config?.hasTrainers && data?.trainers?.[lookupKey]?.[forcedTrainer!]) {
-		isTrainerBattle = true;
-		trainerName = forcedTrainer;
-		const trainerData = data.trainers[lookupKey][forcedTrainer!];
-
-		actualQuantity = trainerData.teamSize;
-		isTrainerDoubles = !!trainerData.doubles;
-
-		if (!trainerData.random && (trainerData.pool || trainerData.slotPools || trainerData.memoryId)) {
-			forcedTeam = [];
-			const memoryKey = trainerData.memoryId;
-			let rememberedSpecies: string[] = [];
-
-			if (memoryKey && state) {
-				if (!state.trainerMemories) state.trainerMemories = {};
-				if (state.trainerMemories[memoryKey]) {
-					rememberedSpecies = state.trainerMemories[memoryKey];
-				}
-			}
-
-			const globalPool = trainerData.pool ? [...trainerData.pool].sort(() => 0.5 - Math.random()) : [];
-			let globalIdx = 0;
-
-			for (let i = 1; i <= trainerData.teamSize; i++) {
-				if (rememberedSpecies[i - 1]) {
-					const baseSpecies = rememberedSpecies[i - 1];
-					let pick: TrainerMon = { species: baseSpecies };
-
-					if (trainerData.slotPools?.[i] && trainerData.slotPools[i].length > 0) {
-						const slotPool = trainerData.slotPools[i];
-						const slotConfig = slotPool[Math.floor(Math.random() * slotPool.length)];
-						if (typeof slotConfig === 'object') {
-							pick = { ...slotConfig, species: baseSpecies };
-						}
-					}
-					if (trainerData.exactSpecies !== undefined && pick.exactSpecies === undefined) {
-						pick.exactSpecies = trainerData.exactSpecies;
-					}
-					forcedTeam.push(pick);
-				} else {
-					let rawPick: string | TrainerMon | undefined;
-					if (trainerData.slotPools?.[i] && trainerData.slotPools[i].length > 0) {
-						const slotPool = trainerData.slotPools[i];
-						rawPick = slotPool[Math.floor(Math.random() * slotPool.length)];
-					} else if (globalIdx < globalPool.length) {
-						rawPick = globalPool[globalIdx];
-						globalIdx++;
-					}
-
-					if (rawPick) {
-						const pick: TrainerMon = typeof rawPick === 'string' ? { species: rawPick } : { ...rawPick };
-						if (trainerData.exactSpecies !== undefined && pick.exactSpecies === undefined) {
-							pick.exactSpecies = trainerData.exactSpecies;
-						}
-						forcedTeam.push(pick);
-						if (memoryKey && state) {
-							state.trainerMemories[memoryKey] = state.trainerMemories[memoryKey] || [];
-							state.trainerMemories[memoryKey].push(pick.species);
-						}
-					}
-				}
-			}
-			actualQuantity = forcedTeam.length;
-		}
-	}
+	if (!actualQuantity) actualQuantity = quantity;
 
 	if (!isTrainerBattle && isBossFloor && data?.resolveBoss) {
 		const resolvedBossTeam = data.resolveBoss(floor, currentBiome || config?.startingBiome || 'Town', config!);
-
-		if (resolvedBossTeam && resolvedBossTeam.length > 0) {
+		if (resolvedBossTeam?.length) {
 			const shuffledPool = [...resolvedBossTeam].sort(() => 0.5 - Math.random());
 			forcedTeam = [shuffledPool[0]];
 			actualQuantity = 1;
@@ -1147,7 +1013,6 @@ export function genAIPokemon(
 	}
 
 	const mons = genPokemon(actualQuantity, effectiveScale, false, floor, isBossFloor, luck, forcedTeam, currentBiome, config, data, shinyCharms, abilityCharms);
-
 	mons.sort((a, b) => a.level - b.level);
 	return { team: mons, isTrainer: isTrainerBattle, trainerName, isDoubles: isTrainerDoubles };
 }
@@ -1173,32 +1038,18 @@ export function packPokemon(mon: PokemonEntry): string {
 	const spaBoost = mon.activeBuffs?.spa ? 10 : 0;
 	const spdBoost = mon.activeBuffs?.spd ? 10 : 0;
 	const speBoost = mon.activeBuffs?.spe ? 10 : 0;
-
-	const bstBoostsStr = (atkBoost || defBoost || spaBoost || spdBoost || speBoost) ?
-		`${atkBoost}:${defBoost}:${spaBoost}:${spdBoost}:${speBoost}` :
-		'';
+	const bstBoostsStr = (atkBoost || defBoost || spaBoost || spdBoost || speBoost)
+		? `${atkBoost}:${defBoost}:${spaBoost}:${spdBoost}:${speBoost}` : '';
 
 	const misc = [
 		mon.happiness !== undefined && mon.happiness !== 255 ? mon.happiness.toString() : '',
-		'',
-		mon.ball || '',
-		'',
-		'',
-		mon.teraType || '',
+		'', mon.ball || '', '', '', mon.teraType || '',
 		mon.currentHp !== undefined && mon.currentHp !== 100 ? mon.currentHp.toString() : '',
-		mon.status || '',
-		bstBoostsStr,
-		'',
+		mon.status || '', bstBoostsStr, '',
 	];
 
-	while (misc.length > 0 && misc[misc.length - 1] === '') {
-		misc.pop();
-	}
-
-	if (misc.length > 0) {
-		base += misc.join(',');
-	}
-
+	while (misc.length > 0 && misc[misc.length - 1] === '') misc.pop();
+	if (misc.length > 0) base += misc.join(',');
 	return base;
 }
 
@@ -1212,23 +1063,9 @@ export function packAIPokemon(set: AIPokemonSet): string {
 
 	let base = `${name}||${set.item}|${set.ability}|${movesStr}|${set.nature}|${evStr}|${set.gender}|${ivStr}|${shinyStr}|${set.level}|`;
 
-	const misc = [
-		'',
-		'',
-		'',
-		'',
-		'',
-		set.teraType || '',
-	];
-
-	while (misc.length > 0 && misc[misc.length - 1] === '') {
-		misc.pop();
-	}
-
-	if (misc.length > 0) {
-		base += misc.join(',');
-	}
-
+	const misc = ['', '', '', '', '', set.teraType || ''];
+	while (misc.length > 0 && misc[misc.length - 1] === '') misc.pop();
+	if (misc.length > 0) base += misc.join(',');
 	return base;
 }
 
