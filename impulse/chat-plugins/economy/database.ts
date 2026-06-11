@@ -5,6 +5,11 @@ let initPromise: Promise<void> | null = null;
 export const initEconomyDB = async (): Promise<void> => {
 	if (!initPromise) {
 		initPromise = (async () => {
+			let attempts = 0;
+			while (!PG.isReady && attempts < 20) {
+				await new Promise(resolve => setTimeout(resolve, 500));
+				attempts++;
+			}
 			if (!PG.isReady) {
 				initPromise = null;
 				return;
