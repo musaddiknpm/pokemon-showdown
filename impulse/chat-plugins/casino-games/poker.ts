@@ -35,7 +35,6 @@ function createDeck(): Card[] {
 			deck.push({ suit, rank, value });
 		}
 	}
-	// Shuffle
 	for (let i = deck.length - 1; i > 0; i--) {
 		const j = Math.floor(Math.random() * (i + 1));
 		[deck[i], deck[j]] = [deck[j], deck[i]];
@@ -64,7 +63,6 @@ function evaluate5(cards: Card[]) {
 	const isFlush = suits.every(s => s === suits[0]);
 	let isStraight = values.every((v, i) => i === 0 || v === values[i - 1] - 1);
 	
-	// Special case A, 5, 4, 3, 2
 	if (values[0] === 14 && values[1] === 5 && values[2] === 4 && values[3] === 3 && values[4] === 2) {
 		isStraight = true;
 		values.push(values.shift()!); 
@@ -116,7 +114,7 @@ function compareHands(handA: ReturnType<typeof evaluateBest7>, handB: ReturnType
 		if (handA.tiebreaker[i] > handB.tiebreaker[i]) return 1;
 		if (handA.tiebreaker[i] < handB.tiebreaker[i]) return -1;
 	}
-	return 0; // Tie
+	return 0;
 }
 
 function renderCard(card: Card | null): string {
@@ -132,47 +130,54 @@ function renderHand(hand: Card[], hide = false): string {
 interface PokerPlayer {
 	id: string;
 	name: string;
+	isAI?: boolean;
 	hand: Card[];
-	status: 'playing' | 'folded' | 'called';
-	hasActed: boolean;
+	status: 'playing' | 'folded' | 'all-in' | 'eliminated';
+	chips: number;
 	roundContribution: number;
-	totalContribution: number;
+	handContribution: number;
+	hasActed: boolean;
+	eval?: ReturnType<typeof evaluateBest7>;
 	payoutStr?: string;
 }
 
 interface PokerGame {
 	roomid: string;
 	uid: string;
-	mode: 'casino' | 'texas';
 	host: string;
 	hostName: string;
-	ante: number;
-	state: 'lobby' | 'flop' | 'ended';
+	entryFee: number;
+	isTestMode?: boolean;
+	state: 'lobby' | 'preflop' | 'flop' | 'turn' | 'river' | 'showdown' | 'ended';
 	players: PokerPlayer[];
 	communityCards: Card[];
-	dealerHand: Card[]; // Only for casino
 	deck: Card[];
-	
-	// Texas specific
+	pot: number;
 	currentBet: number;
 	turnIndex: number;
-	pot: number;
+	dealerIndex: number;
+	blinds: { small: number, big: number };
+	handsPlayed: number;
 	timer: NodeJS.Timeout | null;
+	displayInit?: boolean;
+	lastShowdownLog?: string;
 }
 
 const activeGames = new Map<string, PokerGame>();
 
 async function refundAll(game: PokerGame, message: string) {
-	for (const p of game.players) {
-		await updateBalance(p.id, p.totalContribution);
+	if (!game.isTestMode) {
+		for (const p of game.players) {
+			if (!p.isAI) await updateBalance(p.id, game.entryFee);
+		}
 	}
 	const room = Rooms.get(game.roomid);
 	if (room) {
 		room.add(
 			`|uhtmlchange|${game.uid}|` +
 			`<div class="infobox" style="text-align:center;padding:12px 16px;">` +
-			`<b>Poker Game Cancelled</b><hr>` +
-			`${message}<br>All players have been refunded.` +
+			`<b>Poker Tournament Cancelled</b><hr>` +
+			`${message}<br>All players have been refunded their entry fee.` +
 			`</div>`
 		).update();
 	}
@@ -182,6 +187,7 @@ function whisperCards(game: PokerGame) {
 	const room = Rooms.get(game.roomid);
 	if (!room) return;
 	for (const p of game.players) {
+		if (p.isAI) continue;
 		const user = Users.get(p.id);
 		if (user && user.connected && p.hand.length > 0) {
 			user.sendTo(room, `|uhtml|${game.uid}-cards|Your Hole Cards: ${renderHand(p.hand)}`);
@@ -193,9 +199,8 @@ function updateRoom(game: PokerGame) {
 	const room = Rooms.get(game.roomid);
 	if (!room) return;
 	
-	const modeName = game.mode === 'casino' ? "Casino Hold'em" : "Texas Hold'em";
 	let html = `<div class="infobox" style="padding:12px 16px; text-align:center;">`;
-	html += `<b>${modeName}</b> (Ante: <b>${game.ante}</b> ${CURRENCY_NAME})<br>Host: ${nameColor(game.hostName, true)}<hr>`;
+	html += `<b>Texas Hold'em Tournament ${game.isTestMode ? "(Test AI Mode)" : ""}</b> (Entry: <b>${game.isTestMode ? 'Free' : game.entryFee + ' ' + CURRENCY_NAME}</b>)<br>Host: ${nameColor(game.hostName, true)}<hr>`;
 	
 	if (game.state === 'lobby') {
 		html += `<b>Players in lobby:</b><br>`;
@@ -208,204 +213,432 @@ function updateRoom(game: PokerGame) {
 		}
 		html += `<br>`;
 		html += `<button class="button" name="send" value="/poker join" style="padding:6px 20px;margin-right:5px;">Join Game</button>`;
-		html += `<button class="button" name="send" value="/poker deal" style="padding:6px 20px;margin-right:5px;">Deal (Host)</button>`;
+		html += `<button class="button" name="send" value="/poker deal" style="padding:6px 20px;margin-right:5px;">Start Tournament (Host)</button>`;
 		html += `<button class="button" name="send" value="/poker end" style="padding:6px 20px;">Cancel Game</button>`;
-		html += `<br><br><small>This game will automatically start in 60 seconds.</small>`;
 	} else {
-		if (game.mode === 'casino') {
-			html += `<b>Dealer's Hand:</b><br>`;
-			html += renderHand(game.dealerHand, game.state !== 'ended') + `<br><br>`;
-			html += `<b>Community Cards:</b><br>`;
-			const displayComm = [...game.communityCards];
-			while (displayComm.length < 5) displayComm.push(null as any);
-			html += renderHand(displayComm, false) + `<br><br>`;
+		html += `<b>Pot:</b> ${game.pot} Chips | <b>Blinds:</b> ${game.blinds.small}/${game.blinds.big}<br><br>`;
+		
+		if (game.lastShowdownLog && (game.state === 'showdown' || game.state === 'ended')) {
+			html += `<div style="background:#eee;border:1px solid #ccc;padding:8px;margin-bottom:8px;"><b>Previous Showdown:</b><br>${game.lastShowdownLog}</div>`;
+		}
+		
+		html += `<b>Community Cards:</b><br>`;
+		const displayComm = [...game.communityCards];
+		while (displayComm.length < 5 && game.state !== 'ended' && game.state !== 'lobby') displayComm.push(null as any);
+		html += renderHand(displayComm, false) + `<br><br>`;
+		
+		for (let i = 0; i < game.players.length; i++) {
+			const p = game.players[i];
+			const isTurn = (game.state === 'preflop' || game.state === 'flop' || game.state === 'turn' || game.state === 'river') && game.turnIndex === i;
 			
-			for (const p of game.players) {
-				html += `<div style="padding:4px;margin-bottom:4px;border:1px solid #ccc;border-radius:4px;">`;
-				html += `<b>${nameColor(p.name, true)}:</b> `;
-				if (p.status === 'folded') html += ` <span style="color:red;font-weight:bold;">[Folded]</span>`;
-				else if (p.status === 'called') html += ` <span style="color:blue;font-weight:bold;">[Called]</span>`;
-				
-				if (game.state === 'ended' && p.payoutStr) html += ` &mdash; ${p.payoutStr}`;
-				html += `<br>${renderHand(p.hand)}<br>`;
-				
-				if (game.state === 'flop' && p.status === 'playing') {
-					html += `<br><button class="button" name="send" value="/poker call" style="margin-right:5px;padding:4px 12px;">Call (Bet ${game.ante * 2})</button>`;
-					html += `<button class="button" name="send" value="/poker fold" style="padding:4px 12px;">Fold</button>`;
-				}
-				html += `</div>`;
+			if (isTurn) html += `<div style="border:2px solid #888;padding:4px;border-radius:4px;margin-bottom:4px;background:#f9f9f9;">`;
+			else html += `<div style="padding:4px;margin-bottom:4px;border:1px solid #e0e0e0;border-radius:4px;">`;
+			
+			let pTitle = `<b>${nameColor(p.name, true)}</b>`;
+			if (i === game.dealerIndex) pTitle += ` <b>(D)</b>`;
+			
+			html += `${pTitle}: `;
+			
+			if (p.status === 'eliminated') html += ` <span style="color:red;font-weight:bold;">[Eliminated]</span>`;
+			else if (p.status === 'folded') html += ` <span style="color:red;font-weight:bold;">[Folded]</span>`;
+			else if (p.status === 'all-in') html += ` <span style="color:orange;font-weight:bold;">[All-In | In: ${p.handContribution}]</span>`;
+			else html += ` <span style="color:gray;">[Chips: ${p.chips} | In: ${p.handContribution}]</span>`;
+			
+			if (p.payoutStr) html += ` &mdash; ${p.payoutStr}`;
+			
+			if (game.state === 'showdown' && p.status !== 'folded' && p.status !== 'eliminated') {
+				html += `<br>${renderHand(p.hand)}`;
+			} else if (p.status === 'playing' || p.status === 'all-in') {
+				html += `<br><i>Hole cards hidden</i>`;
 			}
-		} else {
-			html += `<b>Pot:</b> ${game.pot} ${CURRENCY_NAME}<br><br>`;
-			html += `<b>Community Cards:</b><br>`;
-			const displayComm = [...game.communityCards];
-			while (displayComm.length < 5 && game.state === 'flop') displayComm.push(null as any);
-			html += renderHand(displayComm, false) + `<br><br>`;
 			
-			for (let i = 0; i < game.players.length; i++) {
-				const p = game.players[i];
-				const isTurn = game.state === 'flop' && game.turnIndex === i;
+			if (isTurn && !p.isAI) {
+				const callAmount = game.currentBet - p.roundContribution;
+				html += `<br><br>`;
 				
-				if (isTurn) html += `<div style="border:2px solid #888;padding:4px;border-radius:4px;margin-bottom:4px;">`;
-				else html += `<div style="padding:4px;margin-bottom:4px;border:2px solid transparent;">`;
-				
-				html += `<b>${nameColor(p.name, true)}:</b> `;
-				if (p.status === 'folded') html += ` <span style="color:red;font-weight:bold;">[Folded]</span>`;
-				else html += ` <span style="color:gray;">[In: ${p.roundContribution}]</span>`;
-				
-				if (game.state === 'ended') {
-					if (p.payoutStr) html += ` &mdash; ${p.payoutStr}`;
-					html += `<br>${renderHand(p.hand)}`;
-				} else {
-					html += `<br><i>Hole cards hidden</i>`;
-				}
-				
-				if (isTurn) {
-					const callAmount = game.currentBet - p.roundContribution;
-					html += `<br><br>`;
-					if (callAmount > 0) {
-						html += `<button class="button" name="send" value="/poker call" style="margin-right:5px;padding:4px 12px;">Call (${callAmount})</button>`;
+				if (callAmount > 0) {
+					if (p.chips <= callAmount) {
+						html += `<button class="button" name="send" value="/poker allin" style="margin-right:5px;padding:4px 12px;">All-In (${p.chips})</button>`;
 					} else {
-						html += `<button class="button" name="send" value="/poker call" style="margin-right:5px;padding:4px 12px;">Check</button>`;
+						html += `<button class="button" name="send" value="/poker call" style="margin-right:5px;padding:4px 12px;">Call (${callAmount})</button>`;
+						let minRaise = game.blinds.big;
+						html += `<button class="button" name="send" value="/poker raise ${minRaise}" style="margin-right:5px;padding:4px 12px;">Raise (+${minRaise})</button>`;
+						html += `<button class="button" name="send" value="/poker raise ${game.pot}" style="margin-right:5px;padding:4px 12px;">Pot (+${game.pot})</button>`;
+						html += `<button class="button" name="send" value="/poker allin" style="margin-right:5px;padding:4px 12px;">All-In</button>`;
 					}
-					html += `<button class="button" name="send" value="/poker raise ${game.ante}" style="margin-right:5px;padding:4px 12px;">Raise (+${game.ante})</button>`;
-					html += `<button class="button" name="send" value="/poker fold" style="padding:4px 12px;">Fold</button>`;
+				} else {
+					html += `<button class="button" name="send" value="/poker call" style="margin-right:5px;padding:4px 12px;">Check</button>`;
+					let minRaise = game.blinds.big;
+					html += `<button class="button" name="send" value="/poker raise ${minRaise}" style="margin-right:5px;padding:4px 12px;">Bet (+${minRaise})</button>`;
+					html += `<button class="button" name="send" value="/poker raise ${game.pot}" style="margin-right:5px;padding:4px 12px;">Pot (+${game.pot})</button>`;
+					html += `<button class="button" name="send" value="/poker allin" style="margin-right:5px;padding:4px 12px;">All-In</button>`;
 				}
-				html += `</div>`;
+				html += `<button class="button" name="send" value="/poker fold" style="padding:4px 12px;">Fold</button>`;
 			}
+			html += `</div>`;
 		}
 	}
 	html += `</div>`;
 	
-	if (game.state === 'lobby' && game.players.length === 1) {
+	if (!game.displayInit) {
 		room.add(`|uhtml|${game.uid}|${html}`).update();
+		game.displayInit = true;
 	} else {
 		room.add(`|uhtmlchange|${game.uid}|${html}`).update();
 	}
 }
 
-async function startDealing(game: PokerGame) {
-	if (game.timer) {
-		clearTimeout(game.timer);
-		game.timer = null;
+function aiMakeMove(game: PokerGame, aiPlayer: PokerPlayer) {
+	if (['ended', 'showdown', 'lobby'].includes(game.state)) return;
+	if (game.players[game.turnIndex] !== aiPlayer) return;
+	
+	const callAmount = game.currentBet - aiPlayer.roundContribution;
+	const rand = Math.random();
+	let action = 'call';
+	
+	if (callAmount > 0) {
+		if (rand < 0.15) action = 'fold';
+		else if (rand < 0.85) action = 'call';
+		else action = 'raise';
+	} else {
+		if (rand < 0.8) action = 'check';
+		else action = 'raise';
 	}
-	game.state = 'flop';
-	game.deck = createDeck();
-	
-	// Deal hole cards
-	for (const p of game.players) {
-		p.hand.push(game.deck.pop()!, game.deck.pop()!);
-	}
-	
-	if (game.mode === 'casino') {
-		game.dealerHand.push(game.deck.pop()!, game.deck.pop()!);
-	}
-	
-	// Flop
-	game.communityCards.push(game.deck.pop()!, game.deck.pop()!, game.deck.pop()!);
-	
-	whisperCards(game);
-	
-	if (game.mode === 'texas') {
-		game.turnIndex = 0;
-		game.currentBet = 0;
-		for (const p of game.players) {
-			p.roundContribution = 0;
-			p.hasActed = false;
+
+	if (action === 'fold') {
+		aiPlayer.status = 'folded';
+		aiPlayer.hasActed = true;
+	} else if (action === 'call' || action === 'check') {
+		if (callAmount > 0) {
+			if (aiPlayer.chips <= callAmount) {
+				const totalNeeded = aiPlayer.chips;
+				aiPlayer.chips = 0;
+				aiPlayer.roundContribution += totalNeeded;
+				aiPlayer.handContribution += totalNeeded;
+				game.pot += totalNeeded;
+				aiPlayer.status = 'all-in';
+				if (aiPlayer.roundContribution > game.currentBet) {
+					game.currentBet = aiPlayer.roundContribution;
+					for (const pl of game.players) {
+						if (pl !== aiPlayer && pl.status === 'playing') pl.hasActed = false;
+					}
+				}
+			} else {
+				aiPlayer.chips -= callAmount;
+				aiPlayer.roundContribution += callAmount;
+				aiPlayer.handContribution += callAmount;
+				game.pot += callAmount;
+			}
 		}
-		setTexasTimer(game);
+		aiPlayer.hasActed = true;
+	} else if (action === 'raise') {
+		const minRaise = game.blinds.big;
+		const totalNeeded = callAmount + minRaise;
+		
+		if (aiPlayer.chips <= totalNeeded) {
+			const totalNeededAllin = aiPlayer.chips;
+			aiPlayer.chips = 0;
+			aiPlayer.roundContribution += totalNeededAllin;
+			aiPlayer.handContribution += totalNeededAllin;
+			game.pot += totalNeededAllin;
+			aiPlayer.status = 'all-in';
+			if (aiPlayer.roundContribution > game.currentBet) {
+				game.currentBet = aiPlayer.roundContribution;
+				for (const pl of game.players) {
+					if (pl !== aiPlayer && pl.status === 'playing') pl.hasActed = false;
+				}
+			}
+		} else {
+			aiPlayer.chips -= totalNeeded;
+			aiPlayer.roundContribution += totalNeeded;
+			aiPlayer.handContribution += totalNeeded;
+			game.pot += totalNeeded;
+			game.currentBet += minRaise;
+			for (const pl of game.players) {
+				if (pl !== aiPlayer && pl.status === 'playing') pl.hasActed = false;
+			}
+		}
+		aiPlayer.hasActed = true;
 	}
 	
-	updateRoom(game);
+	advanceTurn(game);
 }
 
-function setTexasTimer(game: PokerGame) {
+function triggerNextTurn(game: PokerGame) {
+	const currentPlayer = game.players[game.turnIndex];
+	if (currentPlayer && currentPlayer.status === 'playing' && currentPlayer.isAI) {
+		updateRoom(game);
+		setTimeout(() => aiMakeMove(game, currentPlayer), 2000);
+	} else {
+		setTurnTimer(game);
+		updateRoom(game);
+	}
+}
+
+function startNextHand(game: PokerGame) {
+	if (game.timer) clearTimeout(game.timer);
+	
+	for (const p of game.players) {
+		if (p.chips === 0 && p.status !== 'eliminated') {
+			p.status = 'eliminated';
+		}
+	}
+	
+	const active = game.players.filter(p => p.status !== 'eliminated');
+	if (active.length === 1) {
+		const winner = active[0];
+		game.state = 'ended';
+		
+		if (!game.isTestMode && !winner.isAI) {
+			const totalCoins = game.players.length * game.entryFee;
+			void updateBalance(winner.id, totalCoins);
+			winner.payoutStr = `<span style="color:green;font-weight:bold">Tournament Winner! (${totalCoins} ${CURRENCY_NAME})</span>`;
+		} else {
+			winner.payoutStr = `<span style="color:green;font-weight:bold">Tournament Winner! (Test Mode)</span>`;
+		}
+		
+		updateRoom(game);
+		activeGames.delete(game.roomid);
+		return;
+	} else if (active.length === 0) {
+		game.state = 'ended';
+		updateRoom(game);
+		activeGames.delete(game.roomid);
+		return;
+	}
+	
+	game.handsPlayed++;
+	if (game.handsPlayed > 1 && game.handsPlayed % 5 === 0) {
+		game.blinds.small *= 2;
+		game.blinds.big *= 2;
+	}
+	
+	game.deck = createDeck();
+	game.communityCards = [];
+	game.pot = 0;
+	game.currentBet = 0;
+	game.lastShowdownLog = undefined;
+	
+	for (const p of game.players) {
+		p.hand = [];
+		p.roundContribution = 0;
+		p.handContribution = 0;
+		p.hasActed = false;
+		p.eval = undefined;
+		p.payoutStr = undefined;
+		if (p.status !== 'eliminated') p.status = 'playing';
+	}
+	
+	do {
+		game.dealerIndex = (game.dealerIndex + 1) % game.players.length;
+	} while (game.players[game.dealerIndex].status === 'eliminated');
+	
+	let sbIndex = game.dealerIndex;
+	let bbIndex = game.dealerIndex;
+	
+	if (active.length > 2) {
+		do { sbIndex = (sbIndex + 1) % game.players.length; } while (game.players[sbIndex].status === 'eliminated');
+		bbIndex = sbIndex;
+		do { bbIndex = (bbIndex + 1) % game.players.length; } while (game.players[bbIndex].status === 'eliminated');
+	} else {
+		sbIndex = game.dealerIndex;
+		bbIndex = (sbIndex + 1) % game.players.length;
+		while (game.players[bbIndex].status === 'eliminated') {
+			bbIndex = (bbIndex + 1) % game.players.length;
+		}
+	}
+	
+	const sbAmount = Math.min(game.blinds.small, game.players[sbIndex].chips);
+	game.players[sbIndex].chips -= sbAmount;
+	game.players[sbIndex].roundContribution = sbAmount;
+	game.players[sbIndex].handContribution = sbAmount;
+	game.pot += sbAmount;
+	if (game.players[sbIndex].chips === 0) game.players[sbIndex].status = 'all-in';
+	
+	const bbAmount = Math.min(game.blinds.big, game.players[bbIndex].chips);
+	game.players[bbIndex].chips -= bbAmount;
+	game.players[bbIndex].roundContribution = bbAmount;
+	game.players[bbIndex].handContribution = bbAmount;
+	game.pot += bbAmount;
+	if (game.players[bbIndex].chips === 0) game.players[bbIndex].status = 'all-in';
+	
+	game.currentBet = game.blinds.big;
+	
+	for (const p of game.players) {
+		if (p.status !== 'eliminated') {
+			p.hand.push(game.deck.pop()!, game.deck.pop()!);
+		}
+	}
+	whisperCards(game);
+	
+	game.state = 'preflop';
+	
+	game.turnIndex = bbIndex;
+	do {
+		game.turnIndex = (game.turnIndex + 1) % game.players.length;
+	} while (game.players[game.turnIndex].status === 'eliminated');
+	
+	const ableToAct = game.players.filter(p => p.status === 'playing' && p.chips > 0);
+	if (ableToAct.length <= 1 && ableToAct.every(p => p.roundContribution >= game.currentBet)) {
+		setTimeout(() => nextPhase(game), 2000);
+		updateRoom(game);
+		return;
+	}
+	
+	triggerNextTurn(game);
+}
+
+function setTurnTimer(game: PokerGame) {
 	if (game.timer) clearTimeout(game.timer);
 	game.timer = setTimeout(() => {
 		const p = game.players[game.turnIndex];
-		if (p) {
-			p.status = 'folded';
-			void advanceTexasTurn(game);
+		if (p && p.status === 'playing') {
+			const callAmount = game.currentBet - p.roundContribution;
+			if (callAmount === 0) {
+				p.hasActed = true;
+			} else {
+				p.status = 'folded';
+				p.hasActed = true;
+			}
+			void advanceTurn(game);
 		}
 	}, TURN_TIMEOUT);
 }
 
-async function advanceTexasTurn(game: PokerGame) {
-	const activePlayers = game.players.filter(p => p.status === 'playing');
+function advanceTurn(game: PokerGame) {
+	const nonFolded = game.players.filter(p => p.status !== 'folded' && p.status !== 'eliminated');
 	
-	// Check if only 1 player remains
-	if (activePlayers.length === 1) {
-		await endTexasGame(game);
+	if (nonFolded.length === 1) {
+		const winner = nonFolded[0];
+		winner.chips += game.pot;
+		game.state = 'showdown';
+		winner.payoutStr = `<span style="color:green">Won ${game.pot} (Others folded)</span>`;
+		game.lastShowdownLog = `${nameColor(winner.name, true)} won ${game.pot} chips (Others folded)`;
+		updateRoom(game);
+		setTimeout(() => startNextHand(game), 5000);
 		return;
 	}
 	
-	// Check if betting round is over
-	const allMatched = activePlayers.every(p => p.hasActed && p.roundContribution === game.currentBet);
-	if (allMatched) {
-		await endTexasGame(game);
+	const ableToAct = game.players.filter(p => p.status === 'playing' && p.chips > 0);
+	const roundOver = ableToAct.every(p => p.hasActed && p.roundContribution === game.currentBet);
+	
+	if (roundOver || ableToAct.length === 0) {
+		nextPhase(game);
 		return;
 	}
 	
-	// Move to next active player
 	do {
 		game.turnIndex = (game.turnIndex + 1) % game.players.length;
-	} while (game.players[game.turnIndex].status !== 'playing');
+	} while (game.players[game.turnIndex].status !== 'playing' || game.players[game.turnIndex].chips === 0);
 	
-	setTexasTimer(game);
-	updateRoom(game);
+	triggerNextTurn(game);
 }
 
-async function endTexasGame(game: PokerGame) {
-	if (game.timer) clearTimeout(game.timer);
-	game.state = 'ended';
-	
-	const activePlayers = game.players.filter(p => p.status === 'playing');
-	
-	if (activePlayers.length > 1) {
-		// Deal turn and river
-		game.communityCards.push(game.deck.pop()!, game.deck.pop()!);
+function nextPhase(game: PokerGame) {
+	if (game.state === 'preflop') {
+		game.state = 'flop';
+		game.communityCards.push(game.deck.pop()!, game.deck.pop()!, game.deck.pop()!);
+	} else if (game.state === 'flop') {
+		game.state = 'turn';
+		game.communityCards.push(game.deck.pop()!);
+	} else if (game.state === 'turn') {
+		game.state = 'river';
+		game.communityCards.push(game.deck.pop()!);
+	} else if (game.state === 'river') {
+		doShowdown(game);
+		return;
 	}
 	
-	let bestHand: ReturnType<typeof evaluateBest7> | null = null;
-	let winners: PokerPlayer[] = [];
+	game.currentBet = 0;
+	for (const p of game.players) {
+		p.roundContribution = 0;
+		if (p.status === 'playing' && p.chips > 0) p.hasActed = false;
+	}
 	
-	if (activePlayers.length === 1) {
-		winners = [activePlayers[0]];
-		activePlayers[0].payoutStr = `<span style="color:green">Won <b>${game.pot}</b> (Others folded)</span>`;
-	} else {
-		for (const p of activePlayers) {
-			const ev = evaluateBest7([...p.hand, ...game.communityCards]);
-			p.payoutStr = `<span style="color:gray">${ev.name}</span>`;
+	const ableToAct = game.players.filter(p => p.status === 'playing' && p.chips > 0);
+	if (ableToAct.length <= 1) {
+		setTimeout(() => nextPhase(game), 2000);
+		updateRoom(game);
+		return;
+	}
+	
+	game.turnIndex = game.dealerIndex;
+	do {
+		game.turnIndex = (game.turnIndex + 1) % game.players.length;
+	} while (game.players[game.turnIndex].status !== 'playing' || game.players[game.turnIndex].chips === 0);
+	
+	triggerNextTurn(game);
+}
+
+function buildPots(players: PokerPlayer[]) {
+	const pots = [];
+	const pList = players.filter(p => p.handContribution > 0).sort((a, b) => a.handContribution - b.handContribution);
+	
+	let previousContribution = 0;
+	for (let i = 0; i < pList.length; i++) {
+		const p = pList[i];
+		const amount = p.handContribution - previousContribution;
+		if (amount > 0) {
+			let potSize = 0;
+			const eligiblePlayers = [];
+			for (let j = i; j < pList.length; j++) {
+				potSize += amount;
+				if (pList[j].status !== 'folded' && pList[j].status !== 'eliminated') {
+					eligiblePlayers.push(pList[j]);
+				}
+			}
+			pots.push({ size: potSize, eligible: eligiblePlayers });
+			previousContribution = p.handContribution;
+		}
+	}
+	return pots;
+}
+
+function doShowdown(game: PokerGame) {
+	game.state = 'showdown';
+	if (game.timer) clearTimeout(game.timer);
+	
+	const pots = buildPots(game.players);
+	const displayLines = [];
+	
+	for (let i = 0; i < pots.length; i++) {
+		const pot = pots[i];
+		if (pot.eligible.length === 0) continue;
+		
+		let bestHand: any = null;
+		let winners: PokerPlayer[] = [];
+		
+		for (const p of pot.eligible) {
+			if (!p.eval) p.eval = evaluateBest7([...p.hand, ...game.communityCards]);
 			if (!bestHand) {
-				bestHand = ev;
+				bestHand = p.eval;
 				winners = [p];
 			} else {
-				const cmp = compareHands(ev, bestHand);
+				const cmp = compareHands(p.eval, bestHand);
 				if (cmp > 0) {
-					bestHand = ev;
+					bestHand = p.eval;
 					winners = [p];
 				} else if (cmp === 0) {
 					winners.push(p);
 				}
 			}
 		}
-	}
-	
-	const splitPot = Math.floor(game.pot / winners.length);
-	for (const w of winners) {
-		await updateBalance(w.id, splitPot);
-		if (activePlayers.length > 1) {
-			w.payoutStr = `<span style="color:green;font-weight:bold;">Won <b>${splitPot}</b> (${bestHand!.name})</span>`;
+		
+		if (winners.length > 0) {
+			const split = Math.floor(pot.size / winners.length);
+			for (const w of winners) {
+				w.chips += split;
+				w.payoutStr = `<span style="color:green">Won ${split} (${bestHand.name})</span>`;
+			}
+			const winNames = winners.map(w => nameColor(w.name, true)).join(', ');
+			displayLines.push(`Pot ${i+1} (${pot.size} chips): Won by ${winNames} (${bestHand.name})`);
 		}
 	}
 	
-	for (const p of game.players) {
-		if (p.status === 'folded') p.payoutStr = `<span style="color:red">Lost (Folded)</span>`;
-		else if (!winners.includes(p)) p.payoutStr = `<span style="color:red">Lost</span>`;
-	}
-	
-	activeGames.delete(game.roomid);
+	game.lastShowdownLog = displayLines.join('<br>');
 	updateRoom(game);
+	
+	setTimeout(() => startNextHand(game), 8000);
 }
 
 export const commands: Chat.ChatCommands = wrapCommands({
@@ -414,30 +647,37 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			if (!room || room.battle || room.roomid !== CASINO_ROOM) return this.errorReply("This command can only be used in the Casino room.");
 			if (activeGames.has(room.roomid)) return this.errorReply("A poker game is already running in this room.");
 			
-			const parts = target.split(' ');
-			const mode = parts[0]?.toLowerCase();
-			const ante = parseInt(parts[1]);
+			const parts = target.trim().split(' ');
+			let isTestMode = false;
+			let entryFee = 0;
 			
-			if (!['casino', 'texas'].includes(mode) || isNaN(ante) || ante <= 0) {
-				return this.errorReply("Usage: /poker start [casino|texas] [ante]");
+			if (parts[0] && parts[0].toLowerCase() === 'ai') {
+				isTestMode = true;
+			} else {
+				entryFee = parseInt(parts[0]);
+				if (isNaN(entryFee) || entryFee <= 0) {
+					return this.errorReply("Usage: /poker start [entryFee] OR /poker start ai");
+				}
 			}
 			
 			const uid = `poker-${room.roomid}-${Date.now()}`;
 			const game: PokerGame = {
 				roomid: room.roomid,
 				uid,
-				mode: mode as 'casino' | 'texas',
 				host: user.id,
 				hostName: user.name,
-				ante,
+				entryFee,
+				isTestMode,
 				state: 'lobby',
 				players: [],
 				communityCards: [],
-				dealerHand: [],
 				deck: [],
+				pot: 0,
 				currentBet: 0,
 				turnIndex: 0,
-				pot: 0,
+				dealerIndex: 0,
+				blinds: { small: 10, big: 20 },
+				handsPlayed: 0,
 				timer: null,
 			};
 			
@@ -445,12 +685,8 @@ export const commands: Chat.ChatCommands = wrapCommands({
 				if (activeGames.has(room.roomid)) {
 					const g = activeGames.get(room.roomid)!;
 					if (g.state === 'lobby') {
-						if (g.players.length > 0) {
-							void startDealing(g);
-						} else {
-							void refundAll(g, 'Lobby timed out.');
-							activeGames.delete(room.roomid);
-						}
+						void refundAll(g, 'Lobby timed out.');
+						activeGames.delete(room.roomid);
 					}
 				}
 			}, LOBBY_TIMEOUT);
@@ -464,24 +700,27 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			const game = activeGames.get(room.roomid);
 			if (!game) return this.errorReply("No active poker game in this room.");
 			if (game.state !== 'lobby') return this.errorReply("This game has already started.");
+			if (game.players.length >= 8) return this.errorReply("The game is full (max 8 players).");
 			if (game.players.some(p => p.id === user.id)) return this.errorReply("You are already in this game.");
 
-			const bal = await getBalance(user.id);
-			if (bal < game.ante * (game.mode === 'casino' ? 3 : 1)) {
-				const required = game.mode === 'casino' ? game.ante * 3 : game.ante;
-				return this.errorReply(`You don't have enough ${CURRENCY_NAME} to play. (Requires ${required} to cover potential bets, Balance: ${bal})`);
+			if (!game.isTestMode) {
+				const bal = await getBalance(user.id);
+				if (bal < game.entryFee) {
+					return this.errorReply(`You don't have enough ${CURRENCY_NAME} to play. (Requires ${game.entryFee})`);
+				}
+				await updateBalance(user.id, -game.entryFee);
 			}
 
-			await updateBalance(user.id, -game.ante);
-			game.pot += game.ante;
 			game.players.push({
 				id: user.id,
 				name: user.name,
+				isAI: false,
 				hand: [],
 				status: 'playing',
-				hasActed: false,
+				chips: 1000,
 				roundContribution: 0,
-				totalContribution: game.ante,
+				handContribution: 0,
+				hasActed: false,
 			});
 
 			updateRoom(game);
@@ -495,137 +734,115 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			
 			const isHost = typeof user === 'string' ? user === game.host : user.id === game.host;
 			if (!isHost) return this.errorReply("Only the host can start dealing.");
-			if (game.players.length === 0) return this.errorReply("Cannot deal without any players.");
+			
+			if (game.isTestMode) {
+				const requiredAIs = Math.max(3, 4 - game.players.length); // Ensure there's enough action
+				let aiCount = 1;
+				while (game.players.length < 8 && aiCount <= requiredAIs) {
+					game.players.push({
+						id: `ai${aiCount}`,
+						name: `AI Bot ${aiCount}`,
+						isAI: true,
+						hand: [],
+						status: 'playing',
+						chips: 1000,
+						roundContribution: 0,
+						handContribution: 0,
+						hasActed: false,
+					});
+					aiCount++;
+				}
+			}
 
-			void startDealing(game);
+			if (game.players.length < 2) return this.errorReply("Need at least 2 players to start.");
+
+			game.dealerIndex = Math.floor(Math.random() * game.players.length);
+			startNextHand(game);
 		},
 
 		async call(target, room, user) {
 			if (!room || room.battle || room.roomid !== CASINO_ROOM) return this.errorReply("This command can only be used in the Casino room.");
 			const game = activeGames.get(room.roomid);
-			if (!game || game.state !== 'flop') return this.errorReply("There is no active poker game waiting for moves.");
+			if (!game || ['lobby', 'showdown', 'ended'].includes(game.state)) return this.errorReply("There is no active poker game waiting for moves.");
 			
-			if (game.mode === 'casino') {
-				const p = game.players.find(p => p.id === user.id);
-				if (!p || p.status !== 'playing') return this.errorReply("You are not active in this game.");
-				
-				const callBet = game.ante * 2;
-				const bal = await getBalance(user.id);
-				if (bal < callBet) return this.errorReply(`You don't have enough ${CURRENCY_NAME} to call. (${callBet} required)`);
-				
-				await updateBalance(user.id, -callBet);
-				p.totalContribution += callBet;
-				p.status = 'called';
-				
-				const allActed = game.players.every(pl => pl.status !== 'playing');
-				if (allActed) {
-					game.state = 'ended';
-					game.communityCards.push(game.deck.pop()!, game.deck.pop()!);
-					
-					const dealerEv = evaluateBest7([...game.dealerHand, ...game.communityCards]);
-					const dealerQualifies = dealerEv.rank > HandRank.Pair || (dealerEv.rank === HandRank.Pair && dealerEv.tiebreaker[0] >= 4);
-					
-					for (const pl of game.players) {
-						if (pl.status === 'folded') {
-							pl.payoutStr = `<span style="color:red">Lost (Folded)</span>`;
-							continue;
-						}
-						
-						const plEv = evaluateBest7([...pl.hand, ...game.communityCards]);
-						const cmp = compareHands(plEv, dealerEv);
-						
-						if (!dealerQualifies) {
-							// Dealer doesn't qualify
-							const winAmount = game.ante * 2 + game.ante * 2; 
-							await updateBalance(pl.id, winAmount);
-							pl.payoutStr = `<span style="color:green">Won <b>${game.ante}</b> (Dealer didn't qualify)</span>`;
-						} else {
-							if (cmp > 0) {
-								const winAmount = pl.totalContribution * 2;
-								await updateBalance(pl.id, winAmount);
-								pl.payoutStr = `<span style="color:green">Won <b>${pl.totalContribution}</b> (${plEv.name})</span>`;
-							} else if (cmp === 0) {
-								await updateBalance(pl.id, pl.totalContribution);
-								pl.payoutStr = `<span style="color:gray">Push (Tie: ${plEv.name})</span>`;
-							} else {
-								pl.payoutStr = `<span style="color:red">Lost (${plEv.name})</span>`;
-							}
-						}
-					}
-					activeGames.delete(room.roomid);
+			const p = game.players[game.turnIndex];
+			if (!p || p.id !== user.id) return this.errorReply("It's not your turn.");
+			
+			const callAmount = game.currentBet - p.roundContribution;
+			if (callAmount > 0) {
+				if (p.chips <= callAmount) {
+					return this.parse('/poker allin');
 				}
-				updateRoom(game);
-			} else {
-				const p = game.players[game.turnIndex];
-				if (!p || p.id !== user.id) return this.errorReply("It's not your turn.");
-				
-				const callAmount = game.currentBet - p.roundContribution;
-				if (callAmount > 0) {
-					const bal = await getBalance(user.id);
-					if (bal < callAmount) return this.errorReply(`You don't have enough to call (${callAmount}).`);
-					await updateBalance(user.id, -callAmount);
-					p.roundContribution += callAmount;
-					p.totalContribution += callAmount;
-					game.pot += callAmount;
-				}
-				
-				p.hasActed = true;
-				void advanceTexasTurn(game);
+				p.chips -= callAmount;
+				p.roundContribution += callAmount;
+				p.handContribution += callAmount;
+				game.pot += callAmount;
 			}
+			
+			p.hasActed = true;
+			advanceTurn(game);
+		},
+
+		async allin(target, room, user) {
+			if (!room || room.battle || room.roomid !== CASINO_ROOM) return this.errorReply("This command can only be used in the Casino room.");
+			const game = activeGames.get(room.roomid);
+			if (!game || ['lobby', 'showdown', 'ended'].includes(game.state)) return this.errorReply("There is no active poker game waiting for moves.");
+			
+			const p = game.players[game.turnIndex];
+			if (!p || p.id !== user.id) return this.errorReply("It's not your turn.");
+			
+			const totalNeeded = p.chips;
+			if (totalNeeded === 0) return this.errorReply("You have no chips left.");
+			
+			p.chips = 0;
+			p.roundContribution += totalNeeded;
+			p.handContribution += totalNeeded;
+			game.pot += totalNeeded;
+			p.status = 'all-in';
+			p.hasActed = true;
+			
+			if (p.roundContribution > game.currentBet) {
+				game.currentBet = p.roundContribution;
+				for (const pl of game.players) {
+					if (pl !== p && pl.status === 'playing') pl.hasActed = false;
+				}
+			}
+			
+			advanceTurn(game);
 		},
 
 		async fold(target, room, user) {
 			if (!room || room.battle || room.roomid !== CASINO_ROOM) return this.errorReply("This command can only be used in the Casino room.");
 			const game = activeGames.get(room.roomid);
-			if (!game || game.state !== 'flop') return this.errorReply("There is no active poker game waiting for moves.");
+			if (!game || ['lobby', 'showdown', 'ended'].includes(game.state)) return this.errorReply("There is no active poker game waiting for moves.");
 			
-			if (game.mode === 'casino') {
-				const p = game.players.find(p => p.id === user.id);
-				if (!p || p.status !== 'playing') return this.errorReply("You are not active in this game.");
-				
-				p.status = 'folded';
-				const allActed = game.players.every(pl => pl.status !== 'playing');
-				if (allActed) {
-					game.state = 'ended';
-					game.communityCards.push(game.deck.pop()!, game.deck.pop()!);
-					for (const pl of game.players) {
-						if (pl.status === 'folded') pl.payoutStr = `<span style="color:red">Lost (Folded)</span>`;
-					}
-					activeGames.delete(room.roomid);
-				}
-				updateRoom(game);
-			} else {
-				const p = game.players[game.turnIndex];
-				if (!p || p.id !== user.id) return this.errorReply("It's not your turn.");
-				
-				p.status = 'folded';
-				p.hasActed = true;
-				void advanceTexasTurn(game);
-			}
+			const p = game.players[game.turnIndex];
+			if (!p || p.id !== user.id) return this.errorReply("It's not your turn.");
+			
+			p.status = 'folded';
+			p.hasActed = true;
+			advanceTurn(game);
 		},
 
 		async raise(target, room, user) {
 			if (!room || room.battle || room.roomid !== CASINO_ROOM) return this.errorReply("This command can only be used in the Casino room.");
 			const game = activeGames.get(room.roomid);
-			if (!game || game.state !== 'flop') return this.errorReply("There is no active poker game waiting for moves.");
-			
-			if (game.mode === 'casino') return this.errorReply("You cannot raise in Casino Hold'em.");
+			if (!game || ['lobby', 'showdown', 'ended'].includes(game.state)) return this.errorReply("There is no active poker game waiting for moves.");
 			
 			const p = game.players[game.turnIndex];
 			if (!p || p.id !== user.id) return this.errorReply("It's not your turn.");
 			
 			const raiseAmount = parseInt(target);
-			if (isNaN(raiseAmount) || raiseAmount <= 0) return this.errorReply("Usage: /poker raise [amount]");
+			if (isNaN(raiseAmount) || raiseAmount < game.blinds.big) return this.errorReply(`Usage: /poker raise [amount]. Amount must be at least the big blind (${game.blinds.big}).`);
 			
 			const callAmount = game.currentBet - p.roundContribution;
 			const totalNeeded = callAmount + raiseAmount;
 			
-			const bal = await getBalance(user.id);
-			if (bal < totalNeeded) return this.errorReply(`You don't have enough to raise by ${raiseAmount} (Need ${totalNeeded} total to call and raise).`);
+			if (p.chips <= totalNeeded) return this.errorReply(`You don't have enough chips. Use /poker allin instead.`);
 			
-			await updateBalance(user.id, -totalNeeded);
+			p.chips -= totalNeeded;
 			p.roundContribution += totalNeeded;
-			p.totalContribution += totalNeeded;
+			p.handContribution += totalNeeded;
 			game.pot += totalNeeded;
 			game.currentBet += raiseAmount;
 			
@@ -634,7 +851,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 				if (pl !== p && pl.status === 'playing') pl.hasActed = false;
 			}
 			
-			void advanceTexasTurn(game);
+			advanceTurn(game);
 		},
 
 		async end(target, room, user) {
@@ -654,13 +871,14 @@ export const commands: Chat.ChatCommands = wrapCommands({
 		help() {
 			this.runBroadcast();
 			this.sendReplyBox(
-				`<center><b>Poker Commands</b></center><hr>` +
-				`<b>/poker start casino [ante]</b>: Play Casino Hold'em against the dealer.<br>` +
-				`<b>/poker start texas [ante]</b>: Play Texas Hold'em against other players.<hr>` +
+				`<center><b>Poker Tournament Commands</b></center><hr>` +
+				`<b>/poker start [entryFee]</b>: Start a Texas Hold'em Sit & Go Tournament.<br>` +
+				`<b>/poker start ai</b>: Start a free test mode tournament against AI bots.<br>` +
 				`<b>/poker join</b>: Join the current game.<br>` +
-				`<b>/poker deal</b>: Deal the cards (Host only).<br>` +
-				`<b>/poker call</b>: Match the current bet.<br>` +
-				`<b>/poker raise [amount]</b>: Increase the bet (Texas only).<br>` +
+				`<b>/poker deal</b>: Deal the cards and start the tournament (Host only).<br>` +
+				`<b>/poker call</b>: Match the current bet or check.<br>` +
+				`<b>/poker raise [amount]</b>: Increase the bet by [amount] above the current bet.<br>` +
+				`<b>/poker allin</b>: Go all-in with all your remaining chips.<br>` +
 				`<b>/poker fold</b>: Fold your hand.<br>` +
 				`<b>/poker end</b>: Cancel the game (Host only).`
 			);
