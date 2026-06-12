@@ -219,7 +219,7 @@ function updateRoom(game: PokerGame) {
 		html += `<b>Pot:</b> ${game.pot} Chips | <b>Blinds:</b> ${game.blinds.small}/${game.blinds.big}<br><br>`;
 		
 		if (game.lastShowdownLog && (game.state === 'showdown' || game.state === 'ended')) {
-			html += `<div style="background:#eee;border:1px solid #ccc;padding:8px;margin-bottom:8px;"><b>Previous Showdown:</b><br>${game.lastShowdownLog}</div>`;
+			html += `<div style="border:1px solid #e0e0e0;border-radius:4px;padding:8px;margin-bottom:8px;"><b>Previous Showdown:</b><br>${game.lastShowdownLog}</div>`;
 		}
 		
 		html += `<b>Community Cards:</b><br>`;
@@ -919,7 +919,28 @@ export const commands: Chat.ChatCommands = wrapCommands({
 				`<b>/poker fold</b>: Fold your hand.<br>` +
 				`<b>/poker end</b>: Cancel the game (Host only).`
 			);
+		},
+
+		rules() {
+			this.runBroadcast();
+			this.sendReplyBox(
+				`<center><b>Texas Hold'em Poker Rules</b></center><hr>` +
+				`<b>Objective:</b> Win chips by having the best 5-card hand or forcing others to fold.<br><br>` +
+				`<b>Gameplay:</b><br>` +
+				`- Everyone starts with 1000 chips.<br>` +
+				`- You receive 2 private hole cards. 5 community cards are dealt face-up over 4 betting rounds (Pre-flop, Flop, Turn, River).<br>` +
+				`- Use any combination of your 2 hole cards and the 5 community cards to make the best 5-card hand.<br><br>` +
+				`<b>Actions:</b><br>` +
+				`- <b>Check/Call:</b> Match the current bet to stay in the hand.<br>` +
+				`- <b>Raise:</b> Increase the bet. Others must match it or fold.<br>` +
+				`- <b>Fold:</b> Surrender your cards and any bets you've made.<br>` +
+				`- <b>All-In:</b> Bet all your remaining chips. If you have fewer chips than the current bet, you create a "Side Pot".<br><br>` +
+				`<b>Tournament:</b><br>` +
+				`- Blinds start at 10/20 and double every 5 hands.<br>` +
+				`- Lose all your chips and you're eliminated. Last player standing wins the entire entry fee pool!`
+			);
 		}
 	},
 	pokerhelp: 'poker help',
+	pokerrules: 'poker rules',
 });
