@@ -3,8 +3,8 @@ import { getBalance, updateBalance, CURRENCY_NAME } from '../economy/economy';
 import { nameColor } from '../customization/custom-color';
 
 const CASINO_ROOM = 'casino';
-const LOBBY_TIMEOUT = 60 * 1000;
-const TURN_TIMEOUT = 45 * 1000;
+const LOBBY_TIMEOUT = 120 * 1000;
+const TURN_TIMEOUT = 15 * 1000;
 
 type Suit = '♠' | '♥' | '♣' | '♦';
 type Rank = '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | 'J' | 'Q' | 'K' | 'A';
@@ -231,8 +231,8 @@ function updateRoom(game: PokerGame) {
 			const p = game.players[i];
 			const isTurn = (game.state === 'preflop' || game.state === 'flop' || game.state === 'turn' || game.state === 'river') && game.turnIndex === i;
 			
-			if (isTurn) html += `<div style="border:2px solid #888;padding:4px;border-radius:4px;margin-bottom:4px;background:#f9f9f9;">`;
-			else html += `<div style="padding:4px;margin-bottom:4px;border:1px solid #e0e0e0;border-radius:4px;">`;
+			if (isTurn) html += `<div style="border:2px solid #888;padding:4px;border-radius:4px;margin-bottom:4px;">`;
+			else html += `<div style="padding:4px;margin-bottom:4px;border:2px solid transparent;">`;
 			
 			let pTitle = `<b>${nameColor(p.name, true)}</b>`;
 			if (i === game.dealerIndex) pTitle += ` <b>(D)</b>`;
@@ -685,8 +685,32 @@ export const commands: Chat.ChatCommands = wrapCommands({
 				if (activeGames.has(room.roomid)) {
 					const g = activeGames.get(room.roomid)!;
 					if (g.state === 'lobby') {
-						void refundAll(g, 'Lobby timed out.');
-						activeGames.delete(room.roomid);
+						if (g.isTestMode) {
+							const requiredAIs = Math.max(3, 4 - g.players.length);
+							let aiCount = 1;
+							while (g.players.length < 8 && aiCount <= requiredAIs) {
+								g.players.push({
+									id: `ai${aiCount}`,
+									name: `AI Bot ${aiCount}`,
+									isAI: true,
+									hand: [],
+									status: 'playing',
+									chips: 1000,
+									roundContribution: 0,
+									handContribution: 0,
+									hasActed: false,
+								});
+								aiCount++;
+							}
+						}
+						
+						if (g.players.length >= 2) {
+							g.dealerIndex = Math.floor(Math.random() * g.players.length);
+							startNextHand(g);
+						} else {
+							void refundAll(g, 'Lobby timed out due to not enough players.');
+							activeGames.delete(room.roomid);
+						}
 					}
 				}
 			}, LOBBY_TIMEOUT);
@@ -735,6 +759,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			const isHost = typeof user === 'string' ? user === game.host : user.id === game.host;
 			if (!isHost) return this.errorReply("Only the host can start dealing.");
 			
+			if (game.timer) clearTimeout(game.timer);
 			if (game.isTestMode) {
 				const requiredAIs = Math.max(3, 4 - game.players.length); // Ensure there's enough action
 				let aiCount = 1;
@@ -754,7 +779,19 @@ export const commands: Chat.ChatCommands = wrapCommands({
 				}
 			}
 
-			if (game.players.length < 2) return this.errorReply("Need at least 2 players to start.");
+			if (game.players.length < 2) {
+				// Restart the timer if we failed to start
+				game.timer = setTimeout(() => {
+					if (activeGames.has(room.roomid)) {
+						const g = activeGames.get(room.roomid)!;
+						if (g.state === 'lobby') {
+							void refundAll(g, 'Lobby timed out due to not enough players.');
+							activeGames.delete(room.roomid);
+						}
+					}
+				}, LOBBY_TIMEOUT);
+				return this.errorReply("Need at least 2 players to start.");
+			}
 
 			game.dealerIndex = Math.floor(Math.random() * game.players.length);
 			startNextHand(game);
