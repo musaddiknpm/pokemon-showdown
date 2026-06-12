@@ -59,21 +59,21 @@ function evaluate5(cards: Card[]) {
 	const sorted = [...cards].sort((a, b) => b.value - a.value);
 	const values = sorted.map(c => c.value);
 	const suits = sorted.map(c => c.suit);
-
+	
 	const isFlush = suits.every(s => s === suits[0]);
 	let isStraight = values.every((v, i) => i === 0 || v === values[i - 1] - 1);
-
+	
 	if (values[0] === 14 && values[1] === 5 && values[2] === 4 && values[3] === 3 && values[4] === 2) {
 		isStraight = true;
-		values.push(values.shift()!);
+		values.push(values.shift()!); 
 	}
-
+	
 	const counts: Record<number, number> = {};
 	for (const v of values) counts[v] = (counts[v] || 0) + 1;
 	const countArr = Object.entries(counts).map(([v, c]) => ({ v: Number(v), c })).sort((a, b) => b.c - a.c || b.v - a.v);
-
+	
 	const tiebreaker = countArr.map(x => x.v);
-
+	
 	if (isStraight && isFlush) return { rank: HandRank.StraightFlush, tiebreaker, name: "Straight Flush" };
 	if (countArr[0].c === 4) return { rank: HandRank.FourOfAKind, tiebreaker, name: "Four of a Kind" };
 	if (countArr[0].c === 3 && countArr[1].c === 2) return { rank: HandRank.FullHouse, tiebreaker, name: "Full House" };
@@ -117,95 +117,14 @@ function compareHands(handA: ReturnType<typeof evaluateBest7>, handB: ReturnType
 	return 0;
 }
 
-const C = {
-	felt: '#1a472a',
-	feltLight: '#215732',
-	tableBorder: '#c9a84c',
-	cardFace: '#fdf6e3',
-	cardRed: '#c0392b',
-	cardBlack: '#1a1a1a',
-	cardBack: '#1a3a6b',
-	cardBackBorder: '#2c5f9e',
-	cardShadow: '#0a0a0a',
-	gold: '#c9a84c',
-	goldDim: '#a07c2e',
-	chipBg: '#2c1a0e',
-	panelBg: '#111c13',
-	panelBorder: '#2a4a2e',
-	headerBg: '#0d1a0f',
-	textPrimary: '#f0e6c8',
-	textMuted: '#8aab8e',
-	textDim: '#556b57',
-	green: '#27ae60',
-	red: '#e74c3c',
-	orange: '#e67e22',
-	activeGlow: '#c9a84c',
-	buttonFold: '#7f1d1d',
-	buttonFoldHover: '#991b1b',
-	buttonCall: '#14532d',
-	buttonRaise: '#1e3a5f',
-	buttonAllin: '#4a1942',
-};
-
 function renderCard(card: Card | null): string {
-	if (!card) {
-		return (
-			`<span style="display:inline-block;width:36px;height:54px;line-height:54px;text-align:center;` +
-			`background:${C.cardBack};border:2px solid ${C.cardBackBorder};border-radius:5px;` +
-			`margin:2px;font-size:18px;color:#4a7abf;vertical-align:middle;box-shadow:2px 2px 4px ${C.cardShadow};">` +
-			`<b>?</b></span>`
-		);
-	}
-	const isRed = card.suit === '♥' || card.suit === '♦';
-	const color = isRed ? C.cardRed : C.cardBlack;
-	const rankDisplay = card.rank === '10' ? '10' : card.rank;
-	return (
-		`<span style="display:inline-block;width:36px;height:54px;line-height:1;text-align:center;` +
-		`background:${C.cardFace};border:2px solid #c8b87a;border-radius:5px;` +
-		`margin:2px;color:${color};vertical-align:middle;box-shadow:2px 2px 4px ${C.cardShadow};` +
-		`padding-top:4px;">` +
-		`<span style="display:block;font-size:13px;font-weight:bold;line-height:1.1;">${rankDisplay}</span>` +
-		`<span style="display:block;font-size:16px;line-height:1.1;">${card.suit}</span>` +
-		`</span>`
-	);
+	if (!card) return `<span style="display:inline-block;border:1px solid #777;border-radius:4px;padding:2px 6px;margin:2px;background:#eee;color:#333;">?</span>`;
+	const color = (card.suit === '♥' || card.suit === '♦') ? 'red' : 'black';
+	return `<span style="display:inline-block;border:1px solid #777;border-radius:4px;padding:2px 6px;margin:2px;color:${color};background:#fff;"><b>${card.rank}</b>${card.suit}</span>`;
 }
 
-function renderHand(hand: (Card | null)[], hide = false): string {
+function renderHand(hand: Card[], hide = false): string {
 	return hand.map(c => renderCard(hide ? null : c)).join('');
-}
-
-function renderChip(label: string, value: string | number, color = C.gold): string {
-	return (
-		`<span style="display:inline-block;background:${C.chipBg};border:1px solid ${color};` +
-		`border-radius:4px;padding:2px 8px;margin:1px 3px;font-size:11px;color:${C.textPrimary};">` +
-		`<span style="color:${color};font-weight:bold;">${label}</span> ${value}` +
-		`</span>`
-	);
-}
-
-function renderActionBtn(label: string, command: string, style: 'fold' | 'call' | 'raise' | 'allin' | 'neutral'): string {
-	const bgMap = {
-		fold: C.buttonFold,
-		call: C.buttonCall,
-		raise: C.buttonRaise,
-		allin: C.buttonAllin,
-		neutral: '#1f2e20',
-	};
-	const borderMap = {
-		fold: '#ef4444',
-		call: '#4ade80',
-		raise: '#60a5fa',
-		allin: '#c084fc',
-		neutral: C.gold,
-	};
-	const bg = bgMap[style];
-	const border = borderMap[style];
-	return (
-		`<button class="button" name="send" value="${command}" ` +
-		`style="background:${bg};border:1px solid ${border};color:${C.textPrimary};` +
-		`border-radius:4px;padding:5px 12px;margin:2px 3px;font-size:12px;font-weight:bold;cursor:pointer;">` +
-		`${label}</button>`
-	);
 }
 
 interface PokerPlayer {
@@ -256,12 +175,9 @@ async function refundAll(game: PokerGame, message: string) {
 	if (room) {
 		room.add(
 			`|uhtmlchange|${game.uid}|` +
-			`<div style="background:${C.headerBg};border:2px solid ${C.tableBorder};border-radius:8px;` +
-			`padding:16px;text-align:center;color:${C.textPrimary};font-family:Georgia,serif;">` +
-			`<b style="color:${C.gold};font-size:15px;">Tournament Cancelled</b>` +
-			`<hr style="border-color:${C.panelBorder};margin:8px 0;">` +
-			`<span style="color:${C.textMuted};">${message}</span><br>` +
-			`<span style="color:${C.gold};">All players have been refunded their entry fee.</span>` +
+			`<div class="infobox" style="text-align:center;padding:12px 16px;">` +
+			`<b>Poker Tournament Cancelled</b><hr>` +
+			`${message}<br>All players have been refunded their entry fee.` +
 			`</div>`
 		).update();
 	}
@@ -274,15 +190,7 @@ function whisperCards(game: PokerGame) {
 		if (p.isAI) continue;
 		const user = Users.get(p.id);
 		if (user && user.connected && p.hand.length > 0) {
-			user.sendTo(
-				room,
-				`|uhtml|${game.uid}-cards|` +
-				`<div style="background:${C.headerBg};border:1px solid ${C.tableBorder};border-radius:6px;` +
-				`padding:8px 12px;display:inline-block;">` +
-				`<span style="color:${C.textMuted};font-size:11px;font-family:Georgia,serif;">YOUR HOLE CARDS</span><br>` +
-				renderHand(p.hand) +
-				`</div>`
-			);
+			user.sendTo(room, `|uhtml|${game.uid}-cards|Your Hole Cards: ${renderHand(p.hand)}`);
 		}
 	}
 }
@@ -290,209 +198,88 @@ function whisperCards(game: PokerGame) {
 function updateRoom(game: PokerGame) {
 	const room = Rooms.get(game.roomid);
 	if (!room) return;
-
-	let html = (
-		`<div style="background:${C.felt};border:3px solid ${C.tableBorder};border-radius:12px;` +
-		`padding:0;overflow:hidden;max-width:680px;margin:0 auto;font-family:Georgia,serif;">`
-	);
-
-	const modeLabel = game.isTestMode ? ' · Test Mode' : '';
-	const entryLabel = game.isTestMode ? 'Free' : `${game.entryFee} ${CURRENCY_NAME}`;
-	html += (
-		`<div style="background:${C.headerBg};padding:10px 14px;border-bottom:2px solid ${C.tableBorder};` +
-		`display:flex;align-items:center;justify-content:space-between;">` +
-		`<span style="color:${C.gold};font-size:15px;font-weight:bold;letter-spacing:1px;">` +
-		`Texas Hold'em${modeLabel}` +
-		`</span>` +
-		`<span style="color:${C.textMuted};font-size:11px;">` +
-		`Entry: <b style="color:${C.gold};">${entryLabel}</b> &nbsp;|&nbsp; Host: ${nameColor(game.hostName, true)}` +
-		`</span>` +
-		`</div>`
-	);
-
+	
+	let html = `<div class="infobox" style="padding:12px 16px; text-align:center;">`;
+	html += `<b>Texas Hold'em Tournament ${game.isTestMode ? "(Test AI Mode)" : ""}</b> (Entry: <b>${game.isTestMode ? 'Free' : game.entryFee + ' ' + CURRENCY_NAME}</b>)<br>Host: ${nameColor(game.hostName, true)}<hr>`;
+	
 	if (game.state === 'lobby') {
-		html += (
-			`<div style="padding:16px;">` +
-			`<div style="background:${C.panelBg};border:1px solid ${C.panelBorder};border-radius:6px;padding:12px;margin-bottom:12px;">` +
-			`<div style="color:${C.gold};font-size:12px;letter-spacing:1px;margin-bottom:8px;">PLAYERS IN LOBBY</div>`
-		);
-
+		html += `<b>Players in lobby:</b><br>`;
 		if (game.players.length === 0) {
-			html += `<div style="color:${C.textDim};font-style:italic;text-align:center;padding:8px;">Waiting for players to join...</div>`;
+			html += `<i>No players yet</i><br>`;
 		} else {
 			for (const p of game.players) {
-				html += (
-					`<div style="padding:4px 0;border-bottom:1px solid ${C.panelBorder};color:${C.textPrimary};">` +
-					`<span style="color:${C.textDim};margin-right:6px;">●</span>${nameColor(p.name, true)}` +
-					`</div>`
-				);
+				html += `${nameColor(p.name, true)}<br>`;
 			}
 		}
-
-		html += `</div>`;
-
-		html += (
-			`<div style="text-align:center;padding:4px 0;">` +
-			renderActionBtn('Join Game', '/poker join', 'call') +
-			renderActionBtn('Start Tournament', '/poker deal', 'raise') +
-			renderActionBtn('Cancel', '/poker end', 'fold') +
-			`</div></div>`
-		);
+		html += `<br>`;
+		html += `<button class="button" name="send" value="/poker join" style="padding:6px 20px;margin-right:5px;">Join Game</button>`;
+		html += `<button class="button" name="send" value="/poker deal" style="padding:6px 20px;margin-right:5px;">Start Tournament (Host)</button>`;
+		html += `<button class="button" name="send" value="/poker end" style="padding:6px 20px;">Cancel Game</button>`;
 	} else {
-		const phaseLabel: Record<string, string> = {
-			preflop: 'PRE-FLOP', flop: 'FLOP', turn: 'TURN',
-			river: 'RIVER', showdown: 'SHOWDOWN', ended: 'ENDED',
-		};
-		html += (
-			`<div style="background:${C.feltLight};padding:8px 14px;border-bottom:1px solid ${C.panelBorder};` +
-			`display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px;">` +
-			`<span style="color:${C.gold};font-size:13px;font-weight:bold;letter-spacing:2px;">` +
-			`${phaseLabel[game.state] ?? game.state.toUpperCase()}` +
-			`</span>` +
-			renderChip('POT', game.pot) +
-			renderChip('BLINDS', `${game.blinds.small}/${game.blinds.big}`) +
-			renderChip('HANDS', game.handsPlayed, C.textMuted) +
-			`</div>`
-		);
-
+		html += `<b>Pot:</b> ${game.pot} Chips | <b>Blinds:</b> ${game.blinds.small}/${game.blinds.big}<br><br>`;
+		
 		if (game.lastShowdownLog && (game.state === 'showdown' || game.state === 'ended')) {
-			html += (
-				`<div style="background:${C.panelBg};border-bottom:1px solid ${C.panelBorder};` +
-				`padding:8px 14px;font-size:12px;color:${C.textMuted};">` +
-				`<span style="color:${C.gold};font-weight:bold;">Last Showdown: </span>` +
-				game.lastShowdownLog +
-				`</div>`
-			);
+			html += `<div style="border:1px solid #e0e0e0;border-radius:4px;padding:8px;margin-bottom:8px;"><b>Previous Showdown:</b><br>${game.lastShowdownLog}</div>`;
 		}
-
-		html += (
-			`<div style="background:${C.feltLight};padding:12px 14px;text-align:center;border-bottom:1px solid ${C.panelBorder};">` +
-			`<div style="color:${C.textDim};font-size:10px;letter-spacing:2px;margin-bottom:6px;">COMMUNITY CARDS</div>`
-		);
+		
+		html += `<b>Community Cards:</b><br>`;
 		const displayComm = [...game.communityCards];
-		while (displayComm.length < 5 && game.state !== 'ended' && game.state !== 'lobby') {
-			displayComm.push(null as any);
-		}
-		html += renderHand(displayComm) + `</div>`;
-
-		const activePlayerIndex = ['preflop', 'flop', 'turn', 'river'].includes(game.state) ? game.turnIndex : -1;
-		const activePlayer = activePlayerIndex >= 0 ? game.players[activePlayerIndex] : null;
-
-		if (activePlayer && !activePlayer.isAI) {
-			const p = activePlayer;
-			const i = activePlayerIndex;
-			const callAmount = game.currentBet - p.roundContribution;
-			html += (
-				`<div style="padding:8px 14px 0 14px;">` +
-				`<div style="background:${C.panelBg};border:2px solid ${C.activeGlow};border-radius:6px;padding:8px 10px;margin-bottom:6px;">` +
-				`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">` +
-				`<span style="color:${C.gold};font-size:11px;">▶</span>` +
-				`<span style="font-size:13px;font-weight:bold;">${nameColor(p.name, true)}</span>`
-			);
-			if (i === game.dealerIndex) {
-				html += `<span style="background:${C.gold};color:${C.chipBg};border-radius:50%;padding:1px 5px;font-size:10px;font-weight:bold;">D</span>`;
-			}
-			html += `<span style="margin-left:auto;display:flex;align-items:center;gap:4px;">`;
-			if (p.handContribution > 0) {
-				html += `<span style="font-size:11px;color:${C.textDim};">in: ${p.handContribution}</span>`;
-			}
-			html += renderChip('', p.chips) + `</span>`;
-			if (game.state === 'showdown') {
-				html += renderHand(p.hand);
-			} else {
-				html += renderCard(null) + renderCard(null);
-			}
-			if (p.payoutStr) html += `<span style="font-size:12px;margin-left:4px;">${p.payoutStr}</span>`;
-			html += `</div>`;
-			html += `<div style="margin-top:6px;padding-top:6px;border-top:1px solid ${C.panelBorder};">`;
-			if (callAmount > 0) {
-				if (p.chips <= callAmount) {
-					html += renderActionBtn(`All-In (${p.chips})`, '/poker allin', 'allin');
-				} else {
-					html += renderActionBtn(`Call ${callAmount}`, '/poker call', 'call');
-					html += renderActionBtn(`Raise +${game.blinds.big}`, `/poker raise ${game.blinds.big}`, 'raise');
-					html += renderActionBtn(`Pot +${game.pot}`, `/poker raise ${game.pot}`, 'raise');
-					html += renderActionBtn('All-In', '/poker allin', 'allin');
-				}
-			} else {
-				html += renderActionBtn('Check', '/poker call', 'call');
-				html += renderActionBtn(`Bet +${game.blinds.big}`, `/poker raise ${game.blinds.big}`, 'raise');
-				html += renderActionBtn(`Pot +${game.pot}`, `/poker raise ${game.pot}`, 'raise');
-				html += renderActionBtn('All-In', '/poker allin', 'allin');
-			}
-			html += renderActionBtn('Fold', '/poker fold', 'fold');
-			html += `</div></div></div>`;
-		}
-
-		html += `<div style="padding:4px 14px 10px 14px;display:flex;flex-wrap:wrap;gap:4px;">`;
-
+		while (displayComm.length < 5 && game.state !== 'ended' && game.state !== 'lobby') displayComm.push(null as any);
+		html += renderHand(displayComm, false) + `<br><br>`;
+		
 		for (let i = 0; i < game.players.length; i++) {
 			const p = game.players[i];
-			const isActiveTurn = i === activePlayerIndex;
-			const isDealer = i === game.dealerIndex;
-
-			if (isActiveTurn && !p.isAI) continue;
-
-			const rowOpacity = p.status === 'eliminated' ? 'opacity:0.45;' : '';
-			const rowBorder = isActiveTurn
-				? `2px solid ${C.activeGlow}`
-				: `1px solid ${C.panelBorder}`;
-			const rowBg = isActiveTurn ? C.panelBg : 'transparent';
-
-			html += (
-				`<div style="background:${rowBg};border:${rowBorder};border-radius:5px;` +
-				`padding:5px 8px;${rowOpacity}flex:1 1 calc(50% - 2px);min-width:200px;">`
-			);
-
-			html += `<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">`;
-
-			if (isActiveTurn) html += `<span style="color:${C.gold};font-size:10px;">▶</span>`;
-			html += `<span style="font-size:12px;font-weight:bold;">${nameColor(p.name, true)}</span>`;
-			if (isDealer) {
-				html += `<span style="background:${C.gold};color:${C.chipBg};border-radius:50%;padding:0px 4px;font-size:9px;font-weight:bold;">D</span>`;
-			}
-
-			if (p.status === 'eliminated') {
-				html += `<span style="margin-left:auto;background:#3b0000;color:${C.red};border:1px solid ${C.red};border-radius:3px;padding:1px 5px;font-size:9px;font-weight:bold;">OUT</span>`;
-			} else if (p.status === 'folded') {
-				html += `<span style="margin-left:auto;background:#2a1010;color:#f87171;border:1px solid #7f1d1d;border-radius:3px;padding:1px 5px;font-size:9px;font-weight:bold;">FOLD</span>`;
-			} else if (p.status === 'all-in') {
-				html += `<span style="margin-left:auto;background:#2a1a00;color:${C.orange};border:1px solid ${C.orange};border-radius:3px;padding:1px 5px;font-size:9px;font-weight:bold;">ALL-IN</span>`;
-			} else {
-				html += `<span style="margin-left:auto;font-size:11px;color:${C.textMuted};">${p.chips}</span>`;
-			}
-
-			html += `</div>`;
-
-			html += `<div style="display:flex;align-items:center;gap:3px;margin-top:3px;flex-wrap:wrap;">`;
+			const isTurn = (game.state === 'preflop' || game.state === 'flop' || game.state === 'turn' || game.state === 'river') && game.turnIndex === i;
+			
+			if (isTurn) html += `<div style="border:2px solid #888;padding:4px;border-radius:4px;margin-bottom:4px;">`;
+			else html += `<div style="padding:4px;margin-bottom:4px;border:2px solid transparent;">`;
+			
+			let pTitle = `<b>${nameColor(p.name, true)}</b>`;
+			if (i === game.dealerIndex) pTitle += ` <b>(D)</b>`;
+			
+			html += `${pTitle}: `;
+			
+			if (p.status === 'eliminated') html += ` <span style="color:red;font-weight:bold;">[Eliminated]</span>`;
+			else if (p.status === 'folded') html += ` <span style="color:red;font-weight:bold;">[Folded]</span>`;
+			else if (p.status === 'all-in') html += ` <span style="color:orange;font-weight:bold;">[All-In | In: ${p.handContribution}]</span>`;
+			else html += ` <span style="color:gray;">[Chips: ${p.chips} | In: ${p.handContribution}]</span>`;
+			
+			if (p.payoutStr) html += ` &mdash; ${p.payoutStr}`;
+			
 			if (game.state === 'showdown' && p.status !== 'folded' && p.status !== 'eliminated') {
-				html += renderHand(p.hand);
+				html += `<br>${renderHand(p.hand)}`;
 			} else if (p.status === 'playing' || p.status === 'all-in') {
-				html += renderCard(null) + renderCard(null);
+				html += `<br><i>Hole cards hidden</i>`;
 			}
-			if (p.handContribution > 0 && p.status !== 'folded' && p.status !== 'eliminated') {
-				html += `<span style="font-size:10px;color:${p.status === 'all-in' ? C.orange : C.textDim};margin-left:2px;">in:${p.handContribution}</span>`;
+			
+			if (isTurn && !p.isAI) {
+				const callAmount = game.currentBet - p.roundContribution;
+				html += `<br><br>`;
+				
+				if (callAmount > 0) {
+					if (p.chips <= callAmount) {
+						html += `<button class="button" name="send" value="/poker allin" style="margin-right:5px;padding:4px 12px;">All-In (${p.chips})</button>`;
+					} else {
+						html += `<button class="button" name="send" value="/poker call" style="margin-right:5px;padding:4px 12px;">Call (${callAmount})</button>`;
+						let minRaise = game.blinds.big;
+						html += `<button class="button" name="send" value="/poker raise ${minRaise}" style="margin-right:5px;padding:4px 12px;">Raise (+${minRaise})</button>`;
+						html += `<button class="button" name="send" value="/poker raise ${game.pot}" style="margin-right:5px;padding:4px 12px;">Pot (+${game.pot})</button>`;
+						html += `<button class="button" name="send" value="/poker allin" style="margin-right:5px;padding:4px 12px;">All-In</button>`;
+					}
+				} else {
+					html += `<button class="button" name="send" value="/poker call" style="margin-right:5px;padding:4px 12px;">Check</button>`;
+					let minRaise = game.blinds.big;
+					html += `<button class="button" name="send" value="/poker raise ${minRaise}" style="margin-right:5px;padding:4px 12px;">Bet (+${minRaise})</button>`;
+					html += `<button class="button" name="send" value="/poker raise ${game.pot}" style="margin-right:5px;padding:4px 12px;">Pot (+${game.pot})</button>`;
+					html += `<button class="button" name="send" value="/poker allin" style="margin-right:5px;padding:4px 12px;">All-In</button>`;
+				}
+				html += `<button class="button" name="send" value="/poker fold" style="padding:4px 12px;">Fold</button>`;
 			}
-			if (p.payoutStr) html += `<span style="font-size:11px;">${p.payoutStr}</span>`;
-			html += `</div>`;
-
 			html += `</div>`;
 		}
-
-		html += `</div>`;
 	}
-
-	html += (
-		`<div style="background:${C.headerBg};border-top:1px solid ${C.panelBorder};` +
-		`padding:6px 14px;text-align:center;">` +
-		`<span style="color:${C.textDim};font-size:10px;letter-spacing:1px;">` +
-		`/poker help &nbsp;·&nbsp; /poker rules` +
-		`</span>` +
-		`</div>`
-	);
-
 	html += `</div>`;
-
+	
 	if (!game.displayInit) {
 		room.add(`|uhtml|${game.uid}|${html}`).update();
 		game.displayInit = true;
@@ -504,11 +291,11 @@ function updateRoom(game: PokerGame) {
 function aiMakeMove(game: PokerGame, aiPlayer: PokerPlayer) {
 	if (['ended', 'showdown', 'lobby'].includes(game.state)) return;
 	if (game.players[game.turnIndex] !== aiPlayer) return;
-
+	
 	const callAmount = game.currentBet - aiPlayer.roundContribution;
 	const rand = Math.random();
 	let action = 'call';
-
+	
 	if (callAmount > 0) {
 		if (rand < 0.15) action = 'fold';
 		else if (rand < 0.85) action = 'call';
@@ -547,7 +334,7 @@ function aiMakeMove(game: PokerGame, aiPlayer: PokerPlayer) {
 	} else if (action === 'raise') {
 		const minRaise = game.blinds.big;
 		const totalNeeded = callAmount + minRaise;
-
+		
 		if (aiPlayer.chips <= totalNeeded) {
 			const totalNeededAllin = aiPlayer.chips;
 			aiPlayer.chips = 0;
@@ -573,7 +360,7 @@ function aiMakeMove(game: PokerGame, aiPlayer: PokerPlayer) {
 		}
 		aiPlayer.hasActed = true;
 	}
-
+	
 	advanceTurn(game);
 }
 
@@ -590,26 +377,26 @@ function triggerNextTurn(game: PokerGame) {
 
 function startNextHand(game: PokerGame) {
 	if (game.timer) clearTimeout(game.timer);
-
+	
 	for (const p of game.players) {
 		if (p.chips === 0 && p.status !== 'eliminated') {
 			p.status = 'eliminated';
 		}
 	}
-
+	
 	const active = game.players.filter(p => p.status !== 'eliminated');
 	if (active.length === 1) {
 		const winner = active[0];
 		game.state = 'ended';
-
+		
 		if (!game.isTestMode && !winner.isAI) {
 			const totalCoins = game.players.length * game.entryFee;
 			void updateBalance(winner.id, totalCoins);
-			winner.payoutStr = `<span style="color:${C.green};font-weight:bold;">Tournament Winner! (${totalCoins} ${CURRENCY_NAME})</span>`;
+			winner.payoutStr = `<span style="color:green;font-weight:bold">Tournament Winner! (${totalCoins} ${CURRENCY_NAME})</span>`;
 		} else {
-			winner.payoutStr = `<span style="color:${C.green};font-weight:bold;">Tournament Winner! (Test Mode)</span>`;
+			winner.payoutStr = `<span style="color:green;font-weight:bold">Tournament Winner! (Test Mode)</span>`;
 		}
-
+		
 		updateRoom(game);
 		activeGames.delete(game.roomid);
 		return;
@@ -619,19 +406,19 @@ function startNextHand(game: PokerGame) {
 		activeGames.delete(game.roomid);
 		return;
 	}
-
+	
 	game.handsPlayed++;
 	if (game.handsPlayed > 1 && game.handsPlayed % 5 === 0) {
 		game.blinds.small *= 2;
 		game.blinds.big *= 2;
 	}
-
+	
 	game.deck = createDeck();
 	game.communityCards = [];
 	game.pot = 0;
 	game.currentBet = 0;
 	game.lastShowdownLog = undefined;
-
+	
 	for (const p of game.players) {
 		p.hand = [];
 		p.roundContribution = 0;
@@ -641,14 +428,14 @@ function startNextHand(game: PokerGame) {
 		p.payoutStr = undefined;
 		if (p.status !== 'eliminated') p.status = 'playing';
 	}
-
+	
 	do {
 		game.dealerIndex = (game.dealerIndex + 1) % game.players.length;
 	} while (game.players[game.dealerIndex].status === 'eliminated');
-
+	
 	let sbIndex = game.dealerIndex;
 	let bbIndex = game.dealerIndex;
-
+	
 	if (active.length > 2) {
 		do { sbIndex = (sbIndex + 1) % game.players.length; } while (game.players[sbIndex].status === 'eliminated');
 		bbIndex = sbIndex;
@@ -660,44 +447,44 @@ function startNextHand(game: PokerGame) {
 			bbIndex = (bbIndex + 1) % game.players.length;
 		}
 	}
-
+	
 	const sbAmount = Math.min(game.blinds.small, game.players[sbIndex].chips);
 	game.players[sbIndex].chips -= sbAmount;
 	game.players[sbIndex].roundContribution = sbAmount;
 	game.players[sbIndex].handContribution = sbAmount;
 	game.pot += sbAmount;
 	if (game.players[sbIndex].chips === 0) game.players[sbIndex].status = 'all-in';
-
+	
 	const bbAmount = Math.min(game.blinds.big, game.players[bbIndex].chips);
 	game.players[bbIndex].chips -= bbAmount;
 	game.players[bbIndex].roundContribution = bbAmount;
 	game.players[bbIndex].handContribution = bbAmount;
 	game.pot += bbAmount;
 	if (game.players[bbIndex].chips === 0) game.players[bbIndex].status = 'all-in';
-
+	
 	game.currentBet = game.blinds.big;
-
+	
 	for (const p of game.players) {
 		if (p.status !== 'eliminated') {
 			p.hand.push(game.deck.pop()!, game.deck.pop()!);
 		}
 	}
 	whisperCards(game);
-
+	
 	game.state = 'preflop';
-
+	
 	game.turnIndex = bbIndex;
 	do {
 		game.turnIndex = (game.turnIndex + 1) % game.players.length;
 	} while (game.players[game.turnIndex].status === 'eliminated');
-
+	
 	const ableToAct = game.players.filter(p => p.status === 'playing' && p.chips > 0);
 	if (ableToAct.length <= 1 && ableToAct.every(p => p.roundContribution >= game.currentBet)) {
 		setTimeout(() => nextPhase(game), 2000);
 		updateRoom(game);
 		return;
 	}
-
+	
 	triggerNextTurn(game);
 }
 
@@ -720,30 +507,30 @@ function setTurnTimer(game: PokerGame) {
 
 function advanceTurn(game: PokerGame) {
 	const nonFolded = game.players.filter(p => p.status !== 'folded' && p.status !== 'eliminated');
-
+	
 	if (nonFolded.length === 1) {
 		const winner = nonFolded[0];
 		winner.chips += game.pot;
 		game.state = 'showdown';
-		winner.payoutStr = `<span style="color:${C.green};font-weight:bold;">Won ${game.pot} chips (others folded)</span>`;
-		game.lastShowdownLog = `${nameColor(winner.name, true)} won ${game.pot} chips — others folded`;
+		winner.payoutStr = `<span style="color:green">Won ${game.pot} (Others folded)</span>`;
+		game.lastShowdownLog = `${nameColor(winner.name, true)} won ${game.pot} chips (Others folded)`;
 		updateRoom(game);
 		setTimeout(() => startNextHand(game), 5000);
 		return;
 	}
-
+	
 	const ableToAct = game.players.filter(p => p.status === 'playing' && p.chips > 0);
 	const roundOver = ableToAct.every(p => p.hasActed && p.roundContribution === game.currentBet);
-
+	
 	if (roundOver || ableToAct.length === 0) {
 		nextPhase(game);
 		return;
 	}
-
+	
 	do {
 		game.turnIndex = (game.turnIndex + 1) % game.players.length;
 	} while (game.players[game.turnIndex].status !== 'playing' || game.players[game.turnIndex].chips === 0);
-
+	
 	triggerNextTurn(game);
 }
 
@@ -761,32 +548,32 @@ function nextPhase(game: PokerGame) {
 		doShowdown(game);
 		return;
 	}
-
+	
 	game.currentBet = 0;
 	for (const p of game.players) {
 		p.roundContribution = 0;
 		if (p.status === 'playing' && p.chips > 0) p.hasActed = false;
 	}
-
+	
 	const ableToAct = game.players.filter(p => p.status === 'playing' && p.chips > 0);
 	if (ableToAct.length <= 1) {
 		setTimeout(() => nextPhase(game), 2000);
 		updateRoom(game);
 		return;
 	}
-
+	
 	game.turnIndex = game.dealerIndex;
 	do {
 		game.turnIndex = (game.turnIndex + 1) % game.players.length;
 	} while (game.players[game.turnIndex].status !== 'playing' || game.players[game.turnIndex].chips === 0);
-
+	
 	triggerNextTurn(game);
 }
 
 function buildPots(players: PokerPlayer[]) {
 	const pots = [];
 	const pList = players.filter(p => p.handContribution > 0).sort((a, b) => a.handContribution - b.handContribution);
-
+	
 	let previousContribution = 0;
 	for (let i = 0; i < pList.length; i++) {
 		const p = pList[i];
@@ -810,17 +597,17 @@ function buildPots(players: PokerPlayer[]) {
 function doShowdown(game: PokerGame) {
 	game.state = 'showdown';
 	if (game.timer) clearTimeout(game.timer);
-
+	
 	const pots = buildPots(game.players);
 	const displayLines = [];
-
+	
 	for (let i = 0; i < pots.length; i++) {
 		const pot = pots[i];
 		if (pot.eligible.length === 0) continue;
-
+		
 		let bestHand: any = null;
 		let winners: PokerPlayer[] = [];
-
+		
 		for (const p of pot.eligible) {
 			if (!p.eval) p.eval = evaluateBest7([...p.hand, ...game.communityCards]);
 			if (!bestHand) {
@@ -836,24 +623,21 @@ function doShowdown(game: PokerGame) {
 				}
 			}
 		}
-
+		
 		if (winners.length > 0) {
 			const split = Math.floor(pot.size / winners.length);
 			for (const w of winners) {
 				w.chips += split;
-				w.payoutStr = `<span style="color:${C.green};font-weight:bold;">Won ${split} (${bestHand.name})</span>`;
+				w.payoutStr = `<span style="color:green">Won ${split} (${bestHand.name})</span>`;
 			}
 			const winNames = winners.map(w => nameColor(w.name, true)).join(', ');
-			displayLines.push(
-				`<span style="color:${C.textMuted};">Pot ${i + 1} (${pot.size}):</span> ` +
-				`${winNames} <span style="color:${C.gold};">${bestHand.name}</span>`
-			);
+			displayLines.push(`Pot ${i+1} (${pot.size} chips): Won by ${winNames} (${bestHand.name})`);
 		}
 	}
-
+	
 	game.lastShowdownLog = displayLines.join('<br>');
 	updateRoom(game);
-
+	
 	setTimeout(() => startNextHand(game), 8000);
 }
 
@@ -862,11 +646,11 @@ export const commands: Chat.ChatCommands = wrapCommands({
 		async start(target, room, user) {
 			if (!room || room.battle || room.roomid !== CASINO_ROOM) return this.errorReply("This command can only be used in the Casino room.");
 			if (activeGames.has(room.roomid)) return this.errorReply("A poker game is already running in this room.");
-
+			
 			const parts = target.trim().split(' ');
 			let isTestMode = false;
 			let entryFee = 0;
-
+			
 			if (parts[0] && parts[0].toLowerCase() === 'ai') {
 				isTestMode = true;
 			} else {
@@ -875,7 +659,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 					return this.errorReply("Usage: /poker start [entryFee] OR /poker start ai");
 				}
 			}
-
+			
 			const uid = `poker-${room.roomid}-${Date.now()}`;
 			const game: PokerGame = {
 				roomid: room.roomid,
@@ -896,7 +680,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 				handsPlayed: 0,
 				timer: null,
 			};
-
+			
 			game.timer = setTimeout(() => {
 				if (activeGames.has(room.roomid)) {
 					const g = activeGames.get(room.roomid)!;
@@ -919,12 +703,12 @@ export const commands: Chat.ChatCommands = wrapCommands({
 								aiCount++;
 							}
 						}
-
+						
 						if (g.players.length >= 2) {
 							g.dealerIndex = Math.floor(Math.random() * g.players.length);
 							startNextHand(g);
 						} else {
-							void refundAll(g, 'Lobby timed out — not enough players.');
+							void refundAll(g, 'Lobby timed out due to not enough players.');
 							activeGames.delete(room.roomid);
 						}
 					}
@@ -971,13 +755,13 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			const game = activeGames.get(room.roomid);
 			if (!game) return this.errorReply("No active poker game in this room.");
 			if (game.state !== 'lobby') return this.errorReply("This game has already started.");
-
+			
 			const isHost = typeof user === 'string' ? user === game.host : user.id === game.host;
 			if (!isHost) return this.errorReply("Only the host can start dealing.");
-
+			
 			if (game.timer) clearTimeout(game.timer);
 			if (game.isTestMode) {
-				const requiredAIs = Math.max(3, 4 - game.players.length);
+				const requiredAIs = Math.max(3, 4 - game.players.length); // Ensure there's enough action
 				let aiCount = 1;
 				while (game.players.length < 8 && aiCount <= requiredAIs) {
 					game.players.push({
@@ -996,11 +780,12 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			}
 
 			if (game.players.length < 2) {
+				// Restart the timer if we failed to start
 				game.timer = setTimeout(() => {
 					if (activeGames.has(room.roomid)) {
 						const g = activeGames.get(room.roomid)!;
 						if (g.state === 'lobby') {
-							void refundAll(g, 'Lobby timed out — not enough players.');
+							void refundAll(g, 'Lobby timed out due to not enough players.');
 							activeGames.delete(room.roomid);
 						}
 					}
@@ -1016,10 +801,10 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			if (!room || room.battle || room.roomid !== CASINO_ROOM) return this.errorReply("This command can only be used in the Casino room.");
 			const game = activeGames.get(room.roomid);
 			if (!game || ['lobby', 'showdown', 'ended'].includes(game.state)) return this.errorReply("There is no active poker game waiting for moves.");
-
+			
 			const p = game.players[game.turnIndex];
 			if (!p || p.id !== user.id) return this.errorReply("It's not your turn.");
-
+			
 			const callAmount = game.currentBet - p.roundContribution;
 			if (callAmount > 0) {
 				if (p.chips <= callAmount) {
@@ -1030,7 +815,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 				p.handContribution += callAmount;
 				game.pot += callAmount;
 			}
-
+			
 			p.hasActed = true;
 			advanceTurn(game);
 		},
@@ -1039,27 +824,27 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			if (!room || room.battle || room.roomid !== CASINO_ROOM) return this.errorReply("This command can only be used in the Casino room.");
 			const game = activeGames.get(room.roomid);
 			if (!game || ['lobby', 'showdown', 'ended'].includes(game.state)) return this.errorReply("There is no active poker game waiting for moves.");
-
+			
 			const p = game.players[game.turnIndex];
 			if (!p || p.id !== user.id) return this.errorReply("It's not your turn.");
-
+			
 			const totalNeeded = p.chips;
 			if (totalNeeded === 0) return this.errorReply("You have no chips left.");
-
+			
 			p.chips = 0;
 			p.roundContribution += totalNeeded;
 			p.handContribution += totalNeeded;
 			game.pot += totalNeeded;
 			p.status = 'all-in';
 			p.hasActed = true;
-
+			
 			if (p.roundContribution > game.currentBet) {
 				game.currentBet = p.roundContribution;
 				for (const pl of game.players) {
 					if (pl !== p && pl.status === 'playing') pl.hasActed = false;
 				}
 			}
-
+			
 			advanceTurn(game);
 		},
 
@@ -1067,10 +852,10 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			if (!room || room.battle || room.roomid !== CASINO_ROOM) return this.errorReply("This command can only be used in the Casino room.");
 			const game = activeGames.get(room.roomid);
 			if (!game || ['lobby', 'showdown', 'ended'].includes(game.state)) return this.errorReply("There is no active poker game waiting for moves.");
-
+			
 			const p = game.players[game.turnIndex];
 			if (!p || p.id !== user.id) return this.errorReply("It's not your turn.");
-
+			
 			p.status = 'folded';
 			p.hasActed = true;
 			advanceTurn(game);
@@ -1080,29 +865,29 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			if (!room || room.battle || room.roomid !== CASINO_ROOM) return this.errorReply("This command can only be used in the Casino room.");
 			const game = activeGames.get(room.roomid);
 			if (!game || ['lobby', 'showdown', 'ended'].includes(game.state)) return this.errorReply("There is no active poker game waiting for moves.");
-
+			
 			const p = game.players[game.turnIndex];
 			if (!p || p.id !== user.id) return this.errorReply("It's not your turn.");
-
+			
 			const raiseAmount = parseInt(target);
 			if (isNaN(raiseAmount) || raiseAmount < game.blinds.big) return this.errorReply(`Usage: /poker raise [amount]. Amount must be at least the big blind (${game.blinds.big}).`);
-
+			
 			const callAmount = game.currentBet - p.roundContribution;
 			const totalNeeded = callAmount + raiseAmount;
-
+			
 			if (p.chips <= totalNeeded) return this.errorReply(`You don't have enough chips. Use /poker allin instead.`);
-
+			
 			p.chips -= totalNeeded;
 			p.roundContribution += totalNeeded;
 			p.handContribution += totalNeeded;
 			game.pot += totalNeeded;
 			game.currentBet += raiseAmount;
-
+			
 			p.hasActed = true;
 			for (const pl of game.players) {
 				if (pl !== p && pl.status === 'playing') pl.hasActed = false;
 			}
-
+			
 			advanceTurn(game);
 		},
 
@@ -1110,7 +895,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			if (!room || room.battle || room.roomid !== CASINO_ROOM) return this.errorReply("This command can only be used in the Casino room.");
 			const game = activeGames.get(room.roomid);
 			if (!game) return this.errorReply("No active poker game in this room.");
-
+			
 			const canEnd = user.id === game.host || user.can('roommod', null, room);
 			if (!canEnd) return this.errorReply("Only the host or a room moderator can cancel the game.");
 			if (game.state !== 'lobby') return this.errorReply("The game is already in progress and cannot be cancelled.");
@@ -1154,7 +939,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 				`- Blinds start at 10/20 and double every 5 hands.<br>` +
 				`- Lose all your chips and you're eliminated. Last player standing wins the entire entry fee pool!`
 			);
-		},
+		}
 	},
 	pokerhelp: 'poker help',
 	pokerrules: 'poker rules',
