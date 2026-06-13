@@ -128,7 +128,6 @@ export const commands: Chat.ChatCommands = {
 
 			const targetId = toID(name);
 			if (targetId.length > 19) throw new Chat.ErrorMessage("Username too long.");
-			if (iconData[targetId]) throw new Chat.ErrorMessage("User already has an icon. Use '/icon update'.");
 
 			const result = IconManager.validateSize(sizeStr);
 			if (!result.valid) return this.errorReply(result.error);
@@ -209,3 +208,5 @@ export const commands: Chat.ChatCommands = {
 		],
 	},
 };
+
+void IconManager.init().catch(err => Monitor.crashlog(err, 'Custom icon JSON init failed'));
