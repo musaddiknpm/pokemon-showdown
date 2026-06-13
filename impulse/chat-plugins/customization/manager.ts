@@ -1,7 +1,6 @@
 import * as https from 'node:https';
 import { FS, Utils } from '../../../lib';
 import { toID } from '../../../sim/dex';
-
 import { PG } from '../../pg';
 
 export const CONFIG_PATH = 'config/custom.css' as const;
@@ -11,6 +10,9 @@ export interface UserCustomizationRow {
 	color?: string | null;
 	icon_url?: string | null;
 	icon_size?: number | null;
+	icon_direction?: string | null;
+	icon_color1?: string | null;
+	icon_color2?: string | null;
 	symbol?: string | null;
 	symbol_color?: string | null;
 	updated_at?: number | string;
@@ -37,6 +39,9 @@ export const initDB = async (): Promise<void> => {
 					color TEXT,
 					icon_url TEXT,
 					icon_size INTEGER,
+					icon_direction TEXT,
+					icon_color1 TEXT,
+					icon_color2 TEXT,
 					symbol TEXT,
 					symbol_color TEXT,
 					updated_at BIGINT NOT NULL
@@ -58,26 +63,14 @@ const reloadCSS = (): void => {
 	}
 };
 
-/**
- * Interface representing a customization module.
- * Implement this interface to create new customization options (e.g., custom colors, avatars).
- */
 export interface CustomizationModule {
-	/** Unique name for the module. */
 	name: string;
-	/** Start tag to identify the module's CSS block in the config file. */
 	startTag: string;
-	/** End tag to identify the module's CSS block in the config file. */
 	endTag: string;
-	/** Optional function to generate CSS strings for all active customizations in this module. */
 	generateCSS?: () => string;
-	/** Optional function to modify a user's identity string (e.g., adding a custom symbol). */
 	onIdentityUpdate?: (user: User, identity: string, room: BasicRoom | null) => string;
 }
 
-/**
- * Manages all customization modules and orchestrates updates to the server's CSS and user identities.
- */
 export class CustomizationManager {
 	readonly modules = new Map<string, CustomizationModule>();
 	private initialized = false;
@@ -179,7 +172,6 @@ export class CustomizationManager {
 export const Customization = new CustomizationManager();
 
 declare global {
-
 	var Customization: CustomizationManager;
 }
 
