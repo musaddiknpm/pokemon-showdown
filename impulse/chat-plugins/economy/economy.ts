@@ -8,8 +8,8 @@ import { initEconomyDB } from './database';
 export const CONFIG = {
 	CURRENCY: 'coins',
 	STARTING_BALANCE: 0,
-	DAILY_MIN: 1,
-	DAILY_MAX: 5,
+	DAILY_MIN: 10,
+	DAILY_MAX: 10,
 	DAILY_COOLDOWN: 24 * 60 * 60 * 1000,
 };
 
