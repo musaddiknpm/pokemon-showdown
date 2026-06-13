@@ -47,6 +47,12 @@ export const initDB = async (): Promise<void> => {
 					updated_at BIGINT NOT NULL
 				);
 			`);
+			await PG.query(`
+				ALTER TABLE user_customization 
+				ADD COLUMN IF NOT EXISTS icon_direction TEXT,
+				ADD COLUMN IF NOT EXISTS icon_color1 TEXT,
+				ADD COLUMN IF NOT EXISTS icon_color2 TEXT;
+			`);
 		})();
 	}
 	return initPromise;

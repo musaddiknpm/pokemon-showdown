@@ -119,7 +119,9 @@ export const IconManager = {
 	}
 };
 
-export const commands: Chat.ChatCommands = {
+export const commands: Chat.ChatCommands = wrapCommands({
+	ic: 'icon',
+	usericon: 'icon',
 	icon: {
 		async set(target, room, user) {
 			this.checkCan('bypassall');
@@ -155,7 +157,9 @@ export const commands: Chat.ChatCommands = {
 			await IconManager.save(targetId, iconData[targetId]);
 			await Customization.updateCSS();
 
+			const sizeInfo = result.size !== DEFAULTS.SIZE ? ` (${result.size}px)` : '';
 			this.sendReply(`|raw|Icon configuration set for ${nameColor(name, true)}.`);
+			Customization.notify(user, name, 'set', `set userlist icon for ${name}${sizeInfo}.`);
 		},
 
 		async update(target, room, user) {
@@ -170,7 +174,8 @@ export const commands: Chat.ChatCommands = {
 			if (url) iconData[targetId].url = url;
 			if (sizeStr) {
 				const result = IconManager.validateSize(sizeStr);
-				if (result.valid) iconData[targetId].size = result.size;
+				if (!result.valid) return this.errorReply(result.error);
+				iconData[targetId].size = result.size;
 			}
 			if (directionStr) iconData[targetId].direction = directionStr;
 			if (color1 && colorRegex.test(color1)) iconData[targetId].color1 = color1;
@@ -181,6 +186,7 @@ export const commands: Chat.ChatCommands = {
 			await Customization.updateCSS();
 
 			this.sendReply(`|raw|Icon configuration updated for ${nameColor(name, true)}.`);
+			Customization.notify(user, name, 'updated', `updated userlist icon for ${name}.`);
 		},
 
 		async delete(target, room, user) {
@@ -194,19 +200,20 @@ export const commands: Chat.ChatCommands = {
 			await Customization.updateCSS();
 
 			this.sendReply(`Icon deleted for user: ${targetId}.`);
+			Customization.notify(user, target, 'removed', `removed userlist icon for ${target}.`);
 		},
 
-		help: [
-			`Syntax options for /icon settings:`,
-			`/icon set [user], [url], [size]` +
-			` - Sets only a floating userlist sprite icon on the right edge.`,
-			`/icon set [user], [url], [size], [direction], [color1], [color2]` +
-			` - Sets an icon centered along with custom styling gradients. (Directions: to right, to left, to bottom, center).`,
-			`/icon update [user], [url], [size], [direction], [color1], [color2]` +
-			` - Selectively modifies properties. Leave commas empty to skip configurations. Use 'none' as direction to drop a background gradient.`,
-			`/icon delete [user] - Wipes custom styling variables assigned to an individual user configuration row.`
-		],
+		help() {
+			this.runBroadcast();
+			this.sendReplyBox(
+				`<center><b>Custom Icon Commands</b></center><hr>` +
+				`<b>/icon set [user], [url], [size], [direction], [color1], [color2]</b>: Set a user's icon (${DEFAULTS.MIN}-${DEFAULTS.MAX}px). Direction and colors are optional. Directions: 'to right', 'to left', 'to bottom', 'center'.<hr>` +
+				`<b>/icon update [user], [url], [size], [direction], [color1], [color2]</b>: Update an existing icon's properties. Leave commas empty to skip configurations.<hr>` +
+				`<b>/icon delete [user]</b>: Remove an icon.`
+			);
+		},
 	},
-};
+	iconhelp: 'icon help',
+});
 
 void IconManager.init().catch(err => Monitor.crashlog(err, 'Custom icon JSON init failed'));
