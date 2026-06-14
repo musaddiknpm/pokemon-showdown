@@ -1,6 +1,7 @@
 import { wrapCommands } from '../../impulse-utils';
 import { getBalance, updateBalance, CURRENCY_NAME } from '../economy/economy';
 import { nameColor } from '../customization/custom-color';
+import { activeCasinoGames } from './shared';
 
 const CASINO_ROOM = 'casino';
 const LOBBY_TIMEOUT = 60 * 1000;
@@ -57,13 +58,20 @@ function calculateHandValue(hand: Card[]): number {
 }
 
 function renderCard(card: Card | null): string {
-	if (!card) return `<span style="display:inline-block;border:1px solid #777;border-radius:4px;padding:2px 6px;margin:2px;background:#eee;color:#333;">?</span>`;
-	const color = (card.suit === '♥' || card.suit === '♦') ? 'red' : 'black';
-	return `<span style="display:inline-block;border:1px solid #777;border-radius:4px;padding:2px 6px;margin:2px;color:${color};background:#fff;"><b>${card.rank}</b>${card.suit}</span>`;
+	if (!card) return `<span class="casino-card hidden">?</span>`;
+	const colorClass = (card.suit === '♥' || card.suit === '♦') ? 'red' : 'black';
+	return `<span class="casino-card ${colorClass}">${card.rank}${card.suit}</span>`;
 }
 
-function renderHand(hand: Card[]): string {
-	return hand.map((c) => renderCard(c)).join('');
+function renderHand(hand: Card[], compact = false): string {
+	let html = '';
+	for (const card of hand) {
+		const color = (card.suit === '♥' || card.suit === '♦') ? '#F44336' : '#2C3E50';
+		const size = compact ? '12px' : '16px';
+		const padding = compact ? '1px 3px' : '2px 5px';
+		html += `<span style="display:inline-block; border:1px solid #ccc; border-radius:3px; padding:${padding}; margin-right:2px; background:#fff; color:${color}; font-weight:bold; font-size:${size}; box-shadow: 0 1px 2px rgba(0,0,0,0.2);">${card.rank}<span style="font-family: Arial, sans-serif; margin-left:1px;">${card.suit}</span></span>`;
+	}
+	return html;
 }
 
 async function refundAll(game: BaccaratGame, message: string) {
@@ -74,42 +82,77 @@ async function refundAll(game: BaccaratGame, message: string) {
 	if (room) {
 		room.add(
 			`|uhtmlchange|${game.uid}|` +
-			`<div class="infobox" style="text-align:center;padding:12px 16px;">` +
-			`<b>Baccarat Game Cancelled</b><hr>` +
+			`<div class="casino-board">` +
+			`<div class="casino-header">Baccarat Game Cancelled</div><hr>` +
 			`${message}<br>All players have been refunded.` +
 			`</div>`
 		).update();
 	}
 }
 
+function getLobbyHtml(game: BaccaratGame, userId: string | null): string {
+	let html = `<div class="casino-board">`;
+	html += `<div class="casino-header">Baccarat <small>(Bet: <b>${game.bet}</b> ${CURRENCY_NAME})</small></div>`;
+	html += `Host: ${nameColor(game.hostName, true)}<hr>`;
+	
+	html += `<div class="casino-player-list">`;
+	if (game.players.length === 0) {
+		html += `<i>No players yet</i>`;
+	} else {
+		for (const p of game.players) {
+			const choiceStr = p.choice.charAt(0).toUpperCase() + p.choice.slice(1);
+			html += `<div class="casino-player-badge active"><span class="casino-player-name">${nameColor(p.name, true)}</span>Bet: <b>${choiceStr}</b></div>`;
+		}
+	}
+	html += `</div>`;
+	
+	let hasControls = false;
+	let controlsHtml = `<div>`;
+	if (game.players.length < 4 && (!userId || !game.players.some(p => p.id === userId))) {
+		hasControls = true;
+		controlsHtml += `<button class="button casino-btn" name="send" value="/bacc join player">Bet Player (2x)</button> `;
+		controlsHtml += `<button class="button casino-btn" name="send" value="/bacc join banker">Bet Banker (2x)</button> `;
+		controlsHtml += `<button class="button casino-btn" name="send" value="/bacc join tie">Bet Tie (9x)</button>`;
+	}
+	controlsHtml += `</div>`;
+	
+	if (userId === game.host) {
+		hasControls = true;
+		controlsHtml += `<div style="margin-top: 8px;">`;
+		controlsHtml += `<button class="button casino-btn" name="send" value="/bacc deal">Deal (Host)</button> `;
+		controlsHtml += `<button class="button casino-btn" name="send" value="/bacc end">Cancel Game</button>`;
+		controlsHtml += `</div>`;
+	}
+	
+	if (hasControls) {
+		html += `<hr>${controlsHtml}`;
+	}
+	
+	html += `<br><small>This game will automatically start in 60 seconds.</small>`;
+	html += `</div>`;
+	return html;
+}
+
 function updateLobby(game: BaccaratGame) {
 	const room = Rooms.get(game.roomid);
 	if (!room) return;
 	
-	let html = `<div class="infobox" style="padding:12px 16px; text-align:center;">`;
-	html += `<b>Baccarat</b> (Bet: <b>${game.bet}</b> ${CURRENCY_NAME})<br>Host: ${nameColor(game.hostName, true)}<hr>`;
-	html += `<b>Players in lobby:</b><br>`;
+	const boardHtml = getLobbyHtml(game, null);
 	
-	if (game.players.length === 0) {
-		html += `<i>No players yet</i><br>`;
-	} else {
-		for (const p of game.players) {
-			const choiceStr = p.choice.charAt(0).toUpperCase() + p.choice.slice(1);
-			html += `${nameColor(p.name, true)} - Bet: <b>${choiceStr}</b><br>`;
+	if (room.log && room.log.log) {
+		const originalStart = `|uhtml|${game.uid}|`;
+		for (let i = 0; i < room.log.log.length; i++) {
+			if (room.log.log[i].startsWith(originalStart)) {
+				room.log.log[i] = `${originalStart}${boardHtml}`;
+				break;
+			}
 		}
 	}
 	
-	html += `<br>`;
-	html += `<button class="button" name="send" value="/bacc join player" style="padding:6px 20px;margin-right:5px;">Bet Player (2x)</button>`;
-	html += `<button class="button" name="send" value="/bacc join banker" style="padding:6px 20px;margin-right:5px;">Bet Banker (2x)</button>`;
-	html += `<button class="button" name="send" value="/bacc join tie" style="padding:6px 20px;margin-right:5px;">Bet Tie (9x)</button>`;
-	html += `<br><br>`;
-	html += `<button class="button" name="send" value="/bacc deal" style="padding:6px 20px;margin-right:5px;">Deal (Host)</button>`;
-	html += `<button class="button" name="send" value="/bacc end" style="padding:6px 20px;">Cancel Game</button>`;
-	html += `<br><br><small>This game will automatically start in 60 seconds.</small>`;
-	html += `</div>`;
-	
-	room.add(`|uhtmlchange|${game.uid}|${html}`).update();
+	for (const id in room.users) {
+		const u = room.users[id];
+		u.sendTo(room, `|uhtmlchange|${game.uid}|${getLobbyHtml(game, u.id)}`);
+	}
 }
 
 async function dealGame(game: BaccaratGame) {
@@ -119,6 +162,7 @@ async function dealGame(game: BaccaratGame) {
 	}
 	game.state = 'ended';
 	activeGames.delete(game.roomid);
+	activeCasinoGames.delete(game.roomid);
 	
 	const room = Rooms.get(game.roomid);
 	if (!room) return;
@@ -165,48 +209,87 @@ async function dealGame(game: BaccaratGame) {
 	let resultStr = '';
 	if (playerVal > bankerVal) {
 		result = 'player';
-		resultStr = '<span style="color:blue">Player Wins!</span>';
+		resultStr = '<span style="color:#4CAF50">Player Wins!</span>';
 	} else if (bankerVal > playerVal) {
 		result = 'banker';
-		resultStr = '<span style="color:red">Banker Wins!</span>';
+		resultStr = '<span style="color:#F44336">Banker Wins!</span>';
 	} else {
 		result = 'tie';
-		resultStr = '<span style="color:green">Tie!</span>';
+		resultStr = '<span style="color:#FFEB3B">Tie!</span>';
 	}
 	
-	let payoutHtml = '';
+	let winners: {name: string, amount: number}[] = [];
 	for (const p of game.players) {
 		if (p.choice === result) {
 			if (result === 'tie') {
 				const winAmount = p.bet * 9;
 				await updateBalance(p.id, winAmount);
-				payoutHtml += `${nameColor(p.name, true)} won <b>${winAmount}</b> ${CURRENCY_NAME} (Bet Tie)<br>`;
+				winners.push({name: p.name, amount: winAmount});
 			} else {
 				const winAmount = p.bet * 2;
 				await updateBalance(p.id, winAmount);
-				payoutHtml += `${nameColor(p.name, true)} won <b>${winAmount}</b> ${CURRENCY_NAME} (Bet ${p.choice === 'player' ? 'Player' : 'Banker'})<br>`;
+				winners.push({name: p.name, amount: winAmount});
 			}
 		} else if (result === 'tie' && (p.choice === 'player' || p.choice === 'banker')) {
 			await updateBalance(p.id, p.bet);
-			payoutHtml += `${nameColor(p.name, true)} pushed (Refunded <b>${p.bet}</b>)<br>`;
-		} else {
-			payoutHtml += `${nameColor(p.name, true)} lost (Bet ${p.choice.charAt(0).toUpperCase() + p.choice.slice(1)})<br>`;
 		}
 	}
 	
-	if (!payoutHtml) payoutHtml = '<i>No players bet on this round.</i>';
+	let winHtml = `<div class="casino-board ended">`;
+	winHtml += `<div class="casino-header">Baccarat Results</div>`;
+
+	winHtml += `<div style="display:flex; gap:8px; margin-bottom: 8px;">`;
 	
-	let html = `<div class="infobox" style="padding:12px 16px; text-align:center;">`;
-	html += `<b>Baccarat Results</b><hr>`;
-	html += `<b>Player Hand:</b> <small>[${playerVal}]</small><br>`;
-	html += renderHand(playerHand) + `<br><br>`;
-	html += `<b>Banker Hand:</b> <small>[${bankerVal}]</small><br>`;
-	html += renderHand(bankerHand) + `<br><br>`;
-	html += `<b>Result: ${resultStr}</b><hr>`;
-	html += payoutHtml;
-	html += `</div>`;
+	winHtml += `<div style="flex: 1; padding: 6px; background: rgba(0,0,0,0.2); border-radius: 4px; text-align: center;">`;
+	winHtml += `<b>Player Hand</b> <small>[${playerVal}]</small><br>`;
+	winHtml += `<div style="margin-top:4px;">${renderHand(playerHand, true)}</div>`;
+	winHtml += `</div>`;
 	
-	room.add(`|uhtmlchange|${game.uid}|${html}`).update();
+	winHtml += `<div style="flex: 1; padding: 6px; background: rgba(0,0,0,0.2); border-radius: 4px; text-align: center;">`;
+	winHtml += `<b>Banker Hand</b> <small>[${bankerVal}]</small><br>`;
+	winHtml += `<div style="margin-top:4px;">${renderHand(bankerHand, true)}</div>`;
+	winHtml += `</div>`;
+	
+	winHtml += `</div>`;
+
+	winHtml += `<div style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom: 8px;">`;
+	for (const p of game.players) {
+		winHtml += `<div style="flex: 1 1 45%; background: rgba(0,0,0,0.1); padding: 4px; border-radius: 4px; border-left: 2px solid #FFC107;">`;
+		winHtml += `<b>${nameColor(p.name, true)}</b>: Bet ${p.bet} on <b>${p.choice.charAt(0).toUpperCase() + p.choice.slice(1)}</b>`;
+		
+		let payoutStr = '';
+		const w = winners.find(winner => winner.name === p.name);
+		if (w) {
+			payoutStr = `<b style="color:#4CAF50;">Won ${w.amount}</b>`;
+		} else {
+			payoutStr = `<b style="color:#F44336;">Lost</b>`;
+		}
+		winHtml += ` <small>${payoutStr}</small>`;
+		winHtml += `</div>`;
+	}
+	winHtml += `</div>`;
+
+	let summaryHtml = '';
+	if (winners.length > 0) {
+		if (winners.length === 1) {
+			summaryHtml = `<b>${nameColor(winners[0].name, true)}</b> has won the Baccarat game and won <b>${winners[0].amount}</b> ${CURRENCY_NAME}!`;
+		} else {
+			const winnerStrs = winners.map(w => `<b>${nameColor(w.name, true)}</b> (won <b>${w.amount}</b> ${CURRENCY_NAME})`);
+			summaryHtml = `${winnerStrs.join(', ')} have won the Baccarat game!`;
+		}
+	} else {
+		const playerNames = game.players.map(p => `<b>${nameColor(p.name, true)}</b>`).join(', ');
+		if (playerNames) {
+			summaryHtml = `The Dealer won the Baccarat game against ${playerNames}.`;
+		} else {
+			summaryHtml = `The Dealer won the Baccarat game.`;
+		}
+	}
+	
+	winHtml += `<div style="text-align: center; font-size: 1.1em; color: #FFC107;">${summaryHtml}</div>`;
+	winHtml += `</div>`;
+
+	room.add(`|uhtmlchange|${game.uid}|${winHtml}`).update();
 }
 
 export const commands: Chat.ChatCommands = wrapCommands({
@@ -218,7 +301,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			const bet = parseInt(target.trim());
 			if (isNaN(bet) || bet <= 0) return this.errorReply("Usage: /bacc start [coins]");
 
-			if (activeGames.has(room.roomid)) return this.errorReply("A baccarat game is already running in this room.");
+			if (activeCasinoGames.has(room.roomid)) return this.errorReply(`A ${activeCasinoGames.get(room.roomid)} game is already running in this room.`);
 
 			const uid = `bac-${room.roomid}-${Date.now()}`;
 			
@@ -242,29 +325,22 @@ export const commands: Chat.ChatCommands = wrapCommands({
 						} else {
 							void refundAll(g, 'Lobby timed out.');
 							activeGames.delete(room.roomid);
+							activeCasinoGames.delete(room.roomid);
 						}
 					}
 				}
 			}, LOBBY_TIMEOUT);
 
 			activeGames.set(room.roomid, game);
+			activeCasinoGames.set(room.roomid, 'baccarat');
 			
 			const roomObj = Rooms.get(game.roomid);
 			if (roomObj) {
-				let html = `<div class="infobox" style="padding:12px 16px; text-align:center;">`;
-				html += `<b>Baccarat</b> (Bet: <b>${game.bet}</b> ${CURRENCY_NAME})<br>Host: ${nameColor(game.hostName, true)}<hr>`;
-				html += `<b>Players in lobby:</b><br>`;
-				html += `<i>No players yet</i><br>`;
-				html += `<br>`;
-				html += `<button class="button" name="send" value="/bacc join player" style="padding:6px 20px;margin-right:5px;">Bet Player (2x)</button>`;
-				html += `<button class="button" name="send" value="/bacc join banker" style="padding:6px 20px;margin-right:5px;">Bet Banker (2x)</button>`;
-				html += `<button class="button" name="send" value="/bacc join tie" style="padding:6px 20px;margin-right:5px;">Bet Tie (9x)</button>`;
-				html += `<br><br>`;
-				html += `<button class="button" name="send" value="/bacc deal" style="padding:6px 20px;margin-right:5px;">Deal (Host)</button>`;
-				html += `<button class="button" name="send" value="/bacc end" style="padding:6px 20px;">Cancel Game</button>`;
-				html += `<br><br><small>This game will automatically start in 60 seconds.</small>`;
-				html += `</div>`;
-				roomObj.add(`|uhtml|${game.uid}|${html}`).update();
+				roomObj.add(`|uhtml|${game.uid}|${getLobbyHtml(game, null)}`).update();
+				for (const id in roomObj.users) {
+					const u = roomObj.users[id];
+					u.sendTo(roomObj, `|uhtmlchange|${game.uid}|${getLobbyHtml(game, u.id)}`);
+				}
 			}
 		},
 
@@ -274,6 +350,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			if (!game) return this.errorReply("No active baccarat game in this room.");
 			if (game.state !== 'lobby') return this.errorReply("This game has already started.");
 			if (game.players.some(p => p.id === user.id)) return this.errorReply("You are already in this game.");
+			if (game.players.length >= 4) return this.errorReply("This game is full (max 4 players).");
 
 			const choice = target.trim().toLowerCase();
 			if (!['player', 'banker', 'tie'].includes(choice)) return this.errorReply("Choice must be player, banker, or tie.");
@@ -318,6 +395,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 
 			if (game.timer) clearTimeout(game.timer);
 			activeGames.delete(room.roomid);
+			activeCasinoGames.delete(room.roomid);
 
 			await refundAll(game, `Cancelled by ${user.name}.`);
 		},

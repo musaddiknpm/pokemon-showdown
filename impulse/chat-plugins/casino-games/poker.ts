@@ -1,6 +1,7 @@
 import { wrapCommands } from '../../impulse-utils';
 import { getBalance, updateBalance, CURRENCY_NAME } from '../economy/economy';
 import { nameColor } from '../customization/custom-color';
+import { activeCasinoGames } from './shared';
 
 const CASINO_ROOM = 'casino';
 const LOBBY_TIMEOUT = 120 * 1000;
@@ -117,14 +118,20 @@ function compareHands(handA: ReturnType<typeof evaluateBest7>, handB: ReturnType
 	return 0;
 }
 
-function renderCard(card: Card | null): string {
-	if (!card) return `<span style="display:inline-block;border:1px solid #777;border-radius:4px;padding:2px 6px;margin:2px;background:#eee;color:#333;">?</span>`;
-	const color = (card.suit === '♥' || card.suit === '♦') ? 'red' : 'black';
-	return `<span style="display:inline-block;border:1px solid #777;border-radius:4px;padding:2px 6px;margin:2px;color:${color};background:#fff;"><b>${card.rank}</b>${card.suit}</span>`;
-}
-
-function renderHand(hand: Card[], hide = false): string {
-	return hand.map(c => renderCard(hide ? null : c)).join('');
+function renderHand(hand: Card[], hiddenFirst = false, compact = false): string {
+	let html = '';
+	for (let i = 0; i < hand.length; i++) {
+		const card = hand[i];
+		const size = compact ? '12px' : '16px';
+		const padding = compact ? '1px 3px' : '2px 5px';
+		if (!card || (i === 0 && hiddenFirst)) {
+			html += `<span style="display:inline-block; border:1px solid #777; border-radius:3px; padding:${padding}; margin-right:2px; background:repeating-linear-gradient(45deg, #222, #222 5px, #444 5px, #444 10px); color:transparent; font-weight:bold; font-size:${size}; box-shadow: 0 1px 2px rgba(0,0,0,0.2);">?</span>`;
+			continue;
+		}
+		const color = (card.suit === '♥' || card.suit === '♦') ? '#F44336' : '#2C3E50';
+		html += `<span style="display:inline-block; border:1px solid #ccc; border-radius:3px; padding:${padding}; margin-right:2px; background:#fff; color:${color}; font-weight:bold; font-size:${size}; box-shadow: 0 1px 2px rgba(0,0,0,0.2);">${card.rank}<span style="font-family: Arial, sans-serif; margin-left:1px;">${card.suit}</span></span>`;
+	}
+	return html;
 }
 
 interface PokerPlayer {
@@ -175,8 +182,8 @@ async function refundAll(game: PokerGame, message: string) {
 	if (room) {
 		room.add(
 			`|uhtmlchange|${game.uid}|` +
-			`<div class="infobox" style="text-align:center;padding:12px 16px;">` +
-			`<b>Poker Tournament Cancelled</b><hr>` +
+			`<div class="casino-board">` +
+			`<div class="casino-header">Poker Tournament Cancelled</div><hr>` +
 			`${message}<br>All players have been refunded their entry fee.` +
 			`</div>`
 		).update();
@@ -195,96 +202,180 @@ function whisperCards(game: PokerGame) {
 	}
 }
 
-function updateRoom(game: PokerGame) {
-	const room = Rooms.get(game.roomid);
-	if (!room) return;
-	
-	let html = `<div class="infobox" style="padding:12px 16px; text-align:center;">`;
-	html += `<b>Texas Hold'em Tournament ${game.isTestMode ? "(Test AI Mode)" : ""}</b> (Entry: <b>${game.isTestMode ? 'Free' : game.entryFee + ' ' + CURRENCY_NAME}</b>)<br>Host: ${nameColor(game.hostName, true)}<hr>`;
+function getBoardHtml(game: PokerGame, userId: string | null): string {
+	let html = `<div class="casino-board">`;
+	html += `<div class="casino-header">Texas Hold'em ${game.isTestMode ? "<small>(Test AI Mode)</small>" : ""} <small>(Entry: <b>${game.isTestMode ? 'Free' : game.entryFee + ' ' + CURRENCY_NAME}</b>)</small></div>`;
+	html += `Host: ${nameColor(game.hostName, true)}<hr>`;
 	
 	if (game.state === 'lobby') {
-		html += `<b>Players in lobby:</b><br>`;
+		html += `<div class="casino-player-list">`;
 		if (game.players.length === 0) {
-			html += `<i>No players yet</i><br>`;
+			html += `<i>No players yet</i>`;
 		} else {
 			for (const p of game.players) {
-				html += `${nameColor(p.name, true)}<br>`;
+				html += `<div class="casino-player-badge active"><span class="casino-player-name">${nameColor(p.name, true)}</span>Joined</div>`;
 			}
 		}
-		html += `<br>`;
-		html += `<button class="button" name="send" value="/poker join" style="padding:6px 20px;margin-right:5px;">Join Game</button>`;
-		html += `<button class="button" name="send" value="/poker deal" style="padding:6px 20px;margin-right:5px;">Start Tournament (Host)</button>`;
-		html += `<button class="button" name="send" value="/poker end" style="padding:6px 20px;">Cancel Game</button>`;
+		html += `</div><hr>`;
+		html += `<div>`;
+		if (game.players.length < 4 && (!userId || !game.players.some(p => p.id === userId))) {
+			html += `<button class="button casino-btn" name="send" value="/poker join">Join Game</button> `;
+		}
+		if (userId === game.host) {
+			html += `<button class="button casino-btn" name="send" value="/poker deal">Start Tournament (Host)</button> `;
+			html += `<button class="button casino-btn" name="send" value="/poker end">Cancel Game</button>`;
+		}
+		html += `</div>`;
 	} else {
 		html += `<b>Pot:</b> ${game.pot} Chips | <b>Blinds:</b> ${game.blinds.small}/${game.blinds.big}<br><br>`;
 		
 		if (game.lastShowdownLog && (game.state === 'showdown' || game.state === 'ended')) {
-			html += `<div style="border:1px solid #e0e0e0;border-radius:4px;padding:8px;margin-bottom:8px;"><b>Previous Showdown:</b><br>${game.lastShowdownLog}</div>`;
+			html += `<div style="background: rgba(255,255,255,0.1); border-radius:4px; padding:8px; margin-bottom:8px;"><b>Previous Showdown:</b><br>${game.lastShowdownLog}</div>`;
 		}
+		
+		const isCompact = game.state === 'showdown' || game.state === 'ended';
 		
 		html += `<b>Community Cards:</b><br>`;
 		const displayComm = [...game.communityCards];
 		while (displayComm.length < 5 && game.state !== 'ended' && game.state !== 'lobby') displayComm.push(null as any);
-		html += renderHand(displayComm, false) + `<br><br>`;
+		html += renderHand(displayComm, false, isCompact) + `<hr>`;
 		
-		for (let i = 0; i < game.players.length; i++) {
-			const p = game.players[i];
-			const isTurn = (game.state === 'preflop' || game.state === 'flop' || game.state === 'turn' || game.state === 'river') && game.turnIndex === i;
-			
-			if (isTurn) html += `<div style="border:2px solid #888;padding:4px;border-radius:4px;margin-bottom:4px;">`;
-			else html += `<div style="padding:4px;margin-bottom:4px;border:2px solid transparent;">`;
-			
-			let pTitle = `<b>${nameColor(p.name, true)}</b>`;
-			if (i === game.dealerIndex) pTitle += ` <b>(D)</b>`;
-			
-			html += `${pTitle}: `;
-			
-			if (p.status === 'eliminated') html += ` <span style="color:red;font-weight:bold;">[Eliminated]</span>`;
-			else if (p.status === 'folded') html += ` <span style="color:red;font-weight:bold;">[Folded]</span>`;
-			else if (p.status === 'all-in') html += ` <span style="color:orange;font-weight:bold;">[All-In | In: ${p.handContribution}]</span>`;
-			else html += ` <span style="color:gray;">[Chips: ${p.chips} | In: ${p.handContribution}]</span>`;
-			
-			if (p.payoutStr) html += ` &mdash; ${p.payoutStr}`;
-			
-			if (game.state === 'showdown' && p.status !== 'folded' && p.status !== 'eliminated') {
-				html += `<br>${renderHand(p.hand)}`;
-			} else if (p.status === 'playing' || p.status === 'all-in') {
-				html += `<br><i>Hole cards hidden</i>`;
-			}
-			
-			if (isTurn && !p.isAI) {
-				const callAmount = game.currentBet - p.roundContribution;
-				html += `<br><br>`;
+		if (isCompact) {
+			html += `<div style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom: 8px;">`;
+			for (let i = 0; i < game.players.length; i++) {
+				const p = game.players[i];
 				
-				if (callAmount > 0) {
-					if (p.chips <= callAmount) {
-						html += `<button class="button" name="send" value="/poker allin" style="margin-right:5px;padding:4px 12px;">All-In (${p.chips})</button>`;
-					} else {
-						html += `<button class="button" name="send" value="/poker call" style="margin-right:5px;padding:4px 12px;">Call (${callAmount})</button>`;
-						let minRaise = game.blinds.big;
-						html += `<button class="button" name="send" value="/poker raise ${minRaise}" style="margin-right:5px;padding:4px 12px;">Raise (+${minRaise})</button>`;
-						html += `<button class="button" name="send" value="/poker raise ${game.pot}" style="margin-right:5px;padding:4px 12px;">Pot (+${game.pot})</button>`;
-						html += `<button class="button" name="send" value="/poker allin" style="margin-right:5px;padding:4px 12px;">All-In</button>`;
-					}
-				} else {
-					html += `<button class="button" name="send" value="/poker call" style="margin-right:5px;padding:4px 12px;">Check</button>`;
-					let minRaise = game.blinds.big;
-					html += `<button class="button" name="send" value="/poker raise ${minRaise}" style="margin-right:5px;padding:4px 12px;">Bet (+${minRaise})</button>`;
-					html += `<button class="button" name="send" value="/poker raise ${game.pot}" style="margin-right:5px;padding:4px 12px;">Pot (+${game.pot})</button>`;
-					html += `<button class="button" name="send" value="/poker allin" style="margin-right:5px;padding:4px 12px;">All-In</button>`;
+				let statusStr = '';
+				if (p.status === 'eliminated') statusStr = '<b>Eliminated</b>';
+				else if (p.status === 'folded') statusStr = '<b>Folded</b>';
+				else if (p.status === 'all-in') statusStr = '<b>All-In</b>';
+				else statusStr = `Chips: <b>${p.chips}</b>`;
+				
+				let pTitle = `<b>${nameColor(p.name, true)}</b>`;
+				if (i === game.dealerIndex) pTitle += ` <b style="color: #FFC107;">(D)</b>`;
+				
+				html += `<div style="flex: 1 1 45%; background: rgba(0,0,0,0.1); padding: 4px; border-radius: 4px; border-left: 2px solid ${p.status === 'folded' || p.status === 'eliminated' ? '#888' : '#FFC107'};">`;
+				html += `${pTitle}: ${statusStr}`;
+				
+				if (p.payoutStr) html += ` <small>${p.payoutStr}</small>`;
+				
+				if (p.status !== 'folded' && p.status !== 'eliminated') {
+					html += ` <div style="display:inline-block; margin-left:4px;">${renderHand(p.hand, false, true)}</div>`;
 				}
-				html += `<button class="button" name="send" value="/poker fold" style="padding:4px 12px;">Fold</button>`;
+				html += `</div>`;
+			}
+			html += `</div>`;
+			
+			if (game.state === 'ended') {
+				const winner = game.players.find(p => p.status !== 'eliminated');
+				if (winner) {
+					let winHtml = '';
+					if (!game.isTestMode && !winner.isAI) {
+						const totalCoins = game.players.length * game.entryFee;
+						winHtml = `<b>${nameColor(winner.name, true)}</b> has won the Poker tournament and won <b>${totalCoins}</b> ${CURRENCY_NAME}!`;
+					} else {
+						winHtml = `<b>${nameColor(winner.name, true)}</b> has won the Poker tournament!`;
+					}
+					html += `<div style="text-align: center; font-size: 1.1em; color: #FFC107;">${winHtml}</div>`;
+				}
+			}
+		} else {
+			html += `<div class="casino-player-list">`;
+			for (let i = 0; i < game.players.length; i++) {
+				const p = game.players[i];
+				const isTurn = (game.state === 'preflop' || game.state === 'flop' || game.state === 'turn' || game.state === 'river') && game.turnIndex === i;
+				
+				let badgeClass = 'active';
+				if (p.status === 'eliminated') badgeClass = 'eliminated';
+				else if (p.status === 'folded') badgeClass = 'folded';
+				else if (p.status === 'all-in') badgeClass = 'all-in';
+				
+				if (isTurn) badgeClass = 'all-in';
+				
+				html += `<div class="casino-player-badge ${badgeClass}">`;
+				
+				let pTitle = `<span class="casino-player-name">${nameColor(p.name, true)}`;
+				if (i === game.dealerIndex) pTitle += ` <b style="color: #FFC107;">(D)</b>`;
+				pTitle += `</span>`;
+				
+				html += pTitle;
+				
+				if (p.status === 'eliminated') html += `<b>Eliminated</b>`;
+				else if (p.status === 'folded') html += `<b>Folded</b>`;
+				else if (p.status === 'all-in') html += `<b>All-In</b> (In: ${p.handContribution})`;
+				else html += `Chips: <b>${p.chips}</b> (In: ${p.handContribution})`;
+				
+				if (p.payoutStr) html += `<br>${p.payoutStr}`;
+				
+				if (p.status === 'playing' || p.status === 'all-in') {
+					html += `<div style="margin-top:4px;"><i>Cards hidden</i></div>`;
+				}
+				
+				if (isTurn && !p.isAI && userId === p.id) {
+					const callAmount = game.currentBet - p.roundContribution;
+					html += `<div style="margin-top: 6px; text-align: center;">`;
+					
+					if (callAmount > 0) {
+						if (p.chips <= callAmount) {
+							html += `<button class="button casino-btn" name="send" value="/poker allin">All-In (${p.chips})</button>`;
+						} else {
+							html += `<button class="button casino-btn" name="send" value="/poker call">Call (${callAmount})</button> `;
+							let minRaise = game.blinds.big;
+							html += `<button class="button casino-btn" name="send" value="/poker raise ${minRaise}">Raise (+${minRaise})</button> `;
+							html += `<button class="button casino-btn" name="send" value="/poker raise ${game.pot}">Pot (+${game.pot})</button> `;
+							html += `<button class="button casino-btn" name="send" value="/poker allin">All-In</button>`;
+						}
+					} else {
+						html += `<button class="button casino-btn" name="send" value="/poker call">Check</button> `;
+						let minRaise = game.blinds.big;
+						html += `<button class="button casino-btn" name="send" value="/poker raise ${minRaise}">Bet (+${minRaise})</button> `;
+						html += `<button class="button casino-btn" name="send" value="/poker raise ${game.pot}">Pot (+${game.pot})</button> `;
+						html += `<button class="button casino-btn" name="send" value="/poker allin">All-In</button>`;
+					}
+					html += ` <button class="button casino-btn" name="send" value="/poker fold">Fold</button>`;
+					html += `<div style="margin-top: 4px;"><small style="color:#FFC107;">You have 15 seconds to act.</small></div>`;
+					html += `</div>`;
+				}
+				
+				html += `</div>`;
 			}
 			html += `</div>`;
 		}
 	}
 	html += `</div>`;
+	return html;
+}
+
+function updateRoom(game: PokerGame) {
+	const room = Rooms.get(game.roomid);
+	if (!room) return;
+	
+	if (game.state === 'ended') {
+		const html = getBoardHtml(game, null);
+		room.add(`|uhtmlchange|${game.uid}|${html}`).update();
+		return;
+	}
+
+	const boardHtml = getBoardHtml(game, null);
+	
+	if (room.log && room.log.log) {
+		const originalStart = `|uhtml|${game.uid}|`;
+		for (let i = 0; i < room.log.log.length; i++) {
+			if (room.log.log[i].startsWith(originalStart)) {
+				room.log.log[i] = `${originalStart}${boardHtml}`;
+				break;
+			}
+		}
+	}
 	
 	if (!game.displayInit) {
-		room.add(`|uhtml|${game.uid}|${html}`).update();
+		room.add(`|uhtml|${game.uid}|${boardHtml}`).update();
 		game.displayInit = true;
 	} else {
-		room.add(`|uhtmlchange|${game.uid}|${html}`).update();
+		for (const id in room.users) {
+			const u = room.users[id];
+			u.sendTo(room, `|uhtmlchange|${game.uid}|${getBoardHtml(game, u.id)}`);
+		}
 	}
 }
 
@@ -399,11 +490,13 @@ function startNextHand(game: PokerGame) {
 		
 		updateRoom(game);
 		activeGames.delete(game.roomid);
+		activeCasinoGames.delete(game.roomid);
 		return;
 	} else if (active.length === 0) {
 		game.state = 'ended';
 		updateRoom(game);
 		activeGames.delete(game.roomid);
+		activeCasinoGames.delete(game.roomid);
 		return;
 	}
 	
@@ -645,7 +738,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 	poker: {
 		async start(target, room, user) {
 			if (!room || room.battle || room.roomid !== CASINO_ROOM) return this.errorReply("This command can only be used in the Casino room.");
-			if (activeGames.has(room.roomid)) return this.errorReply("A poker game is already running in this room.");
+			if (activeCasinoGames.has(room.roomid)) return this.errorReply(`A ${activeCasinoGames.get(room.roomid)} game is already running in this room.`);
 			
 			const parts = target.trim().split(' ');
 			let isTestMode = false;
@@ -688,7 +781,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 						if (g.isTestMode) {
 							const requiredAIs = Math.max(3, 4 - g.players.length);
 							let aiCount = 1;
-							while (g.players.length < 8 && aiCount <= requiredAIs) {
+							while (g.players.length < 4 && aiCount <= requiredAIs) {
 								g.players.push({
 									id: `ai${aiCount}`,
 									name: `AI Bot ${aiCount}`,
@@ -710,12 +803,14 @@ export const commands: Chat.ChatCommands = wrapCommands({
 						} else {
 							void refundAll(g, 'Lobby timed out due to not enough players.');
 							activeGames.delete(room.roomid);
+							activeCasinoGames.delete(room.roomid);
 						}
 					}
 				}
 			}, LOBBY_TIMEOUT);
 
 			activeGames.set(room.roomid, game);
+			activeCasinoGames.set(room.roomid, 'poker');
 			updateRoom(game);
 		},
 
@@ -724,7 +819,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			const game = activeGames.get(room.roomid);
 			if (!game) return this.errorReply("No active poker game in this room.");
 			if (game.state !== 'lobby') return this.errorReply("This game has already started.");
-			if (game.players.length >= 8) return this.errorReply("The game is full (max 8 players).");
+			if (game.players.length >= 4) return this.errorReply("The game is full (max 4 players).");
 			if (game.players.some(p => p.id === user.id)) return this.errorReply("You are already in this game.");
 
 			if (!game.isTestMode) {
@@ -763,7 +858,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			if (game.isTestMode) {
 				const requiredAIs = Math.max(3, 4 - game.players.length); // Ensure there's enough action
 				let aiCount = 1;
-				while (game.players.length < 8 && aiCount <= requiredAIs) {
+				while (game.players.length < 4 && aiCount <= requiredAIs) {
 					game.players.push({
 						id: `ai${aiCount}`,
 						name: `AI Bot ${aiCount}`,
@@ -787,6 +882,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 						if (g.state === 'lobby') {
 							void refundAll(g, 'Lobby timed out due to not enough players.');
 							activeGames.delete(room.roomid);
+							activeCasinoGames.delete(room.roomid);
 						}
 					}
 				}, LOBBY_TIMEOUT);
@@ -902,6 +998,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 
 			if (game.timer) clearTimeout(game.timer);
 			activeGames.delete(room.roomid);
+			activeCasinoGames.delete(room.roomid);
 			await refundAll(game, `Cancelled by ${user.name}.`);
 		},
 
