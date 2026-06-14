@@ -272,17 +272,17 @@ async function dealGame(game: BaccaratGame) {
 	let summaryHtml = '';
 	if (winners.length > 0) {
 		if (winners.length === 1) {
-			summaryHtml = `<b>${nameColor(winners[0].name, true)}</b> has won the Baccarat game and won <b>${winners[0].amount}</b> ${CURRENCY_NAME}!`;
+			summaryHtml = `<b>${nameColor(winners[0].name, true)}</b> has won the Baccarat and <b>${winners[0].amount}</b> ${CURRENCY_NAME}!`;
 		} else {
 			const winnerStrs = winners.map(w => `<b>${nameColor(w.name, true)}</b> (won <b>${w.amount}</b> ${CURRENCY_NAME})`);
-			summaryHtml = `${winnerStrs.join(', ')} have won the Baccarat game!`;
+			summaryHtml = `${winnerStrs.join(', ')} have won the Baccarat!`;
 		}
 	} else {
 		const playerNames = game.players.map(p => `<b>${nameColor(p.name, true)}</b>`).join(', ');
 		if (playerNames) {
-			summaryHtml = `The Dealer won the Baccarat game against ${playerNames}.`;
+			summaryHtml = `The Dealer won the Baccarat against ${playerNames}.`;
 		} else {
-			summaryHtml = `The Dealer won the Baccarat game.`;
+			summaryHtml = `The Dealer won the Baccarat.`;
 		}
 	}
 	
