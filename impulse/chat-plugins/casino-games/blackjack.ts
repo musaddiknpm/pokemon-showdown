@@ -245,15 +245,15 @@ function getBoardHtml(game: BlackjackGame, userId: string | null): string {
 			let winHtml = '';
 			if (winners.length > 0) {
 				if (winners.length === 1) {
-					winHtml = `<b>${nameColor(winners[0].name, true)}</b> has won the Blackjack game and won <b>${winners[0].amt}</b> ${CURRENCY_NAME}!`;
+					winHtml = `<b>${nameColor(winners[0].name, true)}</b> has won the Blackjack and <b>${winners[0].amt}</b> ${CURRENCY_NAME}!`;
 				} else {
 					const winnerStrs = winners.map(w => `<b>${nameColor(w.name, true)}</b> (won <b>${w.amt}</b> ${CURRENCY_NAME})`);
-					winHtml = `${winnerStrs.join(', ')} have won the Blackjack game!`;
+					winHtml = `${winnerStrs.join(', ')} have won the Blackjack!`;
 				}
 			} else {
 				const playerNames = game.players.map(p => `<b>${nameColor(p.name, true)}</b>`).join(', ');
-				if (playerNames) winHtml = `The Dealer won the Blackjack game against ${playerNames}.`;
-				else winHtml = `The Dealer won the Blackjack game.`;
+				if (playerNames) winHtml = `The Dealer won the Blackjack against ${playerNames}.`;
+				else winHtml = `The Dealer won the Blackjack.`;
 			}
 			html += `<div style="text-align: center; font-size: 1.1em; color: #FFC107;">${winHtml}</div>`;
 			
