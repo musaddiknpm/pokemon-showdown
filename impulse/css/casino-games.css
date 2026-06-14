@@ -1,0 +1,127 @@
+/* CASINO GAMES START */
+.casino-board {
+    background: #0d381e;
+    background-image: radial-gradient(circle, #124d29 0%, #082915 100%);
+    border: 2px solid #d4af37;
+    border-radius: 8px;
+    padding: 14px 18px;
+    color: #fdfbf7;
+    font-family: "Georgia", serif;
+    box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+    text-align: center;
+}
+
+.casino-board hr {
+    border: 0;
+    height: 1px;
+    background: linear-gradient(to right, rgba(212,175,55,0), rgba(212,175,55,0.7), rgba(212,175,55,0));
+    margin: 12px 0;
+}
+
+.casino-header {
+    color: #d4af37;
+    font-size: 18px;
+    font-weight: bold;
+    text-shadow: 1px 1px 2px #000;
+    margin-bottom: 4px;
+}
+
+.casino-header small {
+    color: #f0e6d2;
+    font-size: 12px;
+}
+
+/* CARDS */
+.casino-card {
+    display: inline-block;
+    border: 1px solid #999;
+    border-radius: 5px;
+    padding: 4px 8px;
+    margin: 3px;
+    background: #fff;
+    font-family: "Arial", sans-serif;
+    font-size: 16px;
+    font-weight: bold;
+    box-shadow: 1px 1px 3px rgba(0,0,0,0.4);
+    min-width: 20px;
+    text-align: center;
+}
+
+.casino-card.red { color: #d00; }
+.casino-card.black { color: #111; }
+.casino-card.hidden {
+    background: #1e3b6b;
+    background-image: repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(255,255,255,0.1) 4px, rgba(255,255,255,0.1) 8px);
+    color: transparent;
+    border-color: #fdfbf7;
+}
+
+/* DICE */
+.casino-dice {
+    font-size: 42px;
+    line-height: 1;
+    vertical-align: middle;
+    color: #fdfbf7;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.6);
+    margin: 0 5px;
+}
+
+/* PLAYERS / BADGES */
+.casino-player-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    margin-top: 10px;
+}
+
+.casino-player-badge {
+    background: rgba(0,0,0,0.3);
+    border: 1px solid #d4af37;
+    border-radius: 6px;
+    padding: 6px 10px;
+    min-width: 120px;
+    text-align: left;
+    font-family: "Arial", sans-serif;
+    font-size: 12px;
+}
+
+.casino-player-badge.active { border-color: #4CAF50; box-shadow: 0 0 5px rgba(76,175,80,0.5); }
+.casino-player-badge.folded { border-color: #F44336; opacity: 0.6; }
+.casino-player-badge.all-in { border-color: #FFC107; background: rgba(255,193,7,0.1); }
+.casino-player-badge.eliminated { border-color: #777; opacity: 0.4; }
+
+.casino-player-name {
+    font-weight: bold;
+    display: block;
+    margin-bottom: 4px;
+    border-bottom: 1px solid rgba(255,255,255,0.2);
+    padding-bottom: 2px;
+}
+
+/* BUTTONS */
+button.casino-btn {
+    background: linear-gradient(to bottom, #f0e6d2, #d4af37);
+    border: 1px solid #8c7324;
+    border-radius: 20px;
+    padding: 6px 16px;
+    color: #333;
+    font-weight: bold;
+    font-size: 13px;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.5);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.4);
+    cursor: pointer;
+    margin: 4px 2px;
+    font-family: "Georgia", serif;
+}
+
+button.casino-btn:hover {
+    background: linear-gradient(to bottom, #fff8e8, #e0bc46);
+}
+
+button.casino-btn:active {
+    background: linear-gradient(to bottom, #d4af37, #b8962b);
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+    transform: translateY(1px);
+}
+/* CASINO GAMES END */
