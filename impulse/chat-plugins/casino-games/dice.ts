@@ -1,6 +1,7 @@
 import { wrapCommands } from '../../impulse-utils';
 import { getBalance, updateBalance, CURRENCY_NAME } from '../economy/economy';
 import { nameColor } from '../customization/custom-color';
+import { activeCasinoGames } from './shared';
 
 interface DiceGame {
 	host: string;
@@ -31,12 +32,13 @@ async function expireGame(roomid: string): Promise<void> {
 
 	await updateBalance(game.host, game.bet);
 	activeGames.delete(roomid);
+	activeCasinoGames.delete(roomid);
 
 	const room = Rooms.get(roomid);
 	room?.add(
 		`|uhtmlchange|${game.uid}|` +
-		`<div class="infobox" style="text-align:center;padding:12px 16px;">` +
-		`<b>Dice Game Expired</b><hr>` +
+		`<div class="casino-board">` +
+		`<div class="casino-header">Dice Game Expired</div><hr>` +
 		`No one joined in time. <b>${nameColor(game.hostName, true)}</b> has been refunded <b>${game.bet}</b> ${CURRENCY_NAME}.` +
 		`</div>`
 	).update();
@@ -50,7 +52,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			const bet = parseInt(target.trim());
 			if (isNaN(bet) || bet <= 0) return this.errorReply("Usage: /dice start [coins]");
 
-			if (activeGames.has(room.roomid)) return this.errorReply("A dice game is already running in this room.");
+			if (activeCasinoGames.has(room.roomid)) return this.errorReply(`A ${activeCasinoGames.get(room.roomid)} game is already running in this room.`);
 
 			const bal = await getBalance(user.id);
 			if (bal < bet) return this.errorReply(`You don't have enough ${CURRENCY_NAME}. (Balance: ${bal})`);
@@ -69,15 +71,17 @@ export const commands: Chat.ChatCommands = wrapCommands({
 				uid,
 				timer,
 			});
+			activeCasinoGames.set(room.roomid, 'dice');
 
 			const html =
-				`<div class="infobox" style="text-align:center;padding:12px 16px;">` +
-				`<b>${nameColor(user.name, true)}</b> has started a game of dice for <b>${bet}</b> ${CURRENCY_NAME}` +
+				`<div class="casino-board">` +
+				`<div class="casino-header">Dice Game <small>(Bet: <b>${bet}</b> ${CURRENCY_NAME})</small></div><hr>` +
+				`<b>${nameColor(user.name, true)}</b> is looking for an opponent!` +
 				`<br><br>` +
-				`<span style="font-size:32px;">⚀ ⚂ ⚄</span>` +
+				`<span class="casino-dice">⚀</span> <span class="casino-dice">⚂</span> <span class="casino-dice">⚄</span>` +
 				`<br><br>` +
-				`<button class="button" name="send" value="/dice join" style="padding:6px 20px;font-size:13px;">Join The Game</button>` +
-				`<br><br><small style="color:#888;">This game will expire in 60 seconds if no one joins.</small>` +
+				`<button class="button casino-btn" name="send" value="/dice join">Join The Game</button>` +
+				`<br><br><small>This game will expire in 60 seconds if no one joins.</small>` +
 				`</div>`;
 
 			room.add(`|uhtml|${uid}|${html}`).update();
@@ -97,8 +101,9 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			clearTimeout(game.timer);
 			await updateBalance(game.host, game.bet);
 			activeGames.delete(room.roomid);
+			activeCasinoGames.delete(room.roomid);
 
-			room.add(`|uhtmlchange|${game.uid}|<div class="infobox" style="text-align:center;">The dice game was cancelled. <b>${nameColor(game.hostName, true)}</b> has been refunded <b>${game.bet}</b> ${CURRENCY_NAME}.</div>`).update();
+			room.add(`|uhtmlchange|${game.uid}|<div class="casino-board">The dice game was cancelled. <b>${nameColor(game.hostName, true)}</b> has been refunded <b>${game.bet}</b> ${CURRENCY_NAME}.</div>`).update();
 		},
 
 		async join(target, room, user) {
@@ -120,29 +125,23 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			const opponentRoll = Math.floor(Math.random() * 6) + 1;
 			const totalPot = game.bet * 2;
 
-			let resultLine: string;
+			let winHtml = `<b>${nameColor(game.hostName, true)}</b> rolled <b>${hostRoll}</b> | <b>${nameColor(user.name, true)}</b> rolled <b>${opponentRoll}</b><br>`;
 			if (hostRoll > opponentRoll) {
-				await updateBalance(game.host, totalPot);
-				resultLine = `${nameColor(game.hostName, true)} wins <b>${totalPot}</b> ${CURRENCY_NAME}!`;
+				await updateBalance(game.host, game.bet * 2);
+				winHtml += `<b>${nameColor(game.hostName, true)}</b> has won the Dice game and won <b>${game.bet * 2}</b> ${CURRENCY_NAME}!`;
 			} else if (opponentRoll > hostRoll) {
-				await updateBalance(user.id, totalPot);
-				resultLine = `${nameColor(user.name, true)} wins <b>${totalPot}</b> ${CURRENCY_NAME}!`;
+				await updateBalance(user.id, game.bet * 2);
+				winHtml += `<b>${nameColor(user.name, true)}</b> has won the Dice game and won <b>${game.bet * 2}</b> ${CURRENCY_NAME}!`;
 			} else {
 				await updateBalance(game.host, game.bet);
 				await updateBalance(user.id, game.bet);
-				resultLine = `It's a tie! Both players have been refunded <b>${game.bet}</b> ${CURRENCY_NAME}.`;
+				winHtml += `The dice game ended in a tie.`;
 			}
 
-			const resultHtml =
-				`<div class="infobox" style="text-align:center;padding:12px 16px;">` +
-				`<b>Dice Game Results</b><hr>` +
-				`${nameColor(game.hostName, true)} has rolled <span style="font-size:36px;line-height:1;vertical-align:middle;">${dieChar(hostRoll)}</span>` +
-				`<br>` +
-				`${nameColor(user.name, true)} has rolled <span style="font-size:36px;line-height:1;vertical-align:middle;">${dieChar(opponentRoll)}</span>` +
-				`<hr>${resultLine}` +
-				`</div>`;
+			const resultHtml = `<div class="infobox" style="padding: 8px 12px; text-align: center;">${winHtml}</div>`;
 
 			activeGames.delete(room.roomid);
+			activeCasinoGames.delete(room.roomid);
 			room.add(`|uhtmlchange|${game.uid}|${resultHtml}`).update();
 		},
 
