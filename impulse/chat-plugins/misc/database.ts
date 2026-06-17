@@ -65,6 +65,16 @@ export const initMiscDB = async (): Promise<void> => {
 					player_cap TEXT NOT NULL,
 					last_tour_time BIGINT NOT NULL
 				);
+				CREATE TABLE IF NOT EXISTS game_cache (
+					id TEXT PRIMARY KEY,
+					data TEXT NOT NULL,
+					timestamp BIGINT NOT NULL
+				);
+				CREATE TABLE IF NOT EXISTS anilist_cache (
+					id TEXT PRIMARY KEY,
+					data TEXT NOT NULL,
+					timestamp BIGINT NOT NULL
+				);
 			`);
 		})();
 	}
