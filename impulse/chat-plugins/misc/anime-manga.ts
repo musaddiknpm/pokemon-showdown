@@ -3,7 +3,7 @@ import { wrapCommands } from '../../impulse-utils';
 import { Utils, Net } from '../../../lib';
 import { initMiscDB } from './database';
 
-const CACHE_TIME = 3 * 24 * 60 * 60 * 1000; // 3 days
+const CACHE_TIME = 5 * 24 * 60 * 60 * 1000; // 5 days
 
 interface AniListCacheRow {
 	id: string;
@@ -12,6 +12,14 @@ interface AniListCacheRow {
 }
 
 const getCacheTable = () => PG.getTable<AniListCacheRow>('anilist_cache', 'id');
+
+interface GameCacheRow {
+	id: string;
+	data: string;
+	timestamp: number | string;
+}
+
+const getGameCacheTable = () => PG.getTable<GameCacheRow>('game_cache', 'id');
 
 async function fetchAniList(query: string, type: 'ANIME' | 'MANGA') {
 	const cacheId = `${type.toLowerCase()}:${query.toLowerCase()}`;
@@ -147,6 +155,91 @@ function generateDisplay(data: any, type: string) {
 		`</div>`;
 }
 
+async function fetchGame(query: string) {
+	const cacheId = `game:${query.toLowerCase()}`;
+	
+	let cached = null;
+	if (PG.isReady) {
+		await initMiscDB();
+		cached = await getGameCacheTable().findById(cacheId);
+	}
+	
+	if (cached && (Date.now() - Number(cached.timestamp)) < CACHE_TIME) {
+		return JSON.parse(cached.data);
+	}
+
+	if (!Config.rawgApiKey) {
+		return null;
+	}
+
+	try {
+		const searchResponse = await Net(`https://api.rawg.io/api/games?key=${Config.rawgApiKey}&search=${encodeURIComponent(query)}&page_size=1`).get();
+		const searchData = JSON.parse(searchResponse);
+		
+		if (!searchData.results || !searchData.results.length) {
+			return null;
+		}
+
+		const gameId = searchData.results[0].id;
+
+		const detailsResponse = await Net(`https://api.rawg.io/api/games/${gameId}?key=${Config.rawgApiKey}`).get();
+		const gameData = JSON.parse(detailsResponse);
+
+		if (gameData && PG.isReady) {
+			await getGameCacheTable().upsert({
+				id: cacheId,
+				data: JSON.stringify(gameData),
+				timestamp: Date.now(),
+			}, ['id']);
+		}
+
+		return gameData;
+	} catch (e) {
+		return null;
+	}
+}
+
+function generateGameDisplay(data: any) {
+	const title = data.name || 'Unknown Title';
+	
+	const bgUrl = data.background_image || data.background_image_additional || 'https://wallpapercave.com/wp/wp8695829.png';
+	const bgStyle = `background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url('${Utils.escapeHTML(bgUrl)}') center/cover no-repeat; padding: 8px; border-radius: 4px; color: white; text-shadow: 1px 1px 2px black, -1px -1px 2px black, 1px -1px 2px black, -1px 1px 2px black;`;
+
+	const iconCell = data.background_image ?
+		`<td width="100" valign="top"><img src="${Utils.escapeHTML(data.background_image)}" width="90" height="130" style="border-radius: 4px; object-fit: cover;" /></td><td width="8"></td>` :
+		'';
+
+	const scoreStr = data.metacritic ? `${data.metacritic}/100` : (data.rating ? `${data.rating}/5` : 'N/A');
+	const releaseStr = data.released || 'N/A';
+	const genresStr = data.genres?.length ? data.genres.map((g: any) => g.name).join(', ') : 'N/A';
+	const platformsStr = data.platforms?.length ? data.platforms.map((p: any) => p.platform.name).join(', ') : 'N/A';
+	
+	const developers = data.developers?.length ? data.developers.map((d: any) => d.name).join(', ') : '';
+	const publishers = data.publishers?.length ? data.publishers.map((p: any) => p.name).join(', ') : '';
+	const devPubStr = developers ? (publishers && developers !== publishers ? `${developers} / ${publishers}` : developers) : publishers;
+
+	let additionalInfo = `<b>Release:</b> ${releaseStr}<br />`;
+	additionalInfo += `<b>Platforms:</b> ${platformsStr}<br />`;
+	if (devPubStr) additionalInfo += `<b>Developer/Publisher:</b> ${devPubStr}<br />`;
+
+	let desc = data.description_raw || 'No description available.';
+	desc = Utils.escapeHTML(desc);
+	desc = desc.replace(/\n/g, '<br />');
+
+	return `<div style="${bgStyle}">` +
+		`<center><b><big><big>${Utils.escapeHTML(title)}</big></big></b><br />` +
+		`<span style="font-size: 10pt; color: white;">${Utils.escapeHTML(genresStr)}</span></center>` +
+		`<hr style="border-color: rgba(255, 255, 255, 0.4);" />` +
+		`<table cellpadding="2" cellspacing="0" border="0" width="100%"><tr>` +
+		iconCell +
+		`<td valign="top" style="color: white;">` +
+		`<b>Metacritic/Rating:</b> ${scoreStr}<br />` +
+		`${additionalInfo}<br />` +
+		`<div style="max-height: 90px; overflow-y: auto; padding-right: 5px;">${desc}</div>` +
+		`</td></tr></table>` +
+		`</div>`;
+}
+
 export const commands: Chat.ChatCommands = wrapCommands({
 	async anime(target, room, user) {
 		if (!this.runBroadcast()) return;
@@ -191,4 +284,29 @@ export const commands: Chat.ChatCommands = wrapCommands({
 		this.sendReplyBox(generateDisplay(data, 'manga'));
 	},
 	mangahelp: [`/manga [name] - Search for information about a manga.`],
+
+	async game(target, room, user) {
+		if (!this.runBroadcast()) return;
+		if (!target) return this.parse('/help game');
+		
+		const targetQuery = target.trim();
+
+		const data = await fetchGame(targetQuery);
+		if (!data) {
+			if (!Config.rawgApiKey) {
+				return this.sendReplyBox(`<div class="message-error">The game database API key is not configured.</div>`);
+			}
+			return this.sendReplyBox(
+				`Game "<strong>${Utils.escapeHTML(targetQuery)}</strong>" not found on RAWG.<br />` +
+				`<span style="font-size: 10px; color: #888;">Note: Try searching by its exact official name.</span>`
+			);
+		}
+
+		if (data.esrb_rating && data.esrb_rating.slug === 'adults-only') {
+			return this.sendReplyBox(`<div class="message-error">This game contains 18+ content and cannot be displayed.</div>`);
+		}
+
+		this.sendReplyBox(generateGameDisplay(data));
+	},
+	gamehelp: [`/game [name] - Search for information about a game.`],
 });
