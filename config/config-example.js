@@ -15,6 +15,9 @@ exports.port = 8000;
  */
 exports.bindaddress = '0.0.0.0';
 
+/* API key required for /game command */
+exports.rawgApiKey = '';
+
 /**
  * wsdeflate - compresses WebSocket messages
  *  Toggles use of the Sec-WebSocket-Extension permessage-deflate extension.
