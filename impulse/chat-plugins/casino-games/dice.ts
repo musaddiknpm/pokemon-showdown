@@ -128,10 +128,10 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			let winHtml = `<b>${nameColor(game.hostName, true)}</b> rolled <b>${hostRoll}</b> | <b>${nameColor(user.name, true)}</b> rolled <b>${opponentRoll}</b><br>`;
 			if (hostRoll > opponentRoll) {
 				await updateBalance(game.host, game.bet * 2);
-				winHtml += `<b>${nameColor(game.hostName, true)}</b> has won the Dice game and won <b>${game.bet * 2}</b> ${CURRENCY_NAME}!`;
+				winHtml += `<b>${nameColor(game.hostName, true)}</b> has won the Dice and <b>${game.bet * 2}</b> ${CURRENCY_NAME}!`;
 			} else if (opponentRoll > hostRoll) {
 				await updateBalance(user.id, game.bet * 2);
-				winHtml += `<b>${nameColor(user.name, true)}</b> has won the Dice game and won <b>${game.bet * 2}</b> ${CURRENCY_NAME}!`;
+				winHtml += `<b>${nameColor(user.name, true)}</b> has won the Dice and <b>${game.bet * 2}</b> ${CURRENCY_NAME}!`;
 			} else {
 				await updateBalance(game.host, game.bet);
 				await updateBalance(user.id, game.bet);
