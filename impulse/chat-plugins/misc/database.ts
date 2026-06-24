@@ -75,6 +75,11 @@ export const initMiscDB = async (): Promise<void> => {
 					data TEXT NOT NULL,
 					timestamp BIGINT NOT NULL
 				);
+				CREATE TABLE IF NOT EXISTS song_cache (
+					id TEXT PRIMARY KEY,
+					data TEXT NOT NULL,
+					timestamp BIGINT NOT NULL
+				);
 			`);
 		})();
 	}
