@@ -21,6 +21,13 @@ interface GameCacheRow {
 
 const getGameCacheTable = () => PG.getTable<GameCacheRow>('game_cache', 'id');
 
+interface SongCacheRow {
+	id: string;
+	data: string;
+	timestamp: number | string;
+}
+
+const getSongCacheTable = () => PG.getTable<SongCacheRow>('song_cache', 'id');
 async function fetchAniList(query: string, type: 'ANIME' | 'MANGA') {
 	const cacheId = `${type.toLowerCase()}:${query.toLowerCase()}`;
 	
@@ -42,6 +49,12 @@ async function fetchAniList(query: string, type: 'ANIME' | 'MANGA') {
 				title {
 					romaji
 					english
+				}
+				siteUrl
+				externalLinks {
+					url
+					site
+					type
 				}
 				coverImage {
 					large
@@ -130,6 +143,18 @@ function generateDisplay(data: any, type: string) {
 	if (releaseStr) additionalInfo += `<b>Release:</b> ${releaseStr}<br />`;
 	if (studioStr) additionalInfo += `<b>Studio:</b> ${studioStr}<br />`;
 
+	let linksHtml = '';
+	
+	const streamingLinks = (data.externalLinks || [])
+		.filter((link: any) => link.type === 'STREAMING')
+		.slice(0, 3);
+	
+	if (streamingLinks.length) {
+		const label = type === 'anime' ? 'Watch' : 'Read';
+		const streamHtml = streamingLinks.map((link: any) => `<a href="${Utils.escapeHTML(link.url)}" style="color: #6ee7b7;" target="_blank">${Utils.escapeHTML(link.site)}</a>`).join(', ');
+		linksHtml += `<b>${label}:</b> ${streamHtml}<br />`;
+	}
+
 	let desc = data.description || 'No description available.';
 	// Convert <br> tags from AniList to newlines
 	desc = desc.replace(/<br\s*\/?>/gi, '\n');
@@ -149,7 +174,9 @@ function generateDisplay(data: any, type: string) {
 		`<td valign="top" style="color: white;">` +
 		`<b>Score:</b> ${scoreStr}<br />` +
 		`<b>Status:</b> ${statusStr}<br />` +
-		`${additionalInfo}<br />` +
+		`${additionalInfo}` +
+		`${linksHtml}` +
+		`<br />` +
 		`<div style="max-height: 90px; overflow-y: auto; padding-right: 5px;">${desc}</div>` +
 		`</td></tr></table>` +
 		`</div>`;
@@ -222,6 +249,20 @@ function generateGameDisplay(data: any) {
 	additionalInfo += `<b>Platforms:</b> ${platformsStr}<br />`;
 	if (devPubStr) additionalInfo += `<b>Developer/Publisher:</b> ${devPubStr}<br />`;
 
+	let linksHtml = '';
+	if (data.website) {
+		linksHtml += `<b>Website:</b> <a href="${Utils.escapeHTML(data.website)}" style="color: #6ee7b7;" target="_blank">Link</a><br />`;
+	}
+
+	const storeLinks = (data.stores || [])
+		.filter((s: any) => s.url && s.store && s.store.name)
+		.slice(0, 3);
+	
+	if (storeLinks.length) {
+		const storeHtml = storeLinks.map((s: any) => `<a href="${Utils.escapeHTML(s.url)}" style="color: #6ee7b7;" target="_blank">${Utils.escapeHTML(s.store.name)}</a>`).join(', ');
+		linksHtml += `<b>Buy/Play:</b> ${storeHtml}<br />`;
+	}
+
 	let desc = data.description_raw || 'No description available.';
 	desc = Utils.escapeHTML(desc);
 	desc = desc.replace(/\n/g, '<br />');
@@ -234,8 +275,92 @@ function generateGameDisplay(data: any) {
 		iconCell +
 		`<td valign="top" style="color: white;">` +
 		`<b>Metacritic/Rating:</b> ${scoreStr}<br />` +
-		`${additionalInfo}<br />` +
+		`${additionalInfo}` +
+		`${linksHtml}` +
+		`<br />` +
 		`<div style="max-height: 90px; overflow-y: auto; padding-right: 5px;">${desc}</div>` +
+		`</td></tr></table>` +
+		`</div>`;
+}
+
+async function fetchSong(query: string) {
+	const cacheId = `song:${query.toLowerCase()}`;
+	
+	let cached = null;
+	if (PG.isReady) {
+		await initMiscDB();
+		cached = await getSongCacheTable().findById(cacheId);
+	}
+	
+	if (cached && (Date.now() - Number(cached.timestamp)) < CACHE_TIME) {
+		return JSON.parse(cached.data);
+	}
+
+	try {
+		const response = await Net(`https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=song&limit=1`).get();
+		const data = JSON.parse(response);
+		
+		if (!data.results || !data.results.length) {
+			return null;
+		}
+
+		const songData = data.results[0];
+
+		if (songData && PG.isReady) {
+			await getSongCacheTable().upsert({
+				id: cacheId,
+				data: JSON.stringify(songData),
+				timestamp: Date.now(),
+			}, ['id']);
+		}
+
+		return songData;
+	} catch (e) {
+		return null;
+	}
+}
+
+function generateSongDisplay(data: any) {
+	const title = data.trackName || 'Unknown Title';
+	const artist = data.artistName || 'Unknown Artist';
+	const album = data.collectionName || 'Unknown Album';
+	
+	const bgUrl = data.artworkUrl100 ? data.artworkUrl100.replace('100x100bb', '600x600bb').replace('100x100', '600x600') : 'https://wallpapercave.com/wp/wp8695829.png';
+	const bgStyle = `background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url('${Utils.escapeHTML(bgUrl)}') center/cover no-repeat; padding: 8px; border-radius: 4px; color: white; text-shadow: 1px 1px 2px black, -1px -1px 2px black, 1px -1px 2px black, -1px 1px 2px black;`;
+
+	const iconCell = data.artworkUrl100 ?
+		`<td width="100" valign="top"><img src="${Utils.escapeHTML(data.artworkUrl100.replace('100x100bb', '130x130bb').replace('100x100', '130x130'))}" width="130" height="130" style="border-radius: 4px; object-fit: cover;" /></td><td width="8"></td>` :
+		'';
+
+	const releaseStr = data.releaseDate ? new Date(data.releaseDate).getFullYear() : 'N/A';
+	const genreStr = data.primaryGenreName || 'N/A';
+
+	let additionalInfo = `<b>Artist:</b> ${Utils.escapeHTML(artist)}<br />`;
+	additionalInfo += `<b>Album:</b> ${Utils.escapeHTML(album)}<br />`;
+	additionalInfo += `<b>Release:</b> ${releaseStr}<br />`;
+
+	let linksHtml = '';
+	if (data.trackViewUrl) {
+		linksHtml += `<b>Listen:</b> <a href="${Utils.escapeHTML(data.trackViewUrl)}" style="color: #6ee7b7;" target="_blank">Apple Music</a><br />`;
+	}
+
+	let audioPlayer = '';
+	if (data.previewUrl) {
+		audioPlayer = `<audio src="${Utils.escapeHTML(data.previewUrl)}" controls style="width: 100%; margin-top: 10px;"></audio>`;
+	} else {
+		audioPlayer = `<div style="margin-top: 10px;"><i>No audio preview available.</i></div>`;
+	}
+
+	return `<div style="${bgStyle}">` +
+		`<center><b><big><big>${Utils.escapeHTML(title)}</big></big></b><br />` +
+		`<span style="font-size: 10pt; color: white;">${Utils.escapeHTML(genreStr)}</span></center>` +
+		`<hr style="border-color: rgba(255, 255, 255, 0.4);" />` +
+		`<table cellpadding="2" cellspacing="0" border="0" width="100%"><tr>` +
+		iconCell +
+		`<td valign="top" style="color: white;">` +
+		`${additionalInfo}` +
+		`${linksHtml}` +
+		audioPlayer +
 		`</td></tr></table>` +
 		`</div>`;
 }
@@ -309,4 +434,37 @@ export const commands: Chat.ChatCommands = wrapCommands({
 		this.sendReplyBox(generateGameDisplay(data));
 	},
 	gamehelp: [`/game [name] - Search for information about a game.`],
+
+	async song(target, room, user) {
+		if (!this.runBroadcast()) return;
+		if (!target) return this.parse('/help song');
+		
+		const targetQuery = target.trim();
+
+		const data = await fetchSong(targetQuery);
+		if (!data) {
+			return this.sendReplyBox(
+				`Song "<strong>${Utils.escapeHTML(targetQuery)}</strong>" not found.<br />` +
+				`<span style="font-size: 10px; color: #888;">Note: Try including the artist name for better results (e.g., "Song Name Artist").</span>`
+			);
+		}
+
+		if (data.trackExplicitness === 'explicit') {
+			return this.sendReplyBox(`<div class="message-error">This song is marked as explicit and cannot be displayed.</div>`);
+		}
+
+		this.sendReplyBox(generateSongDisplay(data));
+	},
+	songhelp: [`/song [name] - Search for information and a preview of a song.`],
+
+	mediahelp(target, room, user) {
+		if (!this.runBroadcast()) return;
+		return this.sendReplyBox(
+			`<b>Media Commands:</b><br />` +
+			`<code>/anime [name]</code> - Search for information about an anime.<br />` +
+			`<code>/manga [name]</code> - Search for information about a manga.<br />` +
+			`<code>/game [name]</code> - Search for information about a game.<br />` +
+			`<code>/song [name]</code> - Search for information and a preview of a song.`
+		);
+	},
 });
