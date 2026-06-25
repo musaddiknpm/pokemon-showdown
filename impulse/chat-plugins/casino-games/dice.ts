@@ -1,7 +1,7 @@
 import { wrapCommands } from '../../impulse-utils';
 import { getBalance, updateBalance, CURRENCY_NAME } from '../economy/economy';
 import { nameColor } from '../customization/custom-color';
-import { activeCasinoGames } from './shared';
+import { activeCasinoGames, CASINO_ROOM } from './shared';
 
 interface DiceGame {
 	host: string;
@@ -15,16 +15,7 @@ interface DiceGame {
 
 const activeGames = new Map<string, DiceGame>();
 
-const DICE_UNICODE: Record<number, string> = {
-	1: '⚀', 2: '⚁', 3: '⚂', 4: '⚃', 5: '⚄', 6: '⚅',
-};
-
-const CASINO_ROOM = 'casino';
 const AUTO_END_MS = 60 * 1000;
-
-function dieChar(face: number): string {
-	return DICE_UNICODE[face] ?? DICE_UNICODE[1];
-}
 
 async function expireGame(roomid: string): Promise<void> {
 	const game = activeGames.get(roomid);
