@@ -45,110 +45,89 @@ interface RoomShopLogRow {
 	timestamp: number | string;
 }
 
-const getShopTable = () => PG.getTable<RoomShopRow>('room_shop', 'room_id');
-const getItemTable = () => PG.getTable<RoomShopItemRow>('room_shop_item', 'room_id');
-const getLogTable = () => PG.getTable<RoomShopLogRow>('room_shop_log', 'id');
-
-const roomShopCache = new Map<string, ShopConfig>();
-
-const RoomShopManager = {
-	async getRoomData(roomid: string): Promise<ShopConfig> {
-		if (roomShopCache.has(roomid)) return roomShopCache.get(roomid)!;
-		await initEconomyDB();
-		
-		let configRow = await getShopTable().findById(roomid);
-		
-		if (!configRow) {
-			try {
-				configRow = await getShopTable().insert({ room_id: roomid, enabled: 0, bank: null });
-			} catch (err) {
-				// Handle potential race condition if another process created it concurrently
-				configRow = await getShopTable().findById(roomid);
-			}
+export async function getRoomData(roomid: string): Promise<ShopConfig> {
+	await initEconomyDB();
+	
+	let configRow = await PG.getTable<RoomShopRow>('room_shop', 'room_id').findById(roomid);
+	
+	if (!configRow) {
+		try {
+			configRow = await PG.getTable<RoomShopRow>('room_shop', 'room_id').insert({ room_id: roomid, enabled: 0, bank: null });
+		} catch (err) {
+			// Handle potential race condition if another process created it concurrently
+			configRow = await PG.getTable<RoomShopRow>('room_shop', 'room_id').findById(roomid);
 		}
-		
-		const enabled = configRow?.enabled === 1;
-		const bank = configRow?.bank ?? null;
-		
-		const itemRows = await getItemTable().select({ room_id: roomid });
-		const items: Record<string, ShopItem> = {};
-		for (const row of itemRows) {
-			items[row.name] = { description: row.description, cost: Number(row.cost) };
-		}
-		
-		const config = { enabled, bank, items };
-		roomShopCache.set(roomid, config);
-		return config;
-	},
+	}
+	
+	const enabled = configRow?.enabled === 1;
+	const bank = configRow?.bank ?? null;
+	
+	const itemRows = await PG.getTable<RoomShopItemRow>('room_shop_item', 'room_id').select({ room_id: roomid });
+	const items: Record<string, ShopItem> = {};
+	for (const row of itemRows) {
+		items[row.name] = { description: row.description, cost: Number(row.cost) };
+	}
+	
+	return { enabled, bank, items };
+}
 
-	async setRoomConfig(roomid: string, enabled: boolean, bank: string | null): Promise<void> {
-		const config = await this.getRoomData(roomid);
-		config.enabled = enabled;
-		config.bank = bank;
-		
-		await initEconomyDB();
-		await getShopTable().upsert(
-			{ room_id: roomid, enabled: enabled ? 1 : 0, bank }, 
-			['room_id']
-		);
-	},
+export async function setRoomConfig(roomid: string, enabled: boolean, bank: string | null): Promise<void> {
+	await initEconomyDB();
+	await PG.getTable<RoomShopRow>('room_shop', 'room_id').upsert(
+		{ room_id: roomid, enabled: enabled ? 1 : 0, bank }, 
+		['room_id']
+	);
+}
 
-	async setRoomItem(roomid: string, name: string, description: string, cost: number): Promise<void> {
-		const config = await this.getRoomData(roomid);
-		config.items[name] = { description, cost };
-		
-		await initEconomyDB();
-		await getItemTable().upsert(
-			{ room_id: roomid, name, description, cost }, 
-			['room_id', 'name']
-		);
-	},
+export async function setRoomItem(roomid: string, name: string, description: string, cost: number): Promise<void> {
+	await initEconomyDB();
+	await PG.getTable<RoomShopItemRow>('room_shop_item', 'room_id').upsert(
+		{ room_id: roomid, name, description, cost }, 
+		['room_id', 'name']
+	);
+}
 
-	async removeRoomItem(roomid: string, name: string): Promise<void> {
-		const config = await this.getRoomData(roomid);
-		delete config.items[name];
-		
-		await initEconomyDB();
-		await getItemTable().delete({ room_id: roomid, name });
-	},
+export async function removeRoomItem(roomid: string, name: string): Promise<void> {
+	await initEconomyDB();
+	await PG.getTable<RoomShopItemRow>('room_shop_item', 'room_id').delete({ room_id: roomid, name });
+}
 
-	async addLog(roomid: string, user: string, item: string): Promise<void> {
-		await initEconomyDB();
-		await getLogTable().insert({ 
-			room_id: roomid, 
-			user_id: user, 
-			item, 
-			timestamp: Date.now() 
-		});
-	},
+export async function addLog(roomid: string, user: string, item: string): Promise<void> {
+	await initEconomyDB();
+	await PG.getTable<RoomShopLogRow>('room_shop_log', 'id').insert({ 
+		room_id: roomid, 
+		user_id: user, 
+		item, 
+		timestamp: Date.now() 
+	});
+}
 
-	async getLogs(roomid: string): Promise<LogEntry[]> {
-		await initEconomyDB();
-		const rows = await getLogTable().select({ room_id: roomid }, ['user_id', 'item', 'timestamp'], { 
-			limit: 100, 
-			orderBy: 'timestamp', 
-			order: 'DESC' 
-		});
-		
-		return rows.map(r => ({
-			user: r.user_id, 
-			item: r.item, 
-			timestamp: Number(r.timestamp)
-		}));
-	},
+export async function getLogs(roomid: string): Promise<LogEntry[]> {
+	await initEconomyDB();
+	const rows = await PG.getTable<RoomShopLogRow>('room_shop_log', 'id').select({ room_id: roomid }, ['user_id', 'item', 'timestamp'], { 
+		limit: 100, 
+		orderBy: 'timestamp', 
+		order: 'DESC' 
+	});
+	
+	return rows.map(r => ({
+		user: r.user_id, 
+		item: r.item, 
+		timestamp: Number(r.timestamp)
+	}));
+}
 
-	async cleanLogs(roomid: string): Promise<void> {
-		await initEconomyDB();
-		const cutoff = Date.now() - (7 * 24 * 60 * 60 * 1000);
-		await PG.execute('DELETE FROM room_shop_log WHERE room_id = $1 AND timestamp < $2', [roomid, cutoff]);
-	},
-};
+export async function cleanLogs(roomid: string): Promise<void> {
+	await initEconomyDB();
+	const cutoff = Date.now() - (7 * 24 * 60 * 60 * 1000);
+	await PG.execute('DELETE FROM room_shop_log WHERE room_id = $1 AND timestamp < $2', [roomid, cutoff]);
+}
 
 export const commands: Chat.ChatCommands = wrapCommands({
 	roomshop: {
 		async ''(target, room, user) {
 			if (!room || room.battle) return this.errorReply("This command must be used in a chat room.");
-			const data = await RoomShopManager.getRoomData(room.roomid);
+			const data = await getRoomData(room.roomid);
 			if (!data.enabled) return this.errorReply("The shop is not enabled for this room.");
 
 			if (!this.runBroadcast()) return;
@@ -168,7 +147,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 
 		async buy(target, room, user) {
 			if (!room || room.battle) return this.errorReply("This command must be used in a chat room.");
-			const data = await RoomShopManager.getRoomData(room.roomid);
+			const data = await getRoomData(room.roomid);
 			const itemName = target.trim();
 
 			if (!data.enabled) return this.errorReply("Shop is disabled.");
@@ -186,7 +165,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 				await setBalance(data.bank, bankBal + item.cost);
 			}
 
-			await RoomShopManager.addLog(room.roomid, user.name, itemName);
+			await addLog(room.roomid, user.name, itemName);
 
 			this.sendReplyBox(`Purchased <b>${itemName}</b> for <b>${item.cost}</b> ${CURRENCY_NAME}.`);
 		},
@@ -197,15 +176,15 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			const targetId = toID(target);
 			if (!targetId) return this.errorReply("Usage: /roomshop bank [user]");
 
-			const data = await RoomShopManager.getRoomData(room.roomid);
-			await RoomShopManager.setRoomConfig(room.roomid, data.enabled, targetId);
+			const data = await getRoomData(room.roomid);
+			await setRoomConfig(room.roomid, data.enabled, targetId);
 			
 			this.sendReplyBox(`|raw|Room bank set to: ${nameColor(targetId, true)}`);
 		},
 
 		async showbank(target, room, user) {
 			if (!room || room.battle) return this.errorReply("Use this in a room.");
-			const data = await RoomShopManager.getRoomData(room.roomid);
+			const data = await getRoomData(room.roomid);
 			if (!data.bank) return this.sendReplyBox("No bank has been set for this room.");
 			this.sendReplyBox(`The current bank for this room is: ${nameColor(data.bank, true)}`);
 		},
@@ -219,40 +198,40 @@ export const commands: Chat.ChatCommands = wrapCommands({
 
 			if (!name || !desc || isNaN(cost) || cost <= 0) return this.errorReply("Usage: /roomshop add [name], [desc], [cost]");
 
-			const data = await RoomShopManager.getRoomData(room.roomid);
+			const data = await getRoomData(room.roomid);
 			if (!data.enabled) return this.errorReply("Room shop is not enabled.");
 
-			await RoomShopManager.setRoomItem(room.roomid, name, desc, cost);
+			await setRoomItem(room.roomid, name, desc, cost);
 			this.sendReplyBox(`Item <b>${name}</b> has been added/updated.`);
 		},
 
 		async remove(target, room, user) {
 			if (!room || room.battle) return this.errorReply("Use this in a room.");
 			this.checkCan('roommod', null, room);
-			const data = await RoomShopManager.getRoomData(room.roomid);
+			const data = await getRoomData(room.roomid);
 			const name = target.trim();
 
 			if (!data.items[name]) return this.errorReply(`Item "${name}" not found.`);
 			
-			await RoomShopManager.removeRoomItem(room.roomid, name);
+			await removeRoomItem(room.roomid, name);
 			this.sendReplyBox(`Item "${name}" removed.`);
 		},
 
 		async enable(target, room, user) {
 			this.checkCan('bypassall');
 			if (!room || room.battle) return this.errorReply("Use this in a room.");
-			const data = await RoomShopManager.getRoomData(room.roomid);
+			const data = await getRoomData(room.roomid);
 			
-			await RoomShopManager.setRoomConfig(room.roomid, true, data.bank);
+			await setRoomConfig(room.roomid, true, data.bank);
 			this.sendReplyBox("Room Shop enabled.");
 		},
 
 		async disable(target, room, user) {
 			this.checkCan('bypassall');
 			if (!room || room.battle) return this.errorReply("Use this in a room.");
-			const data = await RoomShopManager.getRoomData(room.roomid);
+			const data = await getRoomData(room.roomid);
 			
-			await RoomShopManager.setRoomConfig(room.roomid, false, data.bank);
+			await setRoomConfig(room.roomid, false, data.bank);
 			this.sendReplyBox("Room Shop disabled.");
 		},
 
@@ -260,8 +239,8 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			if (!room || room.battle) return this.errorReply("Use this in a room.");
 			this.checkCan('roommod', null, room);
 			
-			await RoomShopManager.cleanLogs(room.roomid);
-			const logs = await RoomShopManager.getLogs(room.roomid);
+			await cleanLogs(room.roomid);
+			const logs = await getLogs(room.roomid);
 			
 			if (!logs.length) return this.sendReplyBox("No shop logs found.");
 
