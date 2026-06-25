@@ -5,32 +5,22 @@ import { getLastSeen } from '../misc/seen';
 import type { Guild, GuildMember } from './types';
 
 export async function endGuildSeason() {
-	const allGuilds = await GuildRepository.getAllGuilds();
-	if (allGuilds.length === 0) return;
-
-	const sortedGuilds = [...allGuilds].sort((a, b) => b.points - a.points);
-	const topGuilds = sortedGuilds.slice(0, 3);
-
-	const allMembers: { id: string, username: string, totalPoints: number }[] = [];
-	for (const g of allGuilds) {
-		for (const m of g.members) {
-			allMembers.push({ id: m.id, username: m.username, totalPoints: m.totalPoints || 0 });
-		}
-	}
-	const topMembers = allMembers.sort((a, b) => b.totalPoints - a.totalPoints).slice(0, 3);
+	const topGuilds = await GuildRepository.getTopGuilds(3);
+	const topMembers = await GuildRepository.getTopMembers(3);
 
 	const seasonData = await getSeasonInfo();
 	const seasonNumber = seasonData.season;
 
-	for (const g of allGuilds) {
-		const room = Rooms.get(g.chatroom as RoomID);
+	const allChatrooms = await GuildRepository.getAllChatrooms();
+	for (const chatroom of allChatrooms) {
+		const room = Rooms.get(chatroom as RoomID);
 		if (room) {
 			room.add(`|html|<div class="broadcast-blue"><b>Guild Season ${seasonNumber} has officially ended!</b><br />Check out the global leaderboards to see the winners! Points have been reset for the new season.</div>`).update();
 		}
 	}
 
 	for (const g of topGuilds) {
-		const owner = Users.get(g.ownerId);
+		const owner = Users.get(g.owner_id);
 		if (owner) owner.popup(`|html|<b>Congratulations!</b><br />Your guild <b>${g.name}</b> placed in the top 3 for Season ${seasonNumber}!<br />Rewards will be distributed shortly.`);
 	}
 
@@ -64,11 +54,7 @@ global.GuildSeasonTimer = setInterval(() => {
 }, 1000 * 60 * 60);
 
 function formatCooldown(expiration: number) {
-	const ms = expiration - Date.now();
-	const hours = Math.floor(ms / (1000 * 60 * 60));
-	const minutes = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
-	if (hours > 0) return `${hours} hour${hours === 1 ? '' : 's'} and ${minutes} minute${minutes === 1 ? '' : 's'}`;
-	return `${minutes} minute${minutes === 1 ? '' : 's'}`;
+	return Chat.toDurationString(expiration - Date.now(), { precision: 2 });
 }
 
 const ROLE_HIERARCHY: Record<string, number> = {
@@ -81,6 +67,17 @@ const ROLE_HIERARCHY: Record<string, number> = {
 };
 
 const VALID_ROLES = Object.keys(ROLE_HIERARCHY);
+
+function checkGuildAuth(guild: import('./types').Guild, user: import('../../../server/user-groups').User, allowedRoles: string[] | null, actionDesc: string) {
+	const userMember = guild.members.find(m => m.id === user.id);
+	if (!userMember && !user.can('bypassall')) {
+		return { error: `You are not a member of '${guild.name}'.` };
+	}
+	if (userMember && allowedRoles && !allowedRoles.some(r => userMember.role === r) && !user.can('bypassall')) {
+		return { error: `You do not have permission to ${actionDesc}.` };
+	}
+	return { userMember };
+}
 
 const ROLE_TO_RANK: Record<string, string> = {
 	'Master': '#',
@@ -284,10 +281,9 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			const targetId = toID(parts[0]);
 			const roleStr = parts[1];
 
-			const userMember = guild.members.find(m => m.id === user.id);
-			if (!userMember && !user.can('bypassall')) {
-				return this.errorReply(`You are not a member of '${guild.name}'.`);
-			}
+			const auth = checkGuildAuth(guild, user, null, "");
+			if (auth.error) return this.errorReply(auth.error);
+			const userMember = auth.userMember;
 
 			const targetMember = guild.members.find(m => m.id === targetId);
 			if (!targetMember) {
@@ -337,10 +333,9 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			const targetId = toID(parts[0]);
 			const roleStr = parts[1];
 
-			const userMember = guild.members.find(m => m.id === user.id);
-			if (!userMember && !user.can('bypassall')) {
-				return this.errorReply(`You are not a member of '${guild.name}'.`);
-			}
+			const auth = checkGuildAuth(guild, user, null, "");
+			if (auth.error) return this.errorReply(auth.error);
+			const userMember = auth.userMember;
 
 			const targetMember = guild.members.find(m => m.id === targetId);
 			if (!targetMember) {
@@ -390,14 +385,9 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			const desc = rest.trim();
 			if (!desc) return this.parse('/help guild setdesc');
 
-			const userMember = guild.members.find(m => m.id === user.id);
-			if (!userMember && !user.can('bypassall')) {
-				return this.errorReply(`You are not a member of '${guild.name}'.`);
-			}
-
-			if (userMember && !['Master', 'Champion', 'Elite'].includes(userMember.role) && !user.can('bypassall')) {
-				return this.errorReply("You do not have permission to change the guild description.");
-			}
+			const auth = checkGuildAuth(guild, user, ['Master', 'Champion', 'Elite'], "change the guild description.");
+			if (auth.error) return this.errorReply(auth.error);
+			const userMember = auth.userMember;
 
 			if (guild.chatroom) {
 				const chatroom = Rooms.get(guild.chatroom as RoomID);
@@ -424,14 +414,9 @@ export const commands: Chat.ChatCommands = wrapCommands({
 				return this.errorReply("Visibility must be 'public' or 'private'.");
 			}
 
-			const userMember = guild.members.find(m => m.id === user.id);
-			if (!userMember && !user.can('bypassall')) {
-				return this.errorReply(`You are not a member of '${guild.name}'.`);
-			}
-
-			if (userMember && !['Master', 'Champion', 'Elite'].includes(userMember.role) && !user.can('bypassall')) {
-				return this.errorReply("You do not have permission to change the guild visibility.");
-			}
+			const auth = checkGuildAuth(guild, user, ['Master', 'Champion', 'Elite'], "change the guild visibility.");
+			if (auth.error) return this.errorReply(auth.error);
+			const userMember = auth.userMember;
 
 			if (guild.visibility === visibilityStr) {
 				return this.errorReply(`Guild visibility is already '${visibilityStr}'.`);
@@ -464,14 +449,9 @@ export const commands: Chat.ChatCommands = wrapCommands({
 				return this.errorReply(`The icon URL must end with an image extension (${validExtensions.join(', ')}).`);
 			}
 
-			const userMember = guild.members.find(m => m.id === user.id);
-			if (!userMember && !user.can('bypassall')) {
-				return this.errorReply(`You are not a member of '${guild.name}'.`);
-			}
-
-			if (userMember && !['Master', 'Champion', 'Elite'].includes(userMember.role) && !user.can('bypassall')) {
-				return this.errorReply("You do not have permission to change the guild icon.");
-			}
+			const auth = checkGuildAuth(guild, user, ['Master', 'Champion', 'Elite'], "change the guild icon.");
+			if (auth.error) return this.errorReply(auth.error);
+			const userMember = auth.userMember;
 
 			await GuildRepository.updateGuildSettings(guild.id, { icon: url, hasSetIcon: true });
 			this.sendReply(`You have successfully updated the icon for '${guild.name}'.`);
@@ -492,14 +472,9 @@ export const commands: Chat.ChatCommands = wrapCommands({
 				return this.errorReply(`The background URL must end with an image extension (${validExtensions.join(', ')}).`);
 			}
 
-			const userMember = guild.members.find(m => m.id === user.id);
-			if (!userMember && !user.can('bypassall')) {
-				return this.errorReply(`You are not a member of '${guild.name}'.`);
-			}
-
-			if (userMember && !['Master', 'Champion', 'Elite'].includes(userMember.role) && !user.can('bypassall')) {
-				return this.errorReply("You do not have permission to change the guild background.");
-			}
+			const auth = checkGuildAuth(guild, user, ['Master', 'Champion', 'Elite'], "change the guild background.");
+			if (auth.error) return this.errorReply(auth.error);
+			const userMember = auth.userMember;
 
 			await GuildRepository.updateGuildSettings(guild.id, { background: url, hasSetBackground: true });
 			this.sendReply(`You have successfully updated the background for '${guild.name}'.`);
@@ -513,14 +488,9 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			const policy = rest.trim().toLowerCase();
 			if (!['open', 'invite-only'].includes(policy)) return this.parse('/help guild setpolicy');
 
-			const userMember = guild.members.find(m => m.id === user.id);
-			if (!userMember && !user.can('bypassall')) {
-				return this.errorReply(`You are not a member of '${guild.name}'.`);
-			}
-
-			if (userMember && !['Master', 'Champion', 'Elite'].includes(userMember.role) && !user.can('bypassall')) {
-				return this.errorReply("You do not have permission to change the join policy.");
-			}
+			const auth = checkGuildAuth(guild, user, ['Master', 'Champion', 'Elite'], "change the join policy.");
+			if (auth.error) return this.errorReply(auth.error);
+			const userMember = auth.userMember;
 
 			if (guild.joinPolicy === policy) {
 				return this.errorReply(`Guild join policy is already '${policy}'.`);
@@ -538,14 +508,9 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			const targetId = toID(rest);
 			if (!targetId) return this.parse('/help guild invite');
 
-			const userMember = guild.members.find(m => m.id === user.id);
-			if (!userMember && !user.can('bypassall')) {
-				return this.errorReply(`You are not a member of '${guild.name}'.`);
-			}
-
-			if (userMember && !['Master', 'Champion', 'Elite'].includes(userMember.role) && !user.can('bypassall')) {
-				return this.errorReply("You do not have permission to invite users.");
-			}
+			const auth = checkGuildAuth(guild, user, ['Master', 'Champion', 'Elite'], "invite users.");
+			if (auth.error) return this.errorReply(auth.error);
+			const userMember = auth.userMember;
 
 			if (guild.members.some(m => m.id === targetId)) {
 				return this.errorReply(`User '${rest}' is already a member of '${guild.name}'.`);
@@ -588,14 +553,9 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			const targetId = toID(rest);
 			if (!targetId) return this.parse('/help guild revokeinvite');
 
-			const userMember = guild.members.find(m => m.id === user.id);
-			if (!userMember && !user.can('bypassall')) {
-				return this.errorReply(`You are not a member of '${guild.name}'.`);
-			}
-
-			if (userMember && !['Master', 'Champion', 'Elite'].includes(userMember.role) && !user.can('bypassall')) {
-				return this.errorReply("You do not have permission to revoke invites.");
-			}
+			const auth = checkGuildAuth(guild, user, ['Master', 'Champion', 'Elite'], "revoke invites.");
+			if (auth.error) return this.errorReply(auth.error);
+			const userMember = auth.userMember;
 
 			const inviteIndex = guild.invited.findIndex(i => i.userId === targetId && i.status === 'pending');
 			if (inviteIndex === -1) {
@@ -675,13 +635,11 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			await setGlobalMemberLimit(limit);
 			this.sendReply(`You have successfully updated the global member limit to ${limit} for all guilds.`);
 			
-			const allGuilds = await GuildRepository.getAllGuilds();
-			for (const guild of allGuilds) {
-				if (guild.chatroom) {
-					const guildRoom = Rooms.get(guild.chatroom as RoomID);
-					if (guildRoom) {
-						guildRoom.add(`|html|<div class="broadcast-green">An administrator has updated the guild member limit to ${limit}!</div>`).update();
-					}
+			const allChatrooms = await GuildRepository.getAllChatrooms();
+			for (const chatroom of allChatrooms) {
+				const guildRoom = Rooms.get(chatroom as RoomID);
+				if (guildRoom) {
+					guildRoom.add(`|html|<div class="broadcast-green">An administrator has updated the guild member limit to ${limit}!</div>`).update();
 				}
 			}
 		},
@@ -736,14 +694,9 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			const targetId = toID(rest);
 			if (!targetId) return this.parse('/help guild kick');
 
-			const userMember = guild.members.find(m => m.id === user.id);
-			if (!userMember && !user.can('bypassall')) {
-				return this.errorReply(`You are not a member of '${guild.name}'.`);
-			}
-
-			if (userMember && !['Master', 'Champion', 'Elite'].includes(userMember.role) && !user.can('bypassall')) {
-				return this.errorReply("You do not have permission to kick users.");
-			}
+			const auth = checkGuildAuth(guild, user, ['Master', 'Champion', 'Elite'], "kick users.");
+			if (auth.error) return this.errorReply(auth.error);
+			const userMember = auth.userMember;
 
 			if (targetId === guild.ownerId) {
 				return this.errorReply("You cannot kick the guild owner.");
@@ -780,14 +733,9 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			const targetId = toID(rest);
 			if (!targetId) return this.parse('/help guild ban');
 
-			const userMember = guild.members.find(m => m.id === user.id);
-			if (!userMember && !user.can('bypassall')) {
-				return this.errorReply(`You are not a member of '${guild.name}'.`);
-			}
-
-			if (userMember && !['Master', 'Champion', 'Elite'].includes(userMember.role) && !user.can('bypassall')) {
-				return this.errorReply("You do not have permission to ban users.");
-			}
+			const auth = checkGuildAuth(guild, user, ['Master', 'Champion', 'Elite'], "ban users.");
+			if (auth.error) return this.errorReply(auth.error);
+			const userMember = auth.userMember;
 
 			if (targetId === guild.ownerId) {
 				return this.errorReply("You cannot ban the guild owner.");
@@ -832,14 +780,9 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			const targetId = toID(rest);
 			if (!targetId) return this.parse('/help guild unban');
 
-			const userMember = guild.members.find(m => m.id === user.id);
-			if (!userMember && !user.can('bypassall')) {
-				return this.errorReply(`You are not a member of '${guild.name}'.`);
-			}
-
-			if (userMember && !['Master', 'Champion', 'Elite'].includes(userMember.role) && !user.can('bypassall')) {
-				return this.errorReply("You do not have permission to unban users.");
-			}
+			const auth = checkGuildAuth(guild, user, ['Master', 'Champion', 'Elite'], "unban users.");
+			if (auth.error) return this.errorReply(auth.error);
+			const userMember = auth.userMember;
 
 			const banIndex = guild.banned.indexOf(targetId);
 			if (banIndex === -1) {
@@ -859,10 +802,8 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			if (!this.runBroadcast()) return;
 			let guild: Guild | undefined;
 			const targetId = toID(target);
-			const allGuilds = await GuildRepository.getAllGuilds();
-
 			if (targetId) {
-				guild = allGuilds.find(g => g.id === targetId);
+				guild = await GuildRepository.getGuildById(targetId);
 				if (!guild) return this.errorReply(`Guild '${target}' not found.`);
 
 				const userMember = guild.members.find(m => m.id === user.id);
@@ -870,7 +811,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 					return this.errorReply(`Guild '${guild.name}' is private. You cannot view its members.`);
 				}
 			} else {
-				guild = allGuilds.find(g => g.members.some(m => m.id === user.id));
+				guild = await GuildRepository.getGuildByMemberId(user.id);
 				if (!guild) return this.parse('/help guild members');
 			}
 
@@ -901,10 +842,8 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			if (!this.runBroadcast()) return;
 			let guild: Guild | undefined;
 			const targetId = toID(target);
-			const allGuilds = await GuildRepository.getAllGuilds();
-
 			if (targetId) {
-				guild = allGuilds.find(g => g.id === targetId);
+				guild = await GuildRepository.getGuildById(targetId);
 				if (!guild) return this.errorReply(`Guild '${target}' not found.`);
 
 				const userMember = guild.members.find(m => m.id === user.id);
@@ -912,7 +851,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 					return this.errorReply(`Guild '${guild.name}' is private. You cannot view its info.`);
 				}
 			} else {
-				guild = allGuilds.find(g => g.members.some(m => m.id === user.id));
+				guild = await GuildRepository.getGuildByMemberId(user.id);
 				if (!guild) return this.parse('/help guild info');
 			}
 
@@ -953,14 +892,9 @@ export const commands: Chat.ChatCommands = wrapCommands({
 
 			if (!rest) return this.parse('/help guild announce');
 
-			const userMember = guild.members.find(m => m.id === user.id);
-			if (!userMember && !user.can('bypassall')) {
-				return this.errorReply(`You are not a member of '${guild.name}'.`);
-			}
-
-			if (userMember && !['Master', 'Champion'].includes(userMember.role) && !user.can('bypassall')) {
-				return this.errorReply("Only the Master or Champions can send guild announcements.");
-			}
+			const auth = checkGuildAuth(guild, user, ['Master', 'Champion'], "Only the Master or Champions can send guild announcements.");
+			if (auth.error) return this.errorReply(auth.error);
+			const userMember = auth.userMember;
 
 			let sentCount = 0;
 			const announceText = `|html|<div style="font-size: 11pt;"><b>[${guild.name} Announcement]</b><br />By ${user.name}<hr />${Utils.escapeHTML(rest)}</div>`;
@@ -981,14 +915,9 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			if (error) return this.errorReply(error);
 			if (!guild) return;
 
-			const userMember = guild.members.find(m => m.id === user.id);
-			if (!userMember && !user.can('bypassall')) {
-				return this.errorReply(`You are not a member of '${guild.name}'.`);
-			}
-
-			if (userMember && !['Master', 'Champion', 'Elite'].includes(userMember.role) && !user.can('bypassall')) {
-				return this.errorReply("Only Elites and above can view the activity log.");
-			}
+			const auth = checkGuildAuth(guild, user, ['Master', 'Champion', 'Elite'], "Only Elites and above can view the activity log.");
+			if (auth.error) return this.errorReply(auth.error);
+			const userMember = auth.userMember;
 
 			const sortedMembers = [...guild.members].sort((a, b) => getLastSeen(b.id) - getLastSeen(a.id));
 
@@ -1030,14 +959,9 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			const days = parseInt(rest);
 			if (isNaN(days) || days <= 0) return this.parse('/help guild purge');
 
-			const userMember = guild.members.find(m => m.id === user.id);
-			if (!userMember && !user.can('bypassall')) {
-				return this.errorReply(`You are not a member of '${guild.name}'.`);
-			}
-
-			if (userMember && !['Master', 'Champion'].includes(userMember.role) && !user.can('bypassall')) {
-				return this.errorReply("Only the Master or Champions can purge inactive members.");
-			}
+			const auth = checkGuildAuth(guild, user, ['Master', 'Champion'], "Only the Master or Champions can purge inactive members.");
+			if (auth.error) return this.errorReply(auth.error);
+			const userMember = auth.userMember;
 
 			const cutoffDate = Date.now() - (days * 24 * 60 * 60 * 1000);
 			const toPurge = [];
@@ -1081,10 +1005,8 @@ export const commands: Chat.ChatCommands = wrapCommands({
 
 		async ladder(target, room, user) {
 			if (!this.runBroadcast()) return;
-			const allGuilds = await GuildRepository.getAllGuilds();
-			if (allGuilds.length === 0) return this.errorReply("There are currently no guilds registered.");
-
-			const sortedGuilds = [...allGuilds].sort((a, b) => b.points - a.points).slice(0, 50);
+			const sortedGuilds = await GuildRepository.getTopGuilds(50);
+			if (sortedGuilds.length === 0) return this.errorReply("There are currently no guilds registered.");
 
 			let html = `<div class="pad" style="max-height: 400px; overflow-y: scroll;">`;
 			html += `<div style="text-align: center; font-weight: bold; font-size: 14pt;">Global Guild Leaderboard</div><hr />`;
@@ -1093,8 +1015,8 @@ export const commands: Chat.ChatCommands = wrapCommands({
 
 			let rank = 1;
 			for (const g of sortedGuilds) {
-				const owner = g.members.find(m => m.id === g.ownerId);
-				const ownerName = owner ? owner.username : g.ownerId;
+				const ownerId = (g as any).ownerId || (g as any).owner_id;
+				const ownerName = ownerId; // Simplified since we don't eager load members anymore for ladder
 
 				html += `<tr style="border-top: 1px solid #ccc;">`;
 				html += `<td style="padding: 4px;"><b>#${rank}</b></td>`;
@@ -1116,22 +1038,8 @@ export const commands: Chat.ChatCommands = wrapCommands({
 
 		async topmembers(target, room, user) {
 			if (!this.runBroadcast()) return;
-			const allGuilds = await GuildRepository.getAllGuilds();
-
-			const allMembers: { username: string, guildName: string, totalPoints: number }[] = [];
-			for (const g of allGuilds) {
-				for (const m of g.members) {
-					allMembers.push({
-						username: m.username,
-						guildName: g.name,
-						totalPoints: m.totalPoints || 0,
-					});
-				}
-			}
-
-			if (allMembers.length === 0) return this.errorReply("There are currently no guild members.");
-
-			const sortedMembers = allMembers.sort((a, b) => b.totalPoints - a.totalPoints).slice(0, 50);
+			const sortedMembers = await GuildRepository.getTopMembers(50);
+			if (sortedMembers.length === 0) return this.errorReply("There are currently no guild members.");
 
 			let html = `<div class="pad" style="max-height: 400px; overflow-y: scroll;">`;
 			html += `<div style="text-align: center; font-weight: bold; font-size: 14pt;">Top Guild Members</div><hr />`;

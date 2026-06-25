@@ -69,10 +69,7 @@ const getSettingsTable = () => PG.getTable<GuildSettingsRow>('guild_settings', '
 const guildCache = new Map<string, Guild>();
 
 export const destroy = () => { 
-	if (listenerClient) {
-		listenerClient.release();
-		listenerClient = null;
-	}
+	// No longer need listenerClient for single process
 };
 
 let initPromise: Promise<void> | null = null;
@@ -149,41 +146,7 @@ export const initDB = async (): Promise<void> => {
 				);
 			`);
 
-			if (!listenerClient) {
-				try { listenerClient = await PG.pool.connect(); } catch(err) { listenerClient = null; return; }
-				await listenerClient.query('LISTEN guild_updates');
-				await listenerClient.query('LISTEN guild_points_update');
-				await listenerClient.query('LISTEN guild_member_points');
-				listenerClient.on('notification', (msg) => {
-					if (msg.channel === 'guild_updates' && msg.payload) {
-						if (msg.payload === 'ALL') {
-							guildCache.clear();
-						} else {
-							guildCache.delete(msg.payload);
-						}
-					} else if (msg.channel === 'guild_points_update' && msg.payload) {
-						try {
-							const data = JSON.parse(msg.payload);
-							const guild = guildCache.get(data.id);
-							if (guild) {
-								guild.points = data.points;
-							}
-						} catch {}
-					} else if (msg.channel === 'guild_member_points' && msg.payload) {
-						try {
-							const data = JSON.parse(msg.payload);
-							const guild = guildCache.get(data.guildId);
-							if (guild) {
-								const member = guild.members.find((m: any) => m.id === data.userId);
-								if (member) {
-									member.points = data.points;
-									member.totalPoints = data.totalPoints;
-								}
-							}
-						} catch {}
-					}
-				});
-			}
+			// Removed LISTEN/NOTIFY as it's unnecessary for single process
 		})();
 	}
 	return initPromise;
@@ -191,7 +154,6 @@ export const initDB = async (): Promise<void> => {
 
 async function invalidateCache(guildId: string) {
 	guildCache.delete(guildId);
-	await PG.query(`SELECT pg_notify('guild_updates', $1)`, [guildId]);
 }
 
 async function reconstructGuild(guildRow: GuildRow): Promise<Guild> {
@@ -261,75 +223,28 @@ export const GuildRepository = {
 		return this.getGuildById(rows[0].guild_id);
 	},
 
-	async getAllGuilds(): Promise<Guild[]> {
+	async getTopGuilds(limit: number) {
 		await initDB();
-		const rows = await getGuildTable().select();
-		const guilds: Guild[] = [];
-		const missingGuilds: GuildRow[] = [];
+		const res = await PG.query('SELECT * FROM guild ORDER BY points DESC LIMIT $1', [limit]);
+		return res.rows as GuildRow[];
+	},
 
-		for (const row of rows) {
-			const guildId = row.id;
-			if (guildCache.has(guildId)) {
-				guilds.push(guildCache.get(guildId)!);
-			} else {
-				missingGuilds.push(row);
-			}
-		}
+	async getTopMembers(limit: number) {
+		await initDB();
+		const res = await PG.query(`
+			SELECT gm.id, gm.username, g.name as "guildName", gm.total_points as "totalPoints" 
+			FROM guild_member gm 
+			JOIN guild g ON gm.guild_id = g.id 
+			ORDER BY gm.total_points DESC 
+			LIMIT $1
+		`, [limit]);
+		return res.rows;
+	},
 
-		if (missingGuilds.length > 0) {
-			const missingIds = missingGuilds.map(g => g.id);
-			
-			// PGTable natively translates arrays in buildWhere() to `IN ($1, $2, ...)`
-			const [membersRes, invitesRes, bansRes] = await Promise.all([
-				getMemberTable().select({ guild_id: missingIds }),
-				getInviteTable().select({ guild_id: missingIds }),
-				getBanTable().select({ guild_id: missingIds })
-			]);
-
-			const membersByGuild = new Map<string, GuildMember[]>();
-			const invitesByGuild = new Map<string, InvitedMember[]>();
-			const bansByGuild = new Map<string, string[]>();
-
-			for (const id of missingIds) {
-				membersByGuild.set(id, []);
-				invitesByGuild.set(id, []);
-				bansByGuild.set(id, []);
-			}
-
-			for (const m of membersRes) {
-				membersByGuild.get(m.guild_id)!.push({
-					id: m.user_id, username: m.username, role: m.role as GuildMember['role'],
-					joinedAt: new Date(Number(m.joined_at)), points: m.points, totalPoints: m.total_points,
-				});
-			}
-
-			for (const i of invitesRes) {
-				invitesByGuild.get(i.guild_id)!.push({
-					userId: i.user_id, invitedAt: new Date(Number(i.invited_at)),
-					expiresAt: new Date(Number(i.expires_at)), invitedBy: i.invited_by, status: i.status as InvitedMember['status'],
-				});
-			}
-
-			for (const b of bansRes) {
-				bansByGuild.get(b.guild_id)!.push(b.user_id);
-			}
-
-			for (const guildRow of missingGuilds) {
-				const members = membersByGuild.get(guildRow.id)!;
-				const guild: Guild = {
-					id: guildRow.id, ownerId: guildRow.owner_id, name: guildRow.name, chatroom: guildRow.chatroom,
-					description: guildRow.description || '', icon: guildRow.icon, background: guildRow.background,
-					visibility: guildRow.visibility as any, joinPolicy: guildRow.join_policy as any, points: guildRow.points,
-					memberLimit: guildRow.member_limit, memberCount: members.length,
-					members, invited: invitesByGuild.get(guildRow.id)!, banned: bansByGuild.get(guildRow.id)!,
-					createdAt: new Date(Number(guildRow.created_at)), updatedAt: new Date(Number(guildRow.updated_at)),
-				};
-				guildCache.set(guild.id, guild);
-				guilds.push(guild);
-			}
-		}
-
-		return guilds;
+	async getAllChatrooms(): Promise<string[]> {
+		await initDB();
+		const res = await PG.query('SELECT chatroom FROM guild');
+		return res.rows.map(r => r.chatroom);
 	},
 
 	async guildExists(guildId: string): Promise<boolean> {
@@ -435,7 +350,6 @@ export const GuildRepository = {
 	},
 
 	async addGuildPoints(guildId: string, points: number): Promise<void> {
-		await initDB();
 		const res = await PG.query(`
 			UPDATE guild 
 			SET points = GREATEST(0, points + $1), 
@@ -444,12 +358,12 @@ export const GuildRepository = {
 			RETURNING points
 		`, [points, Date.now(), guildId]);
 		if (res.rows.length) {
-			await PG.query(`SELECT pg_notify('guild_points_update', $1)`, [JSON.stringify({id: guildId, points: res.rows[0].points})]);
+			const guild = guildCache.get(guildId);
+			if (guild) guild.points = res.rows[0].points;
 		}
 	},
 
 	async addMemberPoints(guildId: string, userId: string, points: number): Promise<void> {
-		await initDB();
 		const res = await PG.query(`
 			UPDATE guild_member 
 			SET points = GREATEST(0, points + $1), 
@@ -458,16 +372,21 @@ export const GuildRepository = {
 			RETURNING points, total_points
 		`, [points, guildId, userId]);
 		if (res.rows.length) {
-			await PG.query(`SELECT pg_notify('guild_member_points', $1)`, [JSON.stringify({guildId, userId, points: res.rows[0].points, totalPoints: res.rows[0].total_points})]);
+			const guild = guildCache.get(guildId);
+			if (guild) {
+				const member = guild.members.find((m: any) => m.id === userId);
+				if (member) {
+					member.points = res.rows[0].points;
+					member.totalPoints = res.rows[0].total_points;
+				}
+			}
 		}
 	},
 
 	async resetAllPoints(): Promise<void> {
-		await initDB();
 		await PG.query('UPDATE guild SET points = 0');
 		await PG.query('UPDATE guild_member SET points = 0, total_points = 0');
 		guildCache.clear();
-		await PG.query(`SELECT pg_notify('guild_updates', 'ALL')`);
 	},
 
 	async createInvite(guildId: string, invite: InvitedMember): Promise<void> {
@@ -605,14 +524,14 @@ export async function getGlobalMemberLimit(): Promise<number> {
 }
 
 export async function setGlobalMemberLimit(limit: number): Promise<void> {
-	await initDB();
-	await getSettingsTable().upsert({ id: 1, global_member_limit: limit }, ['id']);
+		await getSettingsTable().upsert({ id: 1, global_member_limit: limit }, ['id']);
 	globalMemberLimitCache = limit;
 	
 	// Update all existing guilds
 	await PG.query(`UPDATE guild SET member_limit = $1`, [limit]);
 	
-	// Clear cache and broadcast update
+	// Clear cache
 	guildCache.clear();
-	await PG.query(`SELECT pg_notify('guild_updates', 'ALL')`);
 }
+// Init DB immediately so that promises are resolved early
+initDB().catch(() => {});
