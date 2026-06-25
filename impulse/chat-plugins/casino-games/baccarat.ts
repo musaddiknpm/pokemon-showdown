@@ -1,20 +1,11 @@
 import { wrapCommands } from '../../impulse-utils';
 import { getBalance, updateBalance, CURRENCY_NAME } from '../economy/economy';
 import { nameColor } from '../customization/custom-color';
-import { activeCasinoGames } from './shared';
+import { activeCasinoGames, CASINO_ROOM, Suit, Rank, Card, SUITS, RANKS, renderHand } from './shared';
 
-const CASINO_ROOM = 'casino';
 const LOBBY_TIMEOUT = 60 * 1000;
 
-type Suit = '♠' | '♥' | '♣' | '♦';
-type Rank = '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | 'J' | 'Q' | 'K' | 'A';
 type Choice = 'player' | 'banker' | 'tie';
-
-interface Card {
-	suit: Suit;
-	rank: Rank;
-	value: number;
-}
 
 interface Player {
 	id: string;
@@ -36,8 +27,7 @@ interface BaccaratGame {
 
 const activeGames = new Map<string, BaccaratGame>();
 
-const SUITS: Suit[] = ['♠', '♥', '♣', '♦'];
-const RANKS: Rank[] = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+
 
 function drawCard(): Card {
 	const suit = SUITS[Math.floor(Math.random() * SUITS.length)];
@@ -57,22 +47,7 @@ function calculateHandValue(hand: Card[]): number {
 	return total % 10;
 }
 
-function renderCard(card: Card | null): string {
-	if (!card) return `<span class="casino-card hidden">?</span>`;
-	const colorClass = (card.suit === '♥' || card.suit === '♦') ? 'red' : 'black';
-	return `<span class="casino-card ${colorClass}">${card.rank}${card.suit}</span>`;
-}
 
-function renderHand(hand: Card[], compact = false): string {
-	let html = '';
-	for (const card of hand) {
-		const color = (card.suit === '♥' || card.suit === '♦') ? '#F44336' : '#2C3E50';
-		const size = compact ? '12px' : '16px';
-		const padding = compact ? '1px 3px' : '2px 5px';
-		html += `<span style="display:inline-block; border:1px solid #ccc; border-radius:3px; padding:${padding}; margin-right:2px; background:#fff; color:${color}; font-weight:bold; font-size:${size}; box-shadow: 0 1px 2px rgba(0,0,0,0.2);">${card.rank}<span style="font-family: Arial, sans-serif; margin-left:1px;">${card.suit}</span></span>`;
-	}
-	return html;
-}
 
 async function refundAll(game: BaccaratGame, message: string) {
 	for (const p of game.players) {
