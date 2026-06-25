@@ -16,78 +16,57 @@ export const CONFIG = {
 export const CURRENCY_NAME = CONFIG.CURRENCY;
 
 export const initEconomy = async (): Promise<void> => {};
-const balanceCache = new Map<string, number>();
-
 interface EconomyRow {
 	user_id: string;
 	balance: number;
 	last_claim: number | string;
 }
 
-const getEcoTable = () => PG.getTable<EconomyRow>('economy', 'user_id');
-
 export const getBalance = async (userid: string): Promise<number> => {
-	const cached = balanceCache.get(userid);
-	if (cached !== undefined) return cached;
-	
 	await initEconomyDB();
-	const row = await getEcoTable().findById(userid, ['balance']);
-	const balance = row ? Number(row.balance) : CONFIG.STARTING_BALANCE;
-	
-	balanceCache.set(userid, balance);
-	return balance;
+	const row = await PG.getTable<EconomyRow>('economy', 'user_id').findById(userid, ['balance']);
+	return row ? Number(row.balance) : CONFIG.STARTING_BALANCE;
 };
 
 export const setBalance = async (userid: string, amount: number): Promise<void> => {
 	const newBal = Math.max(0, amount);
 	await initEconomyDB();
 	
-	const row = await getEcoTable().upsert(
+	await PG.getTable<EconomyRow>('economy', 'user_id').upsert(
 		{ user_id: userid, balance: newBal, last_claim: 0 },
 		['user_id'],
 		'balance'
 	);
-	
-	if (row) {
-		balanceCache.set(userid, Number(row.balance));
-	}
 };
 
 export const updateBalance = async (userid: string, delta: number): Promise<void> => {
 	await initEconomyDB();
 	
 	// Kept raw SQL: PGTable.update() cannot handle relative mathematical assignment logic.
-	const res = await PG.query<{ balance: number }>(`
+	await PG.query(`
 		INSERT INTO economy (user_id, balance, last_claim)
 		VALUES ($1, GREATEST(0, $2), 0)
 		ON CONFLICT (user_id) DO UPDATE
 			SET balance = GREATEST(0, economy.balance + $3)
-		RETURNING balance
 	`, [userid, delta, delta]);
-	
-	if (res.rows.length > 0) {
-		balanceCache.set(userid, Number(res.rows[0].balance));
-	}
 };
 
-const EconomyManager = {
-	notify(user: User | string, message: string): void {
-		const target = typeof user === 'string' ? Users.get(user) : user;
-		if (target?.connected) target.popup(`|html|${message}`);
-	},
+export function notify(user: User | string, message: string): void {
+	const target = typeof user === 'string' ? Users.get(user) : user;
+	if (target?.connected) target.popup(`|html|${message}`);
+}
 
-	async setDaily(userid: string, timestamp: number): Promise<void> {
-		await initEconomyDB();
-		// Passing only user_id and last_claim ensures the balance column is gracefully ignored on update
-		await getEcoTable().upsert({ user_id: userid, last_claim: timestamp }, ['user_id']);
-	},
+export async function setDaily(userid: string, timestamp: number): Promise<void> {
+	await initEconomyDB();
+	// Passing only user_id and last_claim ensures the balance column is gracefully ignored on update
+	await PG.getTable<EconomyRow>('economy', 'user_id').upsert({ user_id: userid, last_claim: timestamp }, ['user_id']);
+}
 
-	async getLastClaim(userid: string): Promise<number> {
-		await initEconomyDB();
-		const row = await getEcoTable().findById(userid, ['last_claim']);
-		return row ? Number(row.last_claim) : 0;
-	},
-};
+export async function getLastClaim(userid: string): Promise<number> {
+	await initEconomyDB();
+	const row = await PG.getTable<EconomyRow>('economy', 'user_id').findById(userid, ['last_claim']);
+	return row ? Number(row.last_claim) : 0;
+}
 
 void initEconomy().catch(err => Monitor.crashlog(err, 'Economy PG init failed'));
 
@@ -103,7 +82,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 
 	async claimdaily(target, room, user) {
 		const now = Date.now();
-		const lastDaily = await EconomyManager.getLastClaim(user.id);
+		const lastDaily = await getLastClaim(user.id);
 		const remaining = (lastDaily + CONFIG.DAILY_COOLDOWN) - now;
 
 		if (remaining > 0) {
@@ -112,7 +91,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 		}
 
 		const reward = Math.floor(Math.random() * (CONFIG.DAILY_MAX - CONFIG.DAILY_MIN + 1)) + CONFIG.DAILY_MIN;
-		await EconomyManager.setDaily(user.id, now);
+		await setDaily(user.id, now);
 		await updateBalance(user.id, reward);
 
 		const newBal = await getBalance(user.id);
@@ -134,7 +113,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 		await updateBalance(targetId, amount);
 
 		this.sendReplyBox(`Sent <b>${amount}</b> ${CONFIG.CURRENCY} to ${targetName}.`);
-		EconomyManager.notify(targetId, `${nameColor(user.name, true)} sent you <b>${amount}</b> ${CONFIG.CURRENCY}.`);
+		notify(targetId, `${nameColor(user.name, true)} sent you <b>${amount}</b> ${CONFIG.CURRENCY}.`);
 	},
 
 	async givemoney(target, room, user) {
@@ -149,7 +128,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 		this.sendReplyBox(`Gave <b>${amount}</b> ${CONFIG.CURRENCY} to ${targetName}.`);
 
 		Rooms.get('staff')?.add(`|html|<div class="infobox">${user.name} gave <b>${amount}</b> ${CONFIG.CURRENCY} to ${targetName}.</div>`).update();
-		EconomyManager.notify(targetId, `You received <b>${amount}</b> ${CONFIG.CURRENCY} from staff.`);
+		notify(targetId, `You received <b>${amount}</b> ${CONFIG.CURRENCY} from staff.`);
 	},
 
 	async takemoney(target, room, user) {
@@ -164,7 +143,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 		this.sendReplyBox(`Took <b>${amount}</b> ${CONFIG.CURRENCY} from ${targetName}.`);
 
 		Rooms.get('staff')?.add(`|html|<div class="infobox">${user.name} took <b>${amount}</b> ${CONFIG.CURRENCY} from ${targetName}.</div>`).update();
-		EconomyManager.notify(targetId, `Staff took <b>${amount}</b> ${CONFIG.CURRENCY} from your balance.`);
+		notify(targetId, `Staff took <b>${amount}</b> ${CONFIG.CURRENCY} from your balance.`);
 	},
 
 	richu: 'richestusers',
@@ -172,7 +151,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 		if (!this.runBroadcast()) return;
 		await initEconomyDB();
 
-		const rows = await getEcoTable().select({}, ['user_id', 'balance'], { 
+		const rows = await PG.getTable<EconomyRow>('economy', 'user_id').select({}, ['user_id', 'balance'], { 
 			limit: 50, 
 			orderBy: 'balance', 
 			order: 'DESC' 
