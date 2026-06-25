@@ -5,41 +5,38 @@ import { initMiscDB } from './database';
 
 const CACHE_TIME = 5 * 24 * 60 * 60 * 1000; // 5 days
 
-interface AniListCacheRow {
+interface ApiCacheRow {
 	id: string;
 	data: string;
 	timestamp: number | string;
 }
 
-const getCacheTable = () => PG.getTable<AniListCacheRow>('anilist_cache', 'id');
+const getCacheTable = () => PG.getTable<ApiCacheRow>('api_cache', 'id');
 
-interface GameCacheRow {
-	id: string;
-	data: string;
-	timestamp: number | string;
-}
-
-const getGameCacheTable = () => PG.getTable<GameCacheRow>('game_cache', 'id');
-
-interface SongCacheRow {
-	id: string;
-	data: string;
-	timestamp: number | string;
-}
-
-const getSongCacheTable = () => PG.getTable<SongCacheRow>('song_cache', 'id');
-async function fetchAniList(query: string, type: 'ANIME' | 'MANGA') {
-	const cacheId = `${type.toLowerCase()}:${query.toLowerCase()}`;
-	
-	let cached = null;
-	if (PG.isReady) {
-		await initMiscDB();
-		cached = await getCacheTable().findById(cacheId);
-	}
-	
+async function getCached(cacheId: string) {
+	if (!PG.isReady) return null;
+	await initMiscDB();
+	const cached = await getCacheTable().findById(cacheId);
 	if (cached && (Date.now() - Number(cached.timestamp)) < CACHE_TIME) {
 		return JSON.parse(cached.data);
 	}
+	return null;
+}
+
+async function saveCache(cacheId: string, data: any) {
+	if (!PG.isReady) return;
+	await initMiscDB();
+	await getCacheTable().upsert({
+		id: cacheId,
+		data: JSON.stringify(data),
+		timestamp: Date.now(),
+	}, ['id']);
+}
+async function fetchAniList(query: string, type: 'ANIME' | 'MANGA') {
+	const cacheId = `${type.toLowerCase()}:${query.toLowerCase()}`;
+	
+	const cached = await getCached(cacheId);
+	if (cached) return cached;
 
 	const graphqlQuery = `
 	query ($search: String, $type: MediaType) {
@@ -103,13 +100,7 @@ async function fetchAniList(query: string, type: 'ANIME' | 'MANGA') {
 		const data = json.data?.Page?.media?.[0];
 		if (!data) return null;
 
-		if (data && PG.isReady) {
-			await getCacheTable().upsert({
-				id: cacheId,
-				data: JSON.stringify(data),
-				timestamp: Date.now(),
-			}, ['id']);
-		}
+		if (data) await saveCache(cacheId, data);
 
 		return data;
 	} catch (e) {
@@ -185,15 +176,8 @@ function generateDisplay(data: any, type: string) {
 async function fetchGame(query: string) {
 	const cacheId = `game:${query.toLowerCase()}`;
 	
-	let cached = null;
-	if (PG.isReady) {
-		await initMiscDB();
-		cached = await getGameCacheTable().findById(cacheId);
-	}
-	
-	if (cached && (Date.now() - Number(cached.timestamp)) < CACHE_TIME) {
-		return JSON.parse(cached.data);
-	}
+	const cached = await getCached(cacheId);
+	if (cached) return cached;
 
 	if (!Config.rawgApiKey) {
 		return null;
@@ -212,13 +196,7 @@ async function fetchGame(query: string) {
 		const detailsResponse = await Net(`https://api.rawg.io/api/games/${gameId}?key=${Config.rawgApiKey}`).get();
 		const gameData = JSON.parse(detailsResponse);
 
-		if (gameData && PG.isReady) {
-			await getGameCacheTable().upsert({
-				id: cacheId,
-				data: JSON.stringify(gameData),
-				timestamp: Date.now(),
-			}, ['id']);
-		}
+		if (gameData) await saveCache(cacheId, gameData);
 
 		return gameData;
 	} catch (e) {
@@ -286,15 +264,8 @@ function generateGameDisplay(data: any) {
 async function fetchSong(query: string) {
 	const cacheId = `song:${query.toLowerCase()}`;
 	
-	let cached = null;
-	if (PG.isReady) {
-		await initMiscDB();
-		cached = await getSongCacheTable().findById(cacheId);
-	}
-	
-	if (cached && (Date.now() - Number(cached.timestamp)) < CACHE_TIME) {
-		return JSON.parse(cached.data);
-	}
+	const cached = await getCached(cacheId);
+	if (cached) return cached;
 
 	try {
 		const response = await Net(`https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=song&limit=1`).get();
@@ -306,13 +277,7 @@ async function fetchSong(query: string) {
 
 		const songData = data.results[0];
 
-		if (songData && PG.isReady) {
-			await getSongCacheTable().upsert({
-				id: cacheId,
-				data: JSON.stringify(songData),
-				timestamp: Date.now(),
-			}, ['id']);
-		}
+		if (songData) await saveCache(cacheId, songData);
 
 		return songData;
 	} catch (e) {

@@ -26,10 +26,6 @@ export const initMiscDB = async (): Promise<void> => {
 					total_time BIGINT NOT NULL,
 					is_blocked INTEGER DEFAULT 0
 				);
-				CREATE TABLE IF NOT EXISTS poofs (
-					id INTEGER PRIMARY KEY CHECK (id = 1),
-					disabled INTEGER DEFAULT 0
-				);
 				CREATE TABLE IF NOT EXISTS news (
 					id TEXT PRIMARY KEY,
 					title TEXT NOT NULL,
@@ -65,17 +61,7 @@ export const initMiscDB = async (): Promise<void> => {
 					player_cap TEXT NOT NULL,
 					last_tour_time BIGINT NOT NULL
 				);
-				CREATE TABLE IF NOT EXISTS game_cache (
-					id TEXT PRIMARY KEY,
-					data TEXT NOT NULL,
-					timestamp BIGINT NOT NULL
-				);
-				CREATE TABLE IF NOT EXISTS anilist_cache (
-					id TEXT PRIMARY KEY,
-					data TEXT NOT NULL,
-					timestamp BIGINT NOT NULL
-				);
-				CREATE TABLE IF NOT EXISTS song_cache (
+				CREATE TABLE IF NOT EXISTS api_cache (
 					id TEXT PRIMARY KEY,
 					data TEXT NOT NULL,
 					timestamp BIGINT NOT NULL

@@ -41,21 +41,8 @@ const pendingOntimeUpdates = new Map<string, number>();
 let ontimeBatchTimer: NodeJS.Timeout | null = null;
 
 const OntimeManager = {
-	convertTime(ms: number) {
-		const totalSeconds = Math.max(0, Math.floor(ms / 1000));
-		const h = Math.floor(totalSeconds / 3600);
-		const m = Math.floor(totalSeconds / 60) % 60;
-		const s = totalSeconds % 60;
-		return { h, m, s };
-	},
-
 	displayTime(ms: number) {
-		const t = this.convertTime(ms);
-		const parts = [];
-		if (t.h > 0) parts.push(`${t.h.toLocaleString()} ${t.h === 1 ? 'hour' : 'hours'}`);
-		if (t.m > 0) parts.push(`${t.m.toLocaleString()} ${t.m === 1 ? 'minute' : 'minutes'}`);
-		if (t.s > 0) parts.push(`${t.s.toLocaleString()} ${t.s === 1 ? 'second' : 'seconds'}`);
-		return parts.length ? parts.join(', ') : '0 seconds';
+		return Chat.toDurationString(ms, { precision: true }) || '0 seconds';
 	},
 
 	getSessionTime(user: User | undefined) {

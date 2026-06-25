@@ -124,16 +124,7 @@ const EmoteManager = {
 	},
 
 	parseMarkdown(raw: string): string {
-		let out = Utils.escapeHTML(raw).replace(/&#x2f;/g, '/');
-
-		out = out.replace(/``(.+?)``|`(.+?)`/g, (_, a, b) => `<code>${Utils.escapeHTML(a ?? b)}</code>`);
-		out = out.replace(/\*\*(.+?)\*\*|__(.+?)__/g, (_, a, b) => `<b>${a ?? b}</b>`);
-		out = out.replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)|(?<!_)_(?!_)(.+?)(?<!_)_(?!_)/g, (_, a, b) => `<i>${a ?? b}</i>`);
-		out = out.replace(/~~(.+?)~~/g, (_, a) => `<s>${a}</s>`);
-		out = out.replace(/\[([^\]]*)\]\((https:\/\/[^\s)"'<>]+)\)/g, (_, l, u) => `<a href="${Utils.escapeHTML(u)}" rel="noopener" target="_blank">${l}</a>`);
-		out = out.replace(/(?<!href=")https?:\/\/[^\s"'<>)]+/g, m => `<a href="${m}" rel="noopener" target="_blank">${m}</a>`);
-
-		return out;
+		return Chat.formatText(raw, true);
 	},
 
 	parseEmotes(message: string): string | false {

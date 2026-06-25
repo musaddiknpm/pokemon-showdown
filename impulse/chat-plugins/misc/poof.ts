@@ -1,32 +1,9 @@
-import { PG } from '../../pg';
 import { wrapCommands } from '../../impulse-utils';
-import { initMiscDB } from './database';
-
-interface PoofsRow {
-	id: number;
-	disabled: number;
-}
-
-const getPoofsTable = () => PG.getTable<PoofsRow>('poofs', 'id');
 
 let poofDisabled = false;
 
-export const initPoofState = async () => {
-	await initMiscDB();
-	const row = await getPoofsTable().findById(1);
-	if (row) {
-		poofDisabled = row.disabled === 1;
-	} else {
-		await getPoofsTable().insert({ id: 1, disabled: 0 });
-	}
-};
-
-void initPoofState().catch(err => Monitor.crashlog(err, 'Poof PG init failed'));
-
-async function setPoofState(enabled: boolean) {
+function setPoofState(enabled: boolean) {
 	poofDisabled = !enabled;
-	await initMiscDB();
-	await getPoofsTable().updateById(1, { disabled: poofDisabled ? 1 : 0 });
 }
 
 const messages: string[] = [
@@ -113,16 +90,16 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			user.disconnectAll();
 		},
 
-		async on(target: string, room: Room, user: User) {
+		on(target: string, room: Room, user: User) {
 			this.checkCan('bypassall');
-			await setPoofState(true);
+			setPoofState(true);
 			this.sendReply("Poof is now enabled.");
 		},
 		onhelp: ["/poof on - Enable the use /poof command. Requires: &"],
 
-		async off(target: string, room: Room, user: User) {
+		off(target: string, room: Room, user: User) {
 			this.checkCan('bypassall');
-			await setPoofState(false);
+			setPoofState(false);
 			this.sendReply("Poof is now disabled.");
 		},
 		offhelp: ["/poof off - Disable the use of the /poof command. Requires: &"],
