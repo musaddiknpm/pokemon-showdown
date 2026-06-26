@@ -44,19 +44,57 @@ Modest Nature
 **Custom Impulse Mod Sets:**
 When utilizing the custom server mechanics, you can add `HP`, `Status`, `BST`, and `HPX` lines directly into the export format:
 
+The beta client (`https://psim.us/beta`) uses a modified version of this format. It looks like this:
+
 ```
-Raid Boss (Snorlax) @ Figy Berry
-Ability: Gluttony
-EVs: 252 HP / 252 Def / 4 SpD
-Impish Nature
-HP: 50%
-Status: brn
-BST: 50, 50, 0, 0, 0
-HPX: 10
-- Curse
-- Body Slam
-- Earthquake
-- Rest
+Articuno
+[Pressure] @ Leftovers
+- Ice Beam
+- Hurricane
+- Substitute
+- Roost
+EVs: 252 HP / - Atk / 252+ SpA / 4 SpD (Modest)
+IVs: 30 SpA / 30 SpD
+
+Ludicolo
+[Swift Swim] @ Life Orb
+- Surf
+- Giga Drain
+- Ice Beam
+- Rain Dance
+EVs: 4 HP / - Atk / 252+ SpA / 252 Spe (Modest)
+
+Volbeat (M)
+[Prankster] @ Damp Rock
+- Tail Glow
+- Baton Pass
+- Encore
+- Rain Dance
+EVs: 248 HP / - Atk / 252+ Def / 8 SpD (Bold)
+
+Seismitoad
+[Swift Swim] @ Life Orb
+- Hydro Pump
+- Earth Power
+- Stealth Rock
+- Rain Dance
+EVs: - Atk / 252+ SpA / 4 SpD / 252 Spe (Modest)
+
+Alomomola
+[Regenerator] @ Damp Rock
+- Wish
+- Protect
+- Toxic
+- Rain Dance
+EVs: 252 HP / - Atk / 252+ Def / 4 SpD (Bold)
+
+Armaldo
+[Swift Swim] @ Leftovers
+- X-Scissor
+- Stone Edge
+- Aqua Tail
+- Rapid Spin
+EVs: 128 HP / 252+ Atk / 4 Def / - SpA / 124 Spe (Adamant)
 ```
 
 ### The Nickname Hack
