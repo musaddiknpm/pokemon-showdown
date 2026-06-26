@@ -73,9 +73,8 @@ export async function getLogs(): Promise<LogEntry[]> {
 }
 export async function cleanLogs(): Promise<void> {
 	await initEconomyDB();
-	// Kept raw SQL: PGTable.delete() evaluates with strict equality or 'IN', not '<' inequalities.
 	const cutoff = Date.now() - (7 * 24 * 60 * 60 * 1000);
-	await PG.execute('DELETE FROM global_shop_log WHERE timestamp < $1', [cutoff]);
+	await PG.getTable<GlobalShopLogRow>('global_shop_log', 'id').delete({ timestamp: { lt: cutoff } });
 }
 
 export const commands: Chat.ChatCommands = wrapCommands({

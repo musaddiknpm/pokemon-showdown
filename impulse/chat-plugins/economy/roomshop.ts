@@ -120,7 +120,7 @@ export async function getLogs(roomid: string): Promise<LogEntry[]> {
 export async function cleanLogs(roomid: string): Promise<void> {
 	await initEconomyDB();
 	const cutoff = Date.now() - (7 * 24 * 60 * 60 * 1000);
-	await PG.execute('DELETE FROM room_shop_log WHERE room_id = $1 AND timestamp < $2', [roomid, cutoff]);
+	await PG.getTable<RoomShopLogRow>('room_shop_log', 'id').delete({ room_id: roomid, timestamp: { lt: cutoff } });
 }
 
 export const commands: Chat.ChatCommands = wrapCommands({
