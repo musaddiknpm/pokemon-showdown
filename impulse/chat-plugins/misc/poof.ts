@@ -1,5 +1,3 @@
-import { wrapCommands } from '../../impulse-utils';
-
 let poofDisabled = false;
 
 function setPoofState(enabled: boolean) {
@@ -72,7 +70,7 @@ const formatMessage = (message: string, userName: string): string => {
 	return formattedMessage.replace(/{{user}}/g, userName);
 };
 
-export const commands: Chat.ChatCommands = wrapCommands({
+export const commands: Chat.ChatCommands = {
 	poof: {
 		''(target: string, room: Room, user: User): void {
 			if (poofDisabled) {
@@ -121,4 +119,4 @@ export const commands: Chat.ChatCommands = wrapCommands({
 	poofon: 'poof on',
 	poofoff: 'poof off',
 	nopoof: 'poof off',
-});
+};
