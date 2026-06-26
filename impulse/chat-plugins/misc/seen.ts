@@ -88,8 +88,7 @@ const SeenManager = {
 		
 		if (removed > 0) {
 			await initMiscDB();
-			// Kept Raw SQL: Requires inequality operator (<), which PGTable.delete() does not parse
-			await PG.query('DELETE FROM seen_users WHERE last_seen < $1', [cutoff]);
+			await getSeenTable().delete({ last_seen: { lt: cutoff } });
 		}
 		
 		return removed;
