@@ -77,7 +77,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 		
 		definition = escapeHTML(definition).replace(/\r\n/g, '<br />').replace(/\n/g, '<br />');
 
-		this.sendReplyBox(`<div style="max-height: 280px; overflow: auto;"><b>${escapeHTML(word)}:</b><br />${definition}</div>`);
+		this.sendReplyBox(`<div style="max-height: 250px; overflow: auto;"><b>${escapeHTML(word)}:</b><br />${definition}</div>`);
 	},
 	udhelp: [`/ud [word] - Search for the definition of a word on Urban Dictionary.`],
 });
