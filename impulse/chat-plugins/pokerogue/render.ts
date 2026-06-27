@@ -1,4 +1,4 @@
-import { Utils } from '../../../lib';
+import { escapeHTML } from '../../../lib/utils';
 import { nameColor } from '../customization/custom-color';
 import { type PokemonEntry, type PokeRogueState, type StatID, type StatTable } from './types';
 import { getStarterCost } from './starter-data';
@@ -75,7 +75,7 @@ export function getSprite(species: string, size = 80, shiny = false, className =
 	const id = toID(species);
 	const sp = Dex.species.get(id);
 	const name = sp.name || species;
-	const altName = Utils.escapeHTML(name);
+	const altName = escapeHTML(name);
 	const rawId = (sp.exists ? (sp.spriteid || id) : id);
 	const spriteId = SPRITE_ID_OVERRIDES[id] || SPRITE_ID_OVERRIDES[rawId] || rawId;
 	const dir = shiny ? 'home-centered-shiny' : 'home-centered';
@@ -91,7 +91,7 @@ export function getShopItemIcon(icon: string, size = 20): string {
 	const url = file ?
 		SPRITE_BASE + file :
 		`https://www.smogon.com/forums/media/minisprites/${itemURLFormat(icon)}.png`;
-	return `<img src="${Utils.escapeHTML(url)}" width="${size}" height="${size}" class="pr-shop-icon">`;
+	return `<img src="${escapeHTML(url)}" width="${size}" height="${size}" class="pr-shop-icon">`;
 }
 
 export const SPRITE_BASE = 'https://raw.githubusercontent.com/PrinceSky-Git/pokemon-showdown/master/impulse/chat-plugins/pokerogue/sprites/';
@@ -150,7 +150,7 @@ export function getSpriteWithBall(species: string, size = 80, ball?: string, shi
 	const ballInfo = getPokeballInfo(species, ball);
 	return `<div class="pr-sprite-wrap" style="width:${size}px;height:${size}px;flex-shrink:0;margin:0 auto;">` +
 		getSprite(species, size, shiny) +
-		`<img src="${ballInfo.src}" alt="${Utils.escapeHTML(ballInfo.alt)}" class="pr-pokeball-overlay" />` +
+		`<img src="${ballInfo.src}" alt="${escapeHTML(ballInfo.alt)}" class="pr-pokeball-overlay" />` +
 		`</div>`;
 }
 
@@ -195,15 +195,15 @@ export function renderCard(content: string, borderColor: string, extraStyle = ''
 export function renderCharacterDialogView(config: DialogConfig): string {
 	const border = config.borderColor || '#8ab4f8';
 	let buf = `<div style="text-align:center; padding: 40px 10px;">`;
-	buf += `<div style="font-size:16px; font-weight:bold; margin-bottom: 6px;">${Utils.escapeHTML(config.title)}</div>`;
+	buf += `<div style="font-size:16px; font-weight:bold; margin-bottom: 6px;">${escapeHTML(config.title)}</div>`;
 	if (config.spriteUrl) {
 		buf += `<div style="margin-bottom: 8px;">`;
-		buf += `<img src="${Utils.escapeHTML(config.spriteUrl)}" alt="${Utils.escapeHTML(config.title)}" style="width: 96px; height: 96px; display: inline-block;">`;
+		buf += `<img src="${escapeHTML(config.spriteUrl)}" alt="${escapeHTML(config.title)}" style="width: 96px; height: 96px; display: inline-block;">`;
 		buf += `</div>`;
 	}
 	if (config.dialog) {
 		buf += `<div style="background: rgba(0,0,0,0.3); padding: 10px 16px; border-radius: 8px; font-style: italic; max-width: 300px; margin: 0 auto 16px auto; border-left: 4px solid ${border}; font-size: 12px; line-height: 1.4; display: block;">`;
-		buf += `"${Utils.escapeHTML(config.dialog)}"`;
+		buf += `"${escapeHTML(config.dialog)}"`;
 		buf += `</div>`;
 	}
 	buf += `<div>${config.actionsHtml}</div>`;
@@ -280,7 +280,7 @@ export function renderMoveList(moves: string[]): string {
 		const moveType = dexMove.type || 'Normal';
 		const color = typeColor(moveType);
 		const textColor = getContrastColor(color);
-		return `<span class="pr-move-pill" style="background:#${color};color:#${textColor}">${Utils.escapeHTML(moveName)}</span>`;
+		return `<span class="pr-move-pill" style="background:#${color};color:#${textColor}">${escapeHTML(moveName)}</span>`;
 	}).join('');
 	return `<div class="pr-move-list">${pills}</div>`;
 }
@@ -365,7 +365,7 @@ export function renderIncubatorView(user: User): string {
 				const floorText = egg.wavesRemaining === 1 ? 'Floor' : 'Floors';
 
 				buf += `<div style="font-size:9px; color:${tierColor}; font-weight:bold;">${egg.wavesRemaining} ${floorText}</div>`;
-				buf += `<img src="${Utils.escapeHTML(eggImageUrl)}" alt="${egg.tier} Egg" class="pr-mon-img" style="width:40px;height:40px;display:block;margin:0 auto;" />`;
+				buf += `<img src="${escapeHTML(eggImageUrl)}" alt="${egg.tier} Egg" class="pr-mon-img" style="width:40px;height:40px;display:block;margin:0 auto;" />`;
 			}
 			buf += `</td>`;
 		}
@@ -398,7 +398,7 @@ export function renderHatchedEggsView(state: PokeRogueState): string {
 				else if (mon.eggTier === 'Legendary') tierColor = '#fca5a5';
 
 				buf += `<div style="font-size:9px;margin:2px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${tierColor};font-weight:bold;">`;
-				buf += Utils.escapeHTML(sp.name);
+				buf += escapeHTML(sp.name);
 				if (isShiny) buf += ` <span style="color:#fda085"></span>`;
 				buf += `</div>`;
 				buf += getSprite(sp.id, 40, isShiny);
@@ -420,8 +420,8 @@ function renderTeamTableRowStats(mon: PokemonEntry, spData: any, nature: string,
 	if (mon.status) {
 		buf += `<div style="font-size:9px;color:#ff9800;font-weight:500;margin-top:2px">${mon.status.toUpperCase()}</div>`;
 	}
-	if (nature) buf += `<div class="pr-ct-ability" style="margin-top:4px">Nature: <b>${Utils.escapeHTML(nature)}</b></div>`;
-	if (ability) buf += `<div class="pr-ct-ability" style="margin-top:4px">Ability: <b>${Utils.escapeHTML(ability)}</b></div>`;
+	if (nature) buf += `<div class="pr-ct-ability" style="margin-top:4px">Nature: <b>${escapeHTML(nature)}</b></div>`;
+	if (ability) buf += `<div class="pr-ct-ability" style="margin-top:4px">Ability: <b>${escapeHTML(ability)}</b></div>`;
 	buf += `<div class="pr-ct-stats" style="margin-top:4px">${renderBaseStatsInline(bs)}</div>`;
 	return buf;
 }
@@ -458,7 +458,7 @@ export function renderTeamTableRow(mon: PokemonEntry, actionButton?: string, gen
 
 	if (mon.heldItem) {
 		const dexHeld = Dex.items.get(mon.heldItem);
-		buf += `<div class="pr-item-tag">${Utils.escapeHTML(dexHeld.name || mon.heldItem)}</div>`;
+		buf += `<div class="pr-item-tag">${escapeHTML(dexHeld.name || mon.heldItem)}</div>`;
 	}
 
 	buf += renderTeamTableRowStats(mon, spData, nature, ability, bs);
@@ -492,8 +492,8 @@ function renderDraftPendingRewards(state: PokeRogueState, tierColors: Record<str
 
 		buf += `<tr style="border-bottom:1px solid rgba(150,150,150,0.1);">`;
 		buf += `<td class="pr-td-icon" style="padding:4px; width:18px;">${getShopItemIcon(item.icon, 16)}</td>`;
-		buf += `<td class="pr-td-name" style="padding:4px; font-weight:bold; color:${rowColor}; white-space:nowrap;">${Utils.escapeHTML(item.name)}</td>`;
-		buf += `<td class="pr-td-desc" style="padding:4px; font-size:10px; text-align:left;">${Utils.escapeHTML(item.desc)}</td>`;
+		buf += `<td class="pr-td-name" style="padding:4px; font-weight:bold; color:${rowColor}; white-space:nowrap;">${escapeHTML(item.name)}</td>`;
+		buf += `<td class="pr-td-desc" style="padding:4px; font-size:10px; text-align:left;">${escapeHTML(item.desc)}</td>`;
 		buf += `<td class="pr-td-action" style="padding:4px; text-align:right;">`;
 		buf += renderBtn(`/pokerogue draft ${i + 1}`, 'Take', 'pr-pick-btn', 'padding:2px 6px; font-size:10px; min-width:45px;');
 		if (state.keyItems?.['Lock Capsule']) {
@@ -522,8 +522,8 @@ function renderDraftShop(state: PokeRogueState, currentMoney: number): string {
 
 		buf += `<tr style="border-bottom:1px solid rgba(150,150,150,0.1);">`;
 		buf += `<td class="pr-td-icon" style="padding:4px; width:18px;">${getShopItemIcon(item.icon, 16)}</td>`;
-		buf += `<td class="pr-td-name" style="padding:4px; font-weight:500; white-space:nowrap;">${Utils.escapeHTML(item.name)}</td>`;
-		buf += `<td class="pr-td-desc" style="padding:4px; font-size:10px; text-align:left;">${Utils.escapeHTML(item.desc)}</td>`;
+		buf += `<td class="pr-td-name" style="padding:4px; font-weight:500; white-space:nowrap;">${escapeHTML(item.name)}</td>`;
+		buf += `<td class="pr-td-desc" style="padding:4px; font-size:10px; text-align:left;">${escapeHTML(item.desc)}</td>`;
 		buf += `<td class="pr-td-cost" style="padding:4px; white-space:nowrap; color:#fac000;">$${price}</td>`;
 		buf += `<td class="pr-td-action" style="padding:4px; text-align:right;">`;
 		buf += renderBtn(canBuy ? `/pokerogue buyshop ${key}` : null, canBuy ? 'Buy' : 'Need $', 'pr-shop-buy', 'padding:2px 6px; font-size:10px; min-width:45px;', !canBuy);
@@ -581,8 +581,8 @@ export function renderPendingChoice(state: PokeRogueState): string {
 
 		let flexHtml = `<div class="pr-ct-name" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">${sp.name}</div>`;
 		flexHtml += `<div class="pr-types">${renderTypeBadge(sp.types ?? [])}</div><div class="pr-ct-stats">${renderBaseStatsInline(bs)}</div>`;
-		flexHtml += `<div class="pr-ct-ability" style="margin-top:2px">Nature: <b>${Utils.escapeHTML(nature)}</b></div>`;
-		flexHtml += `<div class="pr-ct-ability" style="margin-top:2px">Ability: <b>${Utils.escapeHTML(ability)}</b></div>`;
+		flexHtml += `<div class="pr-ct-ability" style="margin-top:2px">Nature: <b>${escapeHTML(nature)}</b></div>`;
+		flexHtml += `<div class="pr-ct-ability" style="margin-top:2px">Ability: <b>${escapeHTML(ability)}</b></div>`;
 		if (displayMoves.length) flexHtml += renderMoveList(displayMoves);
 
 		buf += renderChoiceRow(getSpriteWithBall(sp.id, 52), flexHtml, renderBtn(`/pokerogue choose ${i + 1}`, 'Pick', 'pr-pick-btn'));
@@ -606,7 +606,7 @@ function renderSelectedStarters(state: PokeRogueState): string {
 				const spData = Dex.species.get(mon.species);
 
 				buf += `<div style="font-size:9px;margin:2px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">`;
-				buf += Utils.escapeHTML(spData.name);
+				buf += escapeHTML(spData.name);
 				if (mon.shiny) buf += ` <span style="color:#fda085"></span>`;
 				buf += `</div>`;
 				buf += `<div style="font-size:9px; color:#fac000;">Cost: ${cost}</div>`;
@@ -625,7 +625,7 @@ function renderSelectedStarters(state: PokeRogueState): string {
 
 function renderStarterSearchForm(displaySearch: string): string {
 	let buf = `<form data-submitsend="/pokerogue startersearch {data}" style="text-align:center;margin-bottom:12px">`;
-	buf += `<input name="data" value="${Utils.escapeHTML(displaySearch)}" placeholder="Name, type, 'shiny', 'egg', 'cost+', 'cost-'" ` +
+	buf += `<input name="data" value="${escapeHTML(displaySearch)}" placeholder="Name, type, 'shiny', 'egg', 'cost+', 'cost-'" ` +
 		`style="padding:5px 10px;border-radius:6px;border:1px solid rgba(150,150,150,0.4);background:rgba(0,0,0,0.2);color:inherit;font-size:12px;width:240px;" />`;
 	buf += `&nbsp;&nbsp;<button type="submit" class="pr-btn" style="font-size:11px;padding:5px 10px;">Search</button>`;
 	if (displaySearch) {
@@ -664,7 +664,7 @@ function renderStarterGrid(paginated: string[], pending: string[], userData: any
 					const isAlreadySelected = state.team?.some(m => toID(m.species) === sid);
 
 					buf += `<div style="font-size:9px;margin:2px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">`;
-					buf += Utils.escapeHTML(sp.name);
+					buf += escapeHTML(sp.name);
 					if (isShiny) buf += ` <span style="color:#fda085"></span>`;
 					buf += `</div>`;
 					buf += `<div style="font-size:9px; color:#fac000;">Cost: ${cost}</div>`;
@@ -732,7 +732,7 @@ export function renderStarterSelectionView(state: PokeRogueState, user: User): s
 	if (state.team && state.team.length > 0) buf += renderSelectedStarters(state);
 	buf += renderStarterSearchForm(state.starterSearch || '');
 
-	if (filtered.length === 0) return buf + `<div style="text-align:center;padding:16px;color:#888;">No Pokémon found for "<b>${Utils.escapeHTML(state.starterSearch || '')}</b>".</div>`;
+	if (filtered.length === 0) return buf + `<div style="text-align:center;padding:16px;color:#888;">No Pokémon found for "<b>${escapeHTML(state.starterSearch || '')}</b>".</div>`;
 
 	const ITEMS_PER_PAGE = 40;
 	const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
@@ -778,11 +778,11 @@ export function renderPendingMoves(state: PokeRogueState): string {
 
 	buf += `<div class="pr-sv-move" style="border-left:3px solid ${newMoveColor};margin-bottom:14px;background:rgba(138,180,248,0.08)">`;
 	buf += `<div class="pr-sv-move-top">`;
-	buf += `<b class="pr-sv-move-name" style="color:#c4a8ff">${Utils.escapeHTML(newMove.name)}</b>`;
+	buf += `<b class="pr-sv-move-name" style="color:#c4a8ff">${escapeHTML(newMove.name)}</b>`;
 	buf += `<span class="pr-type" style="background:${newMoveColor};color:#fff;font-size:9px">${newMove.type}</span>`;
 	buf += `</div>`;
 	buf += `<div class="pr-sv-move-meta">${newMoveCatIcon} ${newMove.category} &nbsp;·&nbsp; Pwr: <b>${newMove.basePower || '—'}</b> &nbsp;·&nbsp; Acc: <b>${newMove.accuracy === true ? '—' : (newMove.accuracy || '—')}</b> &nbsp;·&nbsp; Pri: <b>${newMove.priority > 0 ? `+${newMove.priority}` : newMove.priority}</b> &nbsp;·&nbsp; PP: <b>${newMoveMaxPp}</b></div>`;
-	if (newMove.shortDesc || newMove.desc) buf += `<div class="pr-sv-subdesc" style="margin-top:3px">${Utils.escapeHTML(newMove.shortDesc || newMove.desc)}</div>`;
+	if (newMove.shortDesc || newMove.desc) buf += `<div class="pr-sv-subdesc" style="margin-top:3px">${escapeHTML(newMove.shortDesc || newMove.desc)}</div>`;
 	buf += `</div>`;
 
 	buf += `<div style="font-size:11px;color:#aaa;margin-bottom:6px">Choose a move to forget:</div>`;
@@ -798,11 +798,11 @@ export function renderPendingMoves(state: PokeRogueState): string {
 		buf += `<div style="display:flex;align-items:stretch;gap:6px;margin-bottom:6px">`;
 		buf += `<div class="pr-sv-move" style="border-left:3px solid ${mColor};flex:1;margin-bottom:0">`;
 		buf += `<div class="pr-sv-move-top">`;
-		buf += `<b class="pr-sv-move-name">${Utils.escapeHTML(oldMove.name)}</b>`;
+		buf += `<b class="pr-sv-move-name">${escapeHTML(oldMove.name)}</b>`;
 		buf += `<span class="pr-type" style="background:${mColor};color:#fff;font-size:9px">${oldMove.type}</span>`;
 		buf += `</div>`;
 		buf += `<div class="pr-sv-move-meta">${catIcon} ${oldMove.category} &nbsp;·&nbsp; Pwr: <b>${oldMove.basePower || '—'}</b> &nbsp;·&nbsp; Acc: <b>${oldMove.accuracy === true ? '—' : (oldMove.accuracy || '—')}</b> &nbsp;·&nbsp; Pri: <b>${oldMove.priority > 0 ? `+${oldMove.priority}` : oldMove.priority}</b> &nbsp;·&nbsp; PP: <b>${curPp}/${maxPp}</b></div>`;
-		if (moveDesc) buf += `<div class="pr-sv-subdesc" style="margin-top:3px">${Utils.escapeHTML(moveDesc)}</div>`;
+		if (moveDesc) buf += `<div class="pr-sv-subdesc" style="margin-top:3px">${escapeHTML(moveDesc)}</div>`;
 		buf += `</div>`;
 		buf += `<div style="display:flex;gap:8px;margin-left:auto">`;
 		buf += renderBtn(`/pokerogue resolve learnmove ${i + 1}`, 'Forget', 'pr-pick-btn');
@@ -818,7 +818,7 @@ export function renderItemOptions(state: PokeRogueState): string {
 	let buf = `<h2 class="pr-choice-heading">Choose an item!</h2><div class="pr-choice-grid">`;
 	for (const itemName of state.itemOptions!) {
 		const dexItem = Dex.items.get(itemName);
-		const flexHtml = `<div style="display:flex;align-items:center;gap:8px">${getShopItemIcon(itemURLFormat(itemName), 24)}<span style="font-size:13px;font-weight:500">${Utils.escapeHTML(dexItem.name || itemName)}</span></div>`;
+		const flexHtml = `<div style="display:flex;align-items:center;gap:8px">${getShopItemIcon(itemURLFormat(itemName), 24)}<span style="font-size:13px;font-weight:500">${escapeHTML(dexItem.name || itemName)}</span></div>`;
 		buf += renderChoiceRow('', flexHtml, renderBtn(`/pokerogue resolve pickitem ${toID(itemName)}`, 'Pick', 'pr-pick-btn'), 'justify-content:space-between');
 	}
 	buf += renderBtn('/pokerogue resolve pickitem skip', 'Skip', 'pr-btn', 'width:100%;padding:8px;margin-top:2px') + `</div>`;
@@ -871,7 +871,7 @@ function renderGiveItemChoices(state: PokeRogueState, pendingItemId: string, dex
 
 		let flexHtml = `<span style="font-size:12px;font-weight:500">${spName}</span> <span style="font-size:10px;color:#888">Lv. ${mon.level}${reason ? ` <span style="color:#f87171">(${reason})</span>` : ''}</span>`;
 
-		if (mon.heldItem) flexHtml += `<div style="font-size:9px;color:#8ab4f8">Holds: ${Utils.escapeHTML(Dex.items.get(mon.heldItem).name || mon.heldItem)}</div>`;
+		if (mon.heldItem) flexHtml += `<div style="font-size:9px;color:#8ab4f8">Holds: ${escapeHTML(Dex.items.get(mon.heldItem).name || mon.heldItem)}</div>`;
 
 		if (isEvoAble || (state.pendingItemIsMega && isCompatible) || (state.pendingItemIsGmax && isCompatible)) {
 			flexHtml += `<div style="font-size:10px;color:#4caf50;font-weight:bold;margin-top:2px;letter-spacing:0.5px;">ABLE!</div>`;
@@ -892,7 +892,7 @@ export function renderGiveItem(state: PokeRogueState): string {
 	if (state.pendingItemIsMega) actionVerb = 'Mega Evolve';
 	if (state.pendingItemIsGmax) actionVerb = 'Gigantamax';
 
-	let buf = `<h2 class="pr-choice-heading">${actionVerb} ${Utils.escapeHTML(dexItem.name || state.pendingItemName!)}?</h2>`;
+	let buf = `<h2 class="pr-choice-heading">${actionVerb} ${escapeHTML(dexItem.name || state.pendingItemName!)}?</h2>`;
 	buf += `<div style="font-size:12px;color:#aaa;margin-bottom:8px">Choose a Pokémon:</div>`;
 
 	buf += renderGiveItemChoices(state, pendingItemId, dexItem, actionVerb);
@@ -989,7 +989,7 @@ export function renderConsumable(state: PokeRogueState): string {
 	const consumableItem = activeShop[state.purchasedItem!];
 	const consumableType = state.pendingConsumableType!;
 
-	let buf = `<h2 class="pr-choice-heading">Use ${Utils.escapeHTML(consumableItem?.name ?? state.purchasedItem!)}?</h2>`;
+	let buf = `<h2 class="pr-choice-heading">Use ${escapeHTML(consumableItem?.name ?? state.purchasedItem!)}?</h2>`;
 	buf += `<div style="font-size:12px;color:#aaa;margin-bottom:8px">Choose a Pokémon:</div>`;
 
 	buf += renderConsumableChoices(state, consumableType, consumableItem);
@@ -1030,7 +1030,7 @@ export function renderReleaseMon(state: PokeRogueState): string {
 
 	if (mon.heldItem) {
 		const itemName = Dex.items.get(mon.heldItem).name;
-		buf += `<div style="font-size:11px;color:#ff9800;margin-top:6px;font-weight:500;">Warning: It is holding ${Utils.escapeHTML(itemName)} which will be permanently lost!</div>`;
+		buf += `<div style="font-size:11px;color:#ff9800;margin-top:6px;font-weight:500;">Warning: It is holding ${escapeHTML(itemName)} which will be permanently lost!</div>`;
 	}
 
 	buf += `</div><center>`;
@@ -1228,11 +1228,11 @@ export function buildStatsViewModel(state: PokeRogueState, user: User, slot: num
 function renderStatsTab0(vm: StatsViewModel, state: PokeRogueState, slot: number): string {
 	let buf = `<div class="pr-sv-row"><span class="pr-sv-row-label">Ability</span><div class="pr-sv-row-val">`;
 	if (vm.showAbilityArrows) {
-		buf += `<b>${Utils.escapeHTML(vm.abilityName)}</b>&nbsp;&nbsp;&nbsp;${renderBtn(`/pokerogue cyclestarter ability next ${slot}`, 'Change', 'pr-btn', 'font-size:8px;padding:3px 6px')}`;
+		buf += `<b>${escapeHTML(vm.abilityName)}</b>&nbsp;&nbsp;&nbsp;${renderBtn(`/pokerogue cyclestarter ability next ${slot}`, 'Change', 'pr-btn', 'font-size:8px;padding:3px 6px')}`;
 	} else {
-		buf += `<b>${Utils.escapeHTML(vm.abilityName)}</b>`;
+		buf += `<b>${escapeHTML(vm.abilityName)}</b>`;
 	}
-	if (vm.abilityDesc) buf += `<div class="pr-sv-subdesc">${Utils.escapeHTML(vm.abilityDesc)}</div>`;
+	if (vm.abilityDesc) buf += `<div class="pr-sv-subdesc">${escapeHTML(vm.abilityDesc)}</div>`;
 	buf += `</div></div>`;
 
 	let natureSuffix = `<span class="pr-sv-subdesc"></span>`;
@@ -1241,16 +1241,16 @@ function renderStatsTab0(vm: StatsViewModel, state: PokeRogueState, slot: number
 	}
 	buf += `<div class="pr-sv-row"><span class="pr-sv-row-label">Nature</span><div class="pr-sv-row-val">`;
 	if (vm.showNatureArrows) {
-		buf += `<b>${Utils.escapeHTML(vm.natureName)}</b>&nbsp;&nbsp;${natureSuffix}&nbsp;&nbsp;&nbsp;${renderBtn(`/pokerogue cyclestarter nature next ${slot}`, 'Change', 'pr-btn', 'font-size:8px;padding:3px 6px')}`;
+		buf += `<b>${escapeHTML(vm.natureName)}</b>&nbsp;&nbsp;${natureSuffix}&nbsp;&nbsp;&nbsp;${renderBtn(`/pokerogue cyclestarter nature next ${slot}`, 'Change', 'pr-btn', 'font-size:8px;padding:3px 6px')}`;
 	} else {
-		buf += `<b>${Utils.escapeHTML(vm.natureName)}</b>&nbsp;&nbsp;${natureSuffix}`;
+		buf += `<b>${escapeHTML(vm.natureName)}</b>&nbsp;&nbsp;${natureSuffix}`;
 	}
 	buf += `</div></div>`;
 
 	buf += `<div class="pr-sv-row"><span class="pr-sv-row-label">Item</span><div class="pr-sv-row-val">`;
 	if (vm.heldItem) {
-		buf += `<div style="display:flex; justify-content:space-between; align-items:center;"><div>${getShopItemIcon(vm.heldItem.name, 14)} <b>${Utils.escapeHTML(vm.heldItem.name)}</b>`;
-		if (vm.heldItem.shortDesc) buf += `<div class="pr-sv-subdesc">${Utils.escapeHTML(vm.heldItem.shortDesc)}</div>`;
+		buf += `<div style="display:flex; justify-content:space-between; align-items:center;"><div>${getShopItemIcon(vm.heldItem.name, 14)} <b>${escapeHTML(vm.heldItem.name)}</b>`;
+		if (vm.heldItem.shortDesc) buf += `<div class="pr-sv-subdesc">${escapeHTML(vm.heldItem.shortDesc)}</div>`;
 		buf += `</div>${renderBtn(`/pokerogue unequip ${slot + 1}`, 'Take Item', 'pr-shop-buy', 'padding:5px 10px; font-size:11px; margin-left: 10px; white-space:nowrap;')}</div>`;
 	} else {
 		buf += `<span style="color:#aaa">None</span>`;
@@ -1271,12 +1271,12 @@ function renderStatsTab0(vm: StatsViewModel, state: PokeRogueState, slot: number
 	buf += `<div class="pr-sv-divider"></div>`;
 
 	const memo: [string, string][] = [
-		['OT', Utils.escapeHTML(vm.mon.originalTrainer || 'Unknown')],
+		['OT', escapeHTML(vm.mon.originalTrainer || 'Unknown')],
 		['ID No.', vm.mon.otId || '??????'],
-		['Met at', Utils.escapeHTML(vm.mon.metLocation || 'Unknown')],
+		['Met at', escapeHTML(vm.mon.metLocation || 'Unknown')],
 		['Met Lv.', String(vm.mon.metLevel ?? '?')],
 		['Date', vm.dateStr],
-		['Ball', Utils.escapeHTML(vm.mon.ball ? vm.mon.ball.replace('ball', ' Ball').replace(/^./, c => c.toUpperCase()) : 'Poké Ball')],
+		['Ball', escapeHTML(vm.mon.ball ? vm.mon.ball.replace('ball', ' Ball').replace(/^./, c => c.toUpperCase()) : 'Poké Ball')],
 	];
 	for (const [label, val] of memo) {
 		buf += `<div class="pr-sv-row"><span class="pr-sv-row-label">${label}</span><div class="pr-sv-row-val">${val}</div></div>`;
@@ -1337,7 +1337,7 @@ function renderStatsTab2(vm: StatsViewModel, state: PokeRogueState, slot: number
 			const moveDesc = move.shortDesc || move.desc || '';
 
 			buf += `<div class="pr-sv-move" style="border-left:3px solid ${mColor}"><div class="pr-sv-move-top" style="display:flex;justify-content:space-between;align-items:flex-start;">`;
-			buf += `<b class="pr-sv-move-name">${Utils.escapeHTML(move.name)}</b>`;
+			buf += `<b class="pr-sv-move-name">${escapeHTML(move.name)}</b>`;
 			buf += `<div style="text-align:right;">`;
 			buf += `<span class="pr-type" style="background:${mColor};color:#fff;font-size:9px;display:inline-block;">${move.type}</span>`;
 			if (state.isConfiguringStarter && hasAltMoves) {
@@ -1345,7 +1345,7 @@ function renderStatsTab2(vm: StatsViewModel, state: PokeRogueState, slot: number
 			}
 			buf += `</div></div>`;
 			buf += `<div class="pr-sv-move-meta">${catIcon} ${move.category} &nbsp;·&nbsp; Pwr: <b>${move.basePower || '—'}</b> &nbsp;·&nbsp; Acc: <b>${move.accuracy === true ? '—' : (move.accuracy || '—')}</b> &nbsp;·&nbsp; Pri: <b>${move.priority > 0 ? `+${move.priority}` : move.priority}</b> &nbsp;·&nbsp; PP: <b>${maxPp}/${maxPp}</b></div>`;
-			if (moveDesc) buf += `<div class="pr-sv-subdesc" style="margin-top:3px">${Utils.escapeHTML(moveDesc)}</div>`;
+			if (moveDesc) buf += `<div class="pr-sv-subdesc" style="margin-top:3px">${escapeHTML(moveDesc)}</div>`;
 			buf += `</div>`;
 		} else {
 			buf += `<div class="pr-sv-move pr-sv-move-empty" style="display:flex;justify-content:space-between;align-items:center;">`;
@@ -1363,7 +1363,7 @@ function renderStatsHeader(vm: StatsViewModel): string {
 	let buf = `<div class="pr-sv-header">`;
 	buf += `<div class="pr-sv-sprite-col">${getSprite(vm.mon.species, 80, vm.mon.shiny, 'pr-sv-sprite')}</div>&nbsp;&nbsp;`;
 	buf += `<div class="pr-sv-info-col">`;
-	buf += `<div class="pr-sv-name">${Utils.escapeHTML(vm.spData.name)} ${vm.genderHtml}${vm.mon.shiny ? ' <span class="pr-sv-shiny"></span>' : ''}&nbsp;&nbsp;<span class="pr-level-badge">Lv.${vm.mon.level}</span></div>`;
+	buf += `<div class="pr-sv-name">${escapeHTML(vm.spData.name)} ${vm.genderHtml}${vm.mon.shiny ? ' <span class="pr-sv-shiny"></span>' : ''}&nbsp;&nbsp;<span class="pr-level-badge">Lv.${vm.mon.level}</span></div>`;
 	buf += `<div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:4px;">${renderTypeBadge(vm.spData.types ?? [])}</div>`;
 	buf += `<div class="pr-sv-hp-row"><span class="pr-sv-hp-label">HP</span>`;
 	buf += `<div class="pr-bar-track" style="flex:1"><div class="pr-bar-fill" style="width:${vm.hpPct}%;background:${vm.hpColor}"></div></div>`;
@@ -1393,8 +1393,8 @@ export function renderStatsView(state: PokeRogueState, user: User): string {
 	if (vm.teamNav.length > 1 && !state.isConfiguringStarter) {
 		buf += `<div class="pr-sv-team-nav">`;
 		for (const nav of vm.teamNav) {
-			if (nav.isMe) buf += `<span class="pr-sv-team-pip active" title="${Utils.escapeHTML(nav.name)}"></span>`;
-			else buf += `<button name="send" value="/pokerogue view stats ${nav.slot}" class="pr-sv-team-btn" title="${Utils.escapeHTML(nav.name)}"><span class="pr-sv-team-pip"></span></button>`;
+			if (nav.isMe) buf += `<span class="pr-sv-team-pip active" title="${escapeHTML(nav.name)}"></span>`;
+			else buf += `<button name="send" value="/pokerogue view stats ${nav.slot}" class="pr-sv-team-btn" title="${escapeHTML(nav.name)}"><span class="pr-sv-team-pip"></span></button>`;
 		}
 		buf += `</div>`;
 	}

@@ -1,6 +1,6 @@
 import { wrapCommands } from '../../impulse-utils';
 import * as crypto from 'node:crypto';
-import { Utils } from '../../../lib';
+import { escapeHTML } from '../../../lib/utils';
 import { toID } from '../../../sim/dex';
 import { Customization, initDB, getCustomizationTable } from './manager';
 
@@ -107,7 +107,7 @@ export const nameColor = (name: string, bold = true, userGroup = false): string 
 	const symbol = userGroup && Users.globalAuth.get(userId) ?
 		`<font color="#948A88">${Users.globalAuth.get(userId)}</font>` :
 		'';
-	const userName = Utils.escapeHTML(Users.getExact(name)?.name || name);
+	const userName = escapeHTML(Users.getExact(name)?.name || name);
 	return `${symbol}${bold ? '<b>' : ''}<font color="${hashColor(name)}">${userName}</font>${bold ? '</b>' : ''}`;
 };
 
@@ -133,8 +133,8 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			await ColorManager.save(targetId, color);
 			await Customization.updateCSS();
 
-			Customization.notify(user, name, 'set', `set custom color for <b>${Utils.escapeHTML(name)}</b> to <font color="${color}">${color}</font>.`);
-			this.sendReply(`|raw|Color set for <b><font color="${color}">${Utils.escapeHTML(name)}</font></b>.`);
+			Customization.notify(user, name, 'set', `set custom color for <b>${escapeHTML(name)}</b> to <font color="${color}">${color}</font>.`);
+			this.sendReply(`|raw|Color set for <b><font color="${color}">${escapeHTML(name)}</font></b>.`);
 		},
 
 		async delete(target, room, user) {
@@ -155,7 +155,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			this.checkBroadcast();
 			const [name, color] = target.split(',').map(t => t.trim());
 			if (!name || !ColorManager.validateHex(color)) return this.errorReply("Usage: /cc preview [user], [hex]");
-			this.sendReplyBox(`<b><font size="3" color="${color}">${Utils.escapeHTML(name)}</font></b>`);
+			this.sendReplyBox(`<b><font size="3" color="${color}">${escapeHTML(name)}</font></b>`);
 		},
 
 		async reload(target, room, user) {

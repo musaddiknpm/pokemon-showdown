@@ -1,5 +1,6 @@
 import * as https from 'node:https';
-import { FS, Utils } from '../../../lib';
+import { FS } from '../../../lib/fs';
+import { escapeHTML } from '../../../lib/utils';
 import { toID } from '../../../sim/dex';
 import { PG } from '../../pg';
 
@@ -165,12 +166,12 @@ export class CustomizationManager {
 
 	notify(setter: User, targetName: string, action: string, message: string): void {
 		Rooms.get('staff')
-			?.add(`|html|<div class="infobox"><b>${Utils.escapeHTML(setter.name)}</b> ${message}</div>`)
+			?.add(`|html|<div class="infobox"><b>${escapeHTML(setter.name)}</b> ${message}</div>`)
 			.update();
 
 		const targetUser = Users.get(toID(targetName));
 		if (targetUser?.connected) {
-			targetUser.popup(`|html|${Utils.escapeHTML(setter.name)} has ${action} your customization.<br />${message}`);
+			targetUser.popup(`|html|${escapeHTML(setter.name)} has ${action} your customization.<br />${message}`);
 		}
 	}
 }

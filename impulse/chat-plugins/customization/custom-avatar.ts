@@ -1,4 +1,4 @@
-import { FS } from '../../../lib';
+import { FS } from '../../../lib/fs';
 import { toID } from '../../../sim/dex';
 import { nameColor } from './custom-color';
 

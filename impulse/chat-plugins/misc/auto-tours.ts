@@ -1,6 +1,6 @@
 import { PG } from '../../pg';
 import { wrapCommands } from '../../impulse-utils';
-import { Utils } from '../../../lib';
+
 import { toID } from '../../../sim/dex';
 import { Table } from '../../impulse-utils';
 import { initMiscDB } from './database';

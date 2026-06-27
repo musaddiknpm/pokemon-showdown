@@ -1,5 +1,5 @@
 import { wrapCommands } from '../../impulse-utils';
-import { Utils } from '../../../lib';
+
 import { toID } from '../../../sim/dex';
 import { Customization, initDB, getCustomizationTable } from './manager';
 import { nameColor } from './custom-color';

@@ -1,6 +1,6 @@
 import { PG } from '../../pg';
 import { wrapCommands } from '../../impulse-utils';
-import { Utils } from '../../../lib';
+import { escapeHTML } from '../../../lib/utils';
 import { toID } from '../../../sim/dex';
 import { getBalance, setBalance, CURRENCY_NAME, initEconomy } from './economy';
 import { Table } from '../../impulse-utils';
@@ -136,8 +136,8 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			if (!sorted.length) return this.sendReplyBox("The room shop is currently empty.");
 
 			const dataRows = sorted.map(([name, item]) => [
-				`<b>${Utils.escapeHTML(name)}</b>`,
-				Utils.escapeHTML(item.description),
+				`<b>${escapeHTML(name)}</b>`,
+				escapeHTML(item.description),
 				`<button class="button" name="send" value="/roomshop buy ${name}">${item.cost} ${CURRENCY_NAME}</button>`,
 			]);
 
@@ -247,7 +247,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			let html = `<div class="infobox" style="max-height: 200px; overflow-y: auto;"><strong>Shop Logs: ${room.title}</strong><hr />`;
 			for (const log of logs) {
 				const date = new Date(log.timestamp).toLocaleDateString();
-				html += `<small>[${date}]</small> <b>${Utils.escapeHTML(log.user)}</b> bought <b>${log.item}</b><br />`;
+				html += `<small>[${date}]</small> <b>${escapeHTML(log.user)}</b> bought <b>${log.item}</b><br />`;
 			}
 			html += `</div>`;
 			this.sendReplyBox(html);

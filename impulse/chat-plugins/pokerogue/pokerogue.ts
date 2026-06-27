@@ -1,4 +1,4 @@
-import { Utils } from '../../../lib';
+
 import { type PokemonEntry, type PokeRogueState, type StatusCondition, type GameMode, type ModeConfig, type BiomePool, type PokeRogueView, type EggData, type StatTable } from './types';
 import { EGG_POOLS, getStarterCost, type EggTier } from './starter-data';
 import { MODE_CONFIGS, MODE_REGISTRY } from './config';

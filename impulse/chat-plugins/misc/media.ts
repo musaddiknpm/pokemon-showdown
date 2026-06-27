@@ -1,6 +1,7 @@
 import { PG } from '../../pg';
 import { wrapCommands } from '../../impulse-utils';
-import { Utils, Net } from '../../../lib';
+import { escapeHTML } from '../../../lib/utils';
+import { Net } from '../../../lib/net';
 import { initMiscDB } from './database';
 
 const CACHE_TIME = 5 * 24 * 60 * 60 * 1000; // 5 days
@@ -112,10 +113,10 @@ function generateDisplay(data: any, type: string) {
 	const title = data.title.english || data.title.romaji || 'Unknown Title';
 	
 	const bgUrl = data.bannerImage || data.coverImage?.large || 'https://wallpapercave.com/wp/wp8695829.png';
-	const bgStyle = `background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url('${Utils.escapeHTML(bgUrl)}') center/cover no-repeat; padding: 8px; border-radius: 4px; color: white; text-shadow: 1px 1px 2px black, -1px -1px 2px black, 1px -1px 2px black, -1px 1px 2px black;`;
+	const bgStyle = `background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url('${escapeHTML(bgUrl)}') center/cover no-repeat; padding: 8px; border-radius: 4px; color: white; text-shadow: 1px 1px 2px black, -1px -1px 2px black, 1px -1px 2px black, -1px 1px 2px black;`;
 
 	const iconCell = data.coverImage?.large ?
-		`<td width="100" valign="top"><img src="${Utils.escapeHTML(data.coverImage.large)}" width="90" height="130" style="border-radius: 4px;" /></td><td width="8"></td>` :
+		`<td width="100" valign="top"><img src="${escapeHTML(data.coverImage.large)}" width="90" height="130" style="border-radius: 4px;" /></td><td width="8"></td>` :
 		'';
 
 	const scoreStr = data.averageScore ? `${data.averageScore}/100` : 'N/A';
@@ -142,7 +143,7 @@ function generateDisplay(data: any, type: string) {
 	
 	if (streamingLinks.length) {
 		const label = type === 'anime' ? 'Watch' : 'Read';
-		const streamHtml = streamingLinks.map((link: any) => `<a href="${Utils.escapeHTML(link.url)}" style="color: #6ee7b7;" target="_blank">${Utils.escapeHTML(link.site)}</a>`).join(', ');
+		const streamHtml = streamingLinks.map((link: any) => `<a href="${escapeHTML(link.url)}" style="color: #6ee7b7;" target="_blank">${escapeHTML(link.site)}</a>`).join(', ');
 		linksHtml += `<b>${label}:</b> ${streamHtml}<br />`;
 	}
 
@@ -152,13 +153,13 @@ function generateDisplay(data: any, type: string) {
 	// Strip all other HTML tags (like <i>, <b>, etc. that might be malformed)
 	desc = desc.replace(/<[^>]*>?/gm, '');
 	// Escape HTML to prevent any remaining `<` or `>` from breaking the layout
-	desc = Utils.escapeHTML(desc);
+	desc = escapeHTML(desc);
 	// Convert newlines back to <br /> for display
 	desc = desc.replace(/\n/g, '<br />');
 
 	return `<div style="${bgStyle}">` +
-		`<center><b><big><big>${Utils.escapeHTML(title)}</big></big></b><br />` +
-		`<span style="font-size: 10pt; color: white;">${Utils.escapeHTML(genresStr)}</span></center>` +
+		`<center><b><big><big>${escapeHTML(title)}</big></big></b><br />` +
+		`<span style="font-size: 10pt; color: white;">${escapeHTML(genresStr)}</span></center>` +
 		`<hr style="border-color: rgba(255, 255, 255, 0.4);" />` +
 		`<table cellpadding="2" cellspacing="0" border="0" width="100%"><tr>` +
 		iconCell +
@@ -208,10 +209,10 @@ function generateGameDisplay(data: any) {
 	const title = data.name || 'Unknown Title';
 	
 	const bgUrl = data.background_image || data.background_image_additional || 'https://wallpapercave.com/wp/wp8695829.png';
-	const bgStyle = `background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url('${Utils.escapeHTML(bgUrl)}') center/cover no-repeat; padding: 8px; border-radius: 4px; color: white; text-shadow: 1px 1px 2px black, -1px -1px 2px black, 1px -1px 2px black, -1px 1px 2px black;`;
+	const bgStyle = `background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url('${escapeHTML(bgUrl)}') center/cover no-repeat; padding: 8px; border-radius: 4px; color: white; text-shadow: 1px 1px 2px black, -1px -1px 2px black, 1px -1px 2px black, -1px 1px 2px black;`;
 
 	const iconCell = data.background_image ?
-		`<td width="100" valign="top"><img src="${Utils.escapeHTML(data.background_image)}" width="90" height="130" style="border-radius: 4px; object-fit: cover;" /></td><td width="8"></td>` :
+		`<td width="100" valign="top"><img src="${escapeHTML(data.background_image)}" width="90" height="130" style="border-radius: 4px; object-fit: cover;" /></td><td width="8"></td>` :
 		'';
 
 	const scoreStr = data.metacritic ? `${data.metacritic}/100` : (data.rating ? `${data.rating}/5` : 'N/A');
@@ -229,7 +230,7 @@ function generateGameDisplay(data: any) {
 
 	let linksHtml = '';
 	if (data.website) {
-		linksHtml += `<b>Website:</b> <a href="${Utils.escapeHTML(data.website)}" style="color: #6ee7b7;" target="_blank">Link</a><br />`;
+		linksHtml += `<b>Website:</b> <a href="${escapeHTML(data.website)}" style="color: #6ee7b7;" target="_blank">Link</a><br />`;
 	}
 
 	const storeLinks = (data.stores || [])
@@ -237,17 +238,17 @@ function generateGameDisplay(data: any) {
 		.slice(0, 3);
 	
 	if (storeLinks.length) {
-		const storeHtml = storeLinks.map((s: any) => `<a href="${Utils.escapeHTML(s.url)}" style="color: #6ee7b7;" target="_blank">${Utils.escapeHTML(s.store.name)}</a>`).join(', ');
+		const storeHtml = storeLinks.map((s: any) => `<a href="${escapeHTML(s.url)}" style="color: #6ee7b7;" target="_blank">${escapeHTML(s.store.name)}</a>`).join(', ');
 		linksHtml += `<b>Buy/Play:</b> ${storeHtml}<br />`;
 	}
 
 	let desc = data.description_raw || 'No description available.';
-	desc = Utils.escapeHTML(desc);
+	desc = escapeHTML(desc);
 	desc = desc.replace(/\n/g, '<br />');
 
 	return `<div style="${bgStyle}">` +
-		`<center><b><big><big>${Utils.escapeHTML(title)}</big></big></b><br />` +
-		`<span style="font-size: 10pt; color: white;">${Utils.escapeHTML(genresStr)}</span></center>` +
+		`<center><b><big><big>${escapeHTML(title)}</big></big></b><br />` +
+		`<span style="font-size: 10pt; color: white;">${escapeHTML(genresStr)}</span></center>` +
 		`<hr style="border-color: rgba(255, 255, 255, 0.4);" />` +
 		`<table cellpadding="2" cellspacing="0" border="0" width="100%"><tr>` +
 		iconCell +
@@ -291,34 +292,34 @@ function generateSongDisplay(data: any) {
 	const album = data.collectionName || 'Unknown Album';
 	
 	const bgUrl = data.artworkUrl100 ? data.artworkUrl100.replace('100x100bb', '600x600bb').replace('100x100', '600x600') : 'https://wallpapercave.com/wp/wp8695829.png';
-	const bgStyle = `background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url('${Utils.escapeHTML(bgUrl)}') center/cover no-repeat; padding: 8px; border-radius: 4px; color: white; text-shadow: 1px 1px 2px black, -1px -1px 2px black, 1px -1px 2px black, -1px 1px 2px black;`;
+	const bgStyle = `background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url('${escapeHTML(bgUrl)}') center/cover no-repeat; padding: 8px; border-radius: 4px; color: white; text-shadow: 1px 1px 2px black, -1px -1px 2px black, 1px -1px 2px black, -1px 1px 2px black;`;
 
 	const iconCell = data.artworkUrl100 ?
-		`<td width="100" valign="top"><img src="${Utils.escapeHTML(data.artworkUrl100.replace('100x100bb', '130x130bb').replace('100x100', '130x130'))}" width="130" height="130" style="border-radius: 4px; object-fit: cover;" /></td><td width="8"></td>` :
+		`<td width="100" valign="top"><img src="${escapeHTML(data.artworkUrl100.replace('100x100bb', '130x130bb').replace('100x100', '130x130'))}" width="130" height="130" style="border-radius: 4px; object-fit: cover;" /></td><td width="8"></td>` :
 		'';
 
 	const releaseStr = data.releaseDate ? new Date(data.releaseDate).getFullYear() : 'N/A';
 	const genreStr = data.primaryGenreName || 'N/A';
 
-	let additionalInfo = `<b>Artist:</b> ${Utils.escapeHTML(artist)}<br />`;
-	additionalInfo += `<b>Album:</b> ${Utils.escapeHTML(album)}<br />`;
+	let additionalInfo = `<b>Artist:</b> ${escapeHTML(artist)}<br />`;
+	additionalInfo += `<b>Album:</b> ${escapeHTML(album)}<br />`;
 	additionalInfo += `<b>Release:</b> ${releaseStr}<br />`;
 
 	let linksHtml = '';
 	if (data.trackViewUrl) {
-		linksHtml += `<b>Listen:</b> <a href="${Utils.escapeHTML(data.trackViewUrl)}" style="color: #6ee7b7;" target="_blank">Apple Music</a><br />`;
+		linksHtml += `<b>Listen:</b> <a href="${escapeHTML(data.trackViewUrl)}" style="color: #6ee7b7;" target="_blank">Apple Music</a><br />`;
 	}
 
 	let audioPlayer = '';
 	if (data.previewUrl) {
-		audioPlayer = `<audio src="${Utils.escapeHTML(data.previewUrl)}" controls style="width: 100%; margin-top: 10px;"></audio>`;
+		audioPlayer = `<audio src="${escapeHTML(data.previewUrl)}" controls style="width: 100%; margin-top: 10px;"></audio>`;
 	} else {
 		audioPlayer = `<div style="margin-top: 10px;"><i>No audio preview available.</i></div>`;
 	}
 
 	return `<div style="${bgStyle}">` +
-		`<center><b><big><big>${Utils.escapeHTML(title)}</big></big></b><br />` +
-		`<span style="font-size: 10pt; color: white;">${Utils.escapeHTML(genreStr)}</span></center>` +
+		`<center><b><big><big>${escapeHTML(title)}</big></big></b><br />` +
+		`<span style="font-size: 10pt; color: white;">${escapeHTML(genreStr)}</span></center>` +
 		`<hr style="border-color: rgba(255, 255, 255, 0.4);" />` +
 		`<table cellpadding="2" cellspacing="0" border="0" width="100%"><tr>` +
 		iconCell +
@@ -340,7 +341,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 		const data = await fetchAniList(targetQuery, 'ANIME');
 		if (!data) {
 			return this.sendReplyBox(
-				`Anime "<strong>${Utils.escapeHTML(targetQuery)}</strong>" not found on AniList.<br />` +
+				`Anime "<strong>${escapeHTML(targetQuery)}</strong>" not found on AniList.<br />` +
 				`<span style="font-size: 10px; color: #888;">Note: AniList's search can be strict. If you are searching for a specific season (like "Season 3"), try searching by its official subtitle or arc name (e.g. "Swordsmith Village Arc") or its Japanese Romaji title.</span>`
 			);
 		}
@@ -362,7 +363,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 		const data = await fetchAniList(targetQuery, 'MANGA');
 		if (!data) {
 			return this.sendReplyBox(
-				`Manga "<strong>${Utils.escapeHTML(targetQuery)}</strong>" not found on AniList.<br />` +
+				`Manga "<strong>${escapeHTML(targetQuery)}</strong>" not found on AniList.<br />` +
 				`<span style="font-size: 10px; color: #888;">Note: AniList's search can be strict. Try searching by its official English subtitle or Japanese Romaji title.</span>`
 			);
 		}
@@ -387,7 +388,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 				return this.sendReplyBox(`<div class="message-error">The game database API key is not configured.</div>`);
 			}
 			return this.sendReplyBox(
-				`Game "<strong>${Utils.escapeHTML(targetQuery)}</strong>" not found on RAWG.<br />` +
+				`Game "<strong>${escapeHTML(targetQuery)}</strong>" not found on RAWG.<br />` +
 				`<span style="font-size: 10px; color: #888;">Note: Try searching by its exact official name.</span>`
 			);
 		}
@@ -409,7 +410,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 		const data = await fetchSong(targetQuery);
 		if (!data) {
 			return this.sendReplyBox(
-				`Song "<strong>${Utils.escapeHTML(targetQuery)}</strong>" not found.<br />` +
+				`Song "<strong>${escapeHTML(targetQuery)}</strong>" not found.<br />` +
 				`<span style="font-size: 10px; color: #888;">Note: Try including the artist name for better results (e.g., "Song Name Artist").</span>`
 			);
 		}

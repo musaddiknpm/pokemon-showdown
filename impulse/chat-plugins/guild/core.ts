@@ -1,5 +1,5 @@
 import { wrapCommands } from '../../impulse-utils';
-import { Utils } from '../../../lib';
+import { escapeHTML } from '../../../lib/utils';
 import { GuildRepository, getGuildCooldown, setGuildCooldown, setGuildCooldowns, getSeasonInfo, saveSeasonInfo, getGlobalMemberLimit, setGlobalMemberLimit } from './database';
 import { getLastSeen } from '../misc/seen';
 import type { Guild, GuildMember } from './types';
@@ -860,21 +860,21 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			const createdStr = new Date(guild.createdAt).toISOString().split('T')[0];
 
 			const iconCell = guild.icon ?
-				`<td width="90" valign="top"><img src="${Utils.escapeHTML(guild.icon)}" width="80" height="80" /></td><td width="8"></td>` :
+				`<td width="90" valign="top"><img src="${escapeHTML(guild.icon)}" width="80" height="80" /></td><td width="8"></td>` :
 				'';
 
 			const bgUrl = guild.background || 'https://wallpapercave.com/wp/wp8695829.png';
-			const bgStyle = `background: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('${Utils.escapeHTML(bgUrl)}') center/cover no-repeat; padding: 8px; border-radius: 4px; color: white; text-shadow: 1px 1px 2px black, -1px -1px 2px black, 1px -1px 2px black, -1px 1px 2px black;`;
+			const bgStyle = `background: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('${escapeHTML(bgUrl)}') center/cover no-repeat; padding: 8px; border-radius: 4px; color: white; text-shadow: 1px 1px 2px black, -1px -1px 2px black, 1px -1px 2px black, -1px 1px 2px black;`;
 
 			const html =
 				`<div style="${bgStyle}">` +
-				`<center><b><big><big>${Utils.escapeHTML(guild.name)}</big></big></b><br />` +
-				`<span style="font-size: 10pt; color: white;">${Utils.escapeHTML(guild.description || 'No description set.')}</span></center>` +
+				`<center><b><big><big>${escapeHTML(guild.name)}</big></big></b><br />` +
+				`<span style="font-size: 10pt; color: white;">${escapeHTML(guild.description || 'No description set.')}</span></center>` +
 				`<hr style="border-color: rgba(255, 255, 255, 0.4);" />` +
 				`<table cellpadding="2" cellspacing="0" border="0" width="100%"><tr>` +
 				iconCell +
 				`<td valign="top" style="color: white;">` +
-				`<b>Master:</b> ${Utils.escapeHTML(ownerName)}<br />` +
+				`<b>Master:</b> ${escapeHTML(ownerName)}<br />` +
 				`<b>Members:</b> ${guild.memberCount} / ${guild.memberLimit}<br />` +
 				`<b>Points:</b> ${guild.points}<br />` +
 				`<b>Policy:</b> ${guild.joinPolicy === 'open' ? 'Open' : 'Invite-Only'}<br />` +
@@ -897,7 +897,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			const userMember = auth.userMember;
 
 			let sentCount = 0;
-			const announceText = `|html|<div style="font-size: 11pt;"><b>[${guild.name} Announcement]</b><br />By ${user.name}<hr />${Utils.escapeHTML(rest)}</div>`;
+			const announceText = `|html|<div style="font-size: 11pt;"><b>[${guild.name} Announcement]</b><br />By ${user.name}<hr />${escapeHTML(rest)}</div>`;
 
 			for (const member of guild.members) {
 				const targetUser = Users.get(member.id);
@@ -1020,8 +1020,8 @@ export const commands: Chat.ChatCommands = wrapCommands({
 
 				html += `<tr style="border-top: 1px solid #ccc;">`;
 				html += `<td style="padding: 4px;"><b>#${rank}</b></td>`;
-				html += `<td style="padding: 4px;"><b>${Utils.escapeHTML(g.name)}</b></td>`;
-				html += `<td style="padding: 4px;">${Utils.escapeHTML(ownerName)}</td>`;
+				html += `<td style="padding: 4px;"><b>${escapeHTML(g.name)}</b></td>`;
+				html += `<td style="padding: 4px;">${escapeHTML(ownerName)}</td>`;
 				html += `<td style="padding: 4px;">${g.memberCount} / ${g.memberLimit}</td>`;
 				html += `<td style="padding: 4px;"><b>${g.points}</b></td>`;
 				html += `</tr>`;
@@ -1050,8 +1050,8 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			for (const m of sortedMembers) {
 				html += `<tr style="border-top: 1px solid #ccc;">`;
 				html += `<td style="padding: 4px;"><b>#${rank}</b></td>`;
-				html += `<td style="padding: 4px;"><b>${Utils.escapeHTML(m.username)}</b></td>`;
-				html += `<td style="padding: 4px;">${Utils.escapeHTML(m.guildName)}</td>`;
+				html += `<td style="padding: 4px;"><b>${escapeHTML(m.username)}</b></td>`;
+				html += `<td style="padding: 4px;">${escapeHTML(m.guildName)}</td>`;
 				html += `<td style="padding: 4px;"><b>${m.totalPoints}</b></td>`;
 				html += `</tr>`;
 				rank++;

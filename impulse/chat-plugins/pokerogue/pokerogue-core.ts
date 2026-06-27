@@ -1,4 +1,4 @@
-import { Utils } from '../../../lib';
+import { escapeHTML } from '../../../lib/utils';
 import { type PokemonEntry, type PokeRogueState, type StatusCondition, type GameMode, type ModeConfig, type BiomePool, type PokeRogueView, type EggData, type StatTable } from './types';
 import { EGG_POOLS, getStarterCost, type EggTier } from './starter-data';
 import { MODE_CONFIGS, MODE_REGISTRY } from './config';
@@ -830,7 +830,7 @@ export const ActionResolvers: Record<string, (state: PokeRogueState, user: User,
 				}
 			}
 			mon.heldItem = toID(state.pendingItemName);
-			state.notification = `Gave <b>${Utils.escapeHTML(dexNewItem.name)}</b> to <b>${dexSpecies.name}</b>!`;
+			state.notification = `Gave <b>${escapeHTML(dexNewItem.name)}</b> to <b>${dexSpecies.name}</b>!`;
 		}
 
 		delete state.pendingItemName;

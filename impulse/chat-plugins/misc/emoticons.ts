@@ -1,6 +1,6 @@
 import { PG } from '../../pg';
 import { wrapCommands } from '../../impulse-utils';
-import { Utils } from '../../../lib';
+import { escapeHTML } from '../../../lib/utils';
 import { Table } from '../../impulse-utils';
 import { nameColor } from '../customization/custom-color';
 import { initMiscDB } from './database';
@@ -134,8 +134,8 @@ const EmoteManager = {
 		const size = currentEmoteSize;
 		const parsed = this.parseMarkdown(message).replace(emoteRegex, match => {
 			const entry = emoteCache[match];
-			if (!entry) return Utils.escapeHTML(match);
-			return `<img src="${Utils.escapeHTML(entry.url)}" title="${Utils.escapeHTML(match)}" height="${size}" width="${size}" style="vertical-align:middle" loading="lazy">`;
+			if (!entry) return escapeHTML(match);
+			return `<img src="${escapeHTML(entry.url)}" title="${escapeHTML(match)}" height="${size}" width="${size}" style="vertical-align:middle" loading="lazy">`;
 		});
 
 		return parsed;
@@ -170,7 +170,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 
 			await EmoteManager.addEmote(name, url, user.id);
 
-			this.sendReply(`|raw|Emoticon <b>${Utils.escapeHTML(name)}</b> added.`);
+			this.sendReply(`|raw|Emoticon <b>${escapeHTML(name)}</b> added.`);
 		},
 
 		async delete(target, room, user) {
@@ -221,9 +221,9 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			if (!emote) throw new Chat.ErrorMessage("Emoticon not found.");
 
 			this.sendReplyBox(
-				`<strong>Emoticon Info: ${Utils.escapeHTML(name)}</strong><br />` +
+				`<strong>Emoticon Info: ${escapeHTML(name)}</strong><br />` +
 				`<img src="${emote.url}" width="40" height="40"><br />` +
-				`URL: ${Utils.escapeHTML(emote.url)}<br />` +
+				`URL: ${escapeHTML(emote.url)}<br />` +
 				`Added by: ${nameColor(emote.addedBy, true)}`
 			);
 		},
@@ -240,7 +240,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 				for (let j = i; j < i + 5 && j < emoteKeys.length; j++) {
 					const name = emoteKeys[j];
 					const emote = emoteCache[name];
-					row.push(`<center><img src="${Utils.escapeHTML(emote.url)}" width="32" height="32" title="${Utils.escapeHTML(name)}"><br /><code>${Utils.escapeHTML(name)}</code></center>`);
+					row.push(`<center><img src="${escapeHTML(emote.url)}" width="32" height="32" title="${escapeHTML(name)}"><br /><code>${escapeHTML(name)}</code></center>`);
 				}
 				rows.push(row);
 			}
