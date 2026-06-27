@@ -9,7 +9,7 @@ const CONFIG = {
 	MIN_SIZE: 16,
 	MAX_SIZE: 256,
 	DEFAULT_SIZE: 32,
-	MAX_NAME_LENGTH: 10,
+	MAX_NAME_LENGTH: 20,
 	VALID_URL: /^https:\/\/[^\s"'<>]+\.(?:png|gif|jpg|jpeg|webp)(?:\?[^\s"'<>]*)?$/i,
 	VALID_NAME: /^[\w:)(|-]{1,10}$/,
 };
