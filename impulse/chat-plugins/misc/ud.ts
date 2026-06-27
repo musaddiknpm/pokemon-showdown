@@ -73,12 +73,11 @@ export const commands: Chat.ChatCommands = wrapCommands({
 		const word = data.word || targetQuery;
 		let definition = data.definition || 'No definition available.';
 		
-		// Remove Urban Dictionary's cross-reference brackets
 		definition = definition.replace(/\[|\]/g, '');
 		
 		definition = escapeHTML(definition).replace(/\r\n/g, '<br />').replace(/\n/g, '<br />');
 
-		this.sendReplyBox(`<b>${escapeHTML(word)}:</b><br />${definition}`);
+		this.sendReplyBox(`<div style="max-height: 320px; overflow: auto;"><b>${escapeHTML(word)}:</b><br />${definition}</div>`);
 	},
 	udhelp: [`/ud [word] - Search for the definition of a word on Urban Dictionary.`],
 });
