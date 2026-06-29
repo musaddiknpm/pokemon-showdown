@@ -1,6 +1,6 @@
-import { FS } from '../../lib';
-import { Utils } from '../../lib/utils';
-import { Chat } from '../chat';
+import { FS } from '../../../lib';
+import { Utils } from '../../../lib';
+import { Chat } from '../../chat';
 
 const CUSTOM_COLORS_FILE = 'config/chat-plugins/customcolors.json';
 const CUSTOM_CSS_FILE = 'config/custom.css';
