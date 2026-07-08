@@ -5,7 +5,7 @@
  *
  * @type {number}
  */
-exports.port = 8000;
+exports.port = 10000;
 
 /**
  * The server address - the address at which Pokemon Showdown should be hosting
@@ -14,6 +14,9 @@ exports.port = 8000;
  * @type {string}
  */
 exports.bindaddress = '0.0.0.0';
+
+exports.serverid = 'impulse';
+exports.servertoken = 'd0tACZb+OWNU';
 
 /* API key required for /game command */
 exports.rawgApiKey = '';
