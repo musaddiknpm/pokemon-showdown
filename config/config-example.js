@@ -5,7 +5,7 @@
  *
  * @type {number}
  */
-exports.port = 10000;
+exports.port = 8000;
 
 /**
  * The server address - the address at which Pokemon Showdown should be hosting
