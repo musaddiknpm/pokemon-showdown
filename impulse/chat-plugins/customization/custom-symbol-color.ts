@@ -1,5 +1,3 @@
-import { wrapCommands } from '../../impulse-utils';
-
 import { toID } from '../../../sim/dex';
 import { Customization, initDB, getCustomizationTable } from './manager';
 import { nameColor } from './custom-color';
@@ -67,7 +65,7 @@ const SymbolColorManager = {
 
 void SymbolColorManager.init().catch(err => Monitor.crashlog(err, 'Custom symbol-color JSON init failed'));
 
-export const commands: Chat.ChatCommands = wrapCommands({
+export const commands: Chat.ChatCommands = {
 	sc: 'symbolcolor',
 	symbolcolor: {
 		async set(target, room, user) {
@@ -137,4 +135,4 @@ export const commands: Chat.ChatCommands = wrapCommands({
 
 		'': 'help',
 	},
-});
+};

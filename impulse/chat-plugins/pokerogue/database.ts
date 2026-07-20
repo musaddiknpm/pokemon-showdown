@@ -6,7 +6,17 @@ let initPromise: Promise<void> | null = null;
 export const initDB = async (): Promise<void> => {
 	if (!initPromise) {
 		initPromise = (async () => {
-			while (!PG.isReady) await new Promise(r => setTimeout(r, 1000));
+			let attempts = 0;
+			while (attempts < 5) {
+				try {
+					await PG.checkConnection();
+					break;
+				} catch (err) {
+					attempts++;
+					if (attempts >= 5) throw err;
+					await new Promise(resolve => setTimeout(resolve, 5000));
+				}
+			}
 			await PG.query(`
 				CREATE TABLE IF NOT EXISTS pokerogue_user_profiles (
 					userid TEXT PRIMARY KEY,

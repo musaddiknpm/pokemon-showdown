@@ -1,5 +1,4 @@
 import { PG } from '../../pg';
-import { wrapCommands } from '../../impulse-utils';
 import { toID } from '../../../sim/dex';
 import { Table } from '../../impulse-utils';
 import { nameColor } from '../customization/custom-color';
@@ -70,7 +69,7 @@ export async function getLastClaim(userid: string): Promise<number> {
 
 void initEconomy().catch(err => Monitor.crashlog(err, 'Economy PG init failed'));
 
-export const commands: Chat.ChatCommands = wrapCommands({
+export const commands: Chat.ChatCommands = {
 	bal: 'balance',
 	atm: 'balance',
 	async balance(target, room, user) {
@@ -180,4 +179,4 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			`<b>/givemoney/takemoney [user], [amt]</b>: Staff only.`
 		);
 	},
-});
+};

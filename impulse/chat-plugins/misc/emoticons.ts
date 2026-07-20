@@ -1,5 +1,4 @@
 import { PG } from '../../pg';
-import { wrapCommands } from '../../impulse-utils';
 import { escapeHTML } from '../../../lib/utils';
 import { Table } from '../../impulse-utils';
 import { nameColor } from '../customization/custom-color';
@@ -154,7 +153,7 @@ export const chatfilter: Chat.ChatFilter = (message, user, room) => {
 	return parsed ? `/html ${parsed}` : message;
 };
 
-export const commands: Chat.ChatCommands = wrapCommands({
+export const commands: Chat.ChatCommands = {
 	emote: 'emoticon',
 	emotes: 'emoticon',
 	emoticons: 'emoticon',
@@ -260,4 +259,4 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			);
 		},
 	},
-});
+};

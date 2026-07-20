@@ -1,4 +1,3 @@
-import { wrapCommands } from '../../impulse-utils';
 import * as crypto from 'node:crypto';
 import { escapeHTML } from '../../../lib/utils';
 import { toID } from '../../../sim/dex';
@@ -117,7 +116,7 @@ export const reloadCSS = async (): Promise<void> => {
 	await Customization.updateCSS();
 };
 
-export const commands: Chat.ChatCommands = wrapCommands({
+export const commands: Chat.ChatCommands = {
 	cc: 'customcolor',
 	customcolor: {
 		async set(target, room, user) {
@@ -174,4 +173,4 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			);
 		},
 	},
-});
+};

@@ -1,5 +1,4 @@
 import { PG } from '../../pg';
-import { wrapCommands } from '../../impulse-utils';
 import { toID } from '../../../sim/dex';
 import { Table } from '../../impulse-utils';
 import { nameColor } from '../customization/custom-color';
@@ -109,7 +108,7 @@ export const handlers: Chat.Handlers = {
 	},
 };
 
-export const commands: Chat.ChatCommands = wrapCommands({
+export const commands: Chat.ChatCommands = {
 	ontime: {
 		'': 'check',
 		check(target, room, user) {
@@ -201,7 +200,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			);
 		},
 	},
-});
+};
 
 export const destroy = () => {
 	if (ontimeBatchTimer) clearTimeout(ontimeBatchTimer);

@@ -1,5 +1,4 @@
 import { PG } from '../../pg';
-import { wrapCommands } from '../../impulse-utils';
 import { escapeHTML } from '../../../lib/utils';
 import { toID } from '../../../sim/dex';
 import { Customization } from '../customization/manager';
@@ -154,7 +153,7 @@ export const loginfilter: Chat.LoginFilter = user => {
 	NewsManager.onConnect(user);
 };
 
-export const commands: Chat.ChatCommands = wrapCommands({
+export const commands: Chat.ChatCommands = {
 	svn: 'servernews',
 	servernews: {
 		view(target, room, user) {
@@ -213,4 +212,4 @@ export const commands: Chat.ChatCommands = wrapCommands({
 		},
 	},
 	svnhelp: 'servernews help',
-});
+};

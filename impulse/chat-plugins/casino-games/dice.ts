@@ -1,4 +1,3 @@
-import { wrapCommands } from '../../impulse-utils';
 import { getBalance, updateBalance, CURRENCY_NAME } from '../economy/economy';
 import { nameColor } from '../customization/custom-color';
 import { activeCasinoGames, CASINO_ROOM } from './shared';
@@ -35,7 +34,7 @@ async function expireGame(roomid: string): Promise<void> {
 	).update();
 }
 
-export const commands: Chat.ChatCommands = wrapCommands({
+export const commands: Chat.ChatCommands = {
 	dice: {
 		async start(target, room, user) {
 			if (!room || room.battle || room.roomid !== CASINO_ROOM) return this.errorReply("This command can only be used in the Casino room.");
@@ -157,4 +156,4 @@ export const commands: Chat.ChatCommands = wrapCommands({
 	},
 	dicehelp: 'dice help',
 	dicerules: 'dice rules',
-});
+};

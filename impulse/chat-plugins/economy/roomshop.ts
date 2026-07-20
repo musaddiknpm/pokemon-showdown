@@ -1,5 +1,4 @@
 import { PG } from '../../pg';
-import { wrapCommands } from '../../impulse-utils';
 import { escapeHTML } from '../../../lib/utils';
 import { toID } from '../../../sim/dex';
 import { getBalance, setBalance, CURRENCY_NAME, initEconomy } from './economy';
@@ -123,7 +122,7 @@ export async function cleanLogs(roomid: string): Promise<void> {
 	await PG.getTable<RoomShopLogRow>('room_shop_log', 'id').delete({ room_id: roomid, timestamp: { lt: cutoff } });
 }
 
-export const commands: Chat.ChatCommands = wrapCommands({
+export const commands: Chat.ChatCommands = {
 	roomshop: {
 		async ''(target, room, user) {
 			if (!room || room.battle) return this.errorReply("This command must be used in a chat room.");
@@ -268,4 +267,4 @@ export const commands: Chat.ChatCommands = wrapCommands({
 	},
 	roomshophelp: 'roomshop help',
 	showbank: 'roomshop showbank',
-});
+};

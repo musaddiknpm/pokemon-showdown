@@ -1,5 +1,4 @@
 import { PG } from '../../pg';
-import { wrapCommands } from '../../impulse-utils';
 import { toID } from '../../../sim/dex';
 import { Table } from '../../impulse-utils';
 import { nameColor } from '../customization/custom-color';
@@ -118,7 +117,7 @@ export const handlers: Chat.Handlers = {
 	},
 };
 
-export const commands: Chat.ChatCommands = wrapCommands({
+export const commands: Chat.ChatCommands = {
 	seen: {
 		''(target, room, user) {
 			if (!this.runBroadcast()) return;
@@ -177,7 +176,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 	},
 	recentseen: 'seen recentseen',
 	seenhelp: 'seen help',
-});
+};
 
 export const destroy = () => {
 	if (seenBatchTimer) clearTimeout(seenBatchTimer);

@@ -1,4 +1,3 @@
-import { wrapCommands } from '../../impulse-utils';
 import { getBalance, updateBalance, CURRENCY_NAME } from '../economy/economy';
 import { nameColor } from '../customization/custom-color';
 import { activeCasinoGames, CASINO_ROOM, Suit, Rank, Card, SUITS, RANKS, renderHand } from './shared';
@@ -319,7 +318,7 @@ async function startDealing(game: BlackjackGame) {
 	await nextTurn(game);
 }
 
-export const commands: Chat.ChatCommands = wrapCommands({
+export const commands: Chat.ChatCommands = {
 	bj: 'blackjack',
 	blackjack: {
 		async start(target, room, user) {
@@ -495,4 +494,4 @@ export const commands: Chat.ChatCommands = wrapCommands({
 	bjhelp: 'blackjack help',
 	blackjackrules: 'blackjack rules',
 	bjrules: 'blackjack rules',
-});
+};

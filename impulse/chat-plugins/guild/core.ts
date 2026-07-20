@@ -1,4 +1,3 @@
-import { wrapCommands } from '../../impulse-utils';
 import { escapeHTML } from '../../../lib/utils';
 import { GuildRepository, getGuildCooldown, setGuildCooldown, setGuildCooldowns, getSeasonInfo, saveSeasonInfo, getGlobalMemberLimit, setGlobalMemberLimit } from './database';
 import { getLastSeen } from '../misc/seen';
@@ -116,7 +115,7 @@ async function resolveGuildWithVariadic(user: User, target: string): Promise<{ g
 	return { guild, rest: target };
 }
 
-export const commands: Chat.ChatCommands = wrapCommands({
+export const commands: Chat.ChatCommands = {
 	guild: {
 		help(target, room, user) {
 			return this.parse('/help guild');
@@ -1103,4 +1102,4 @@ export const commands: Chat.ChatCommands = wrapCommands({
 		"/guild endseason - (Admin) Manually ends the current Guild Season and resets all points.",
 		"Admins can optionally prefix management commands with the guild name: /guild promote [guild], [user], [role]",
 	],
-});
+};

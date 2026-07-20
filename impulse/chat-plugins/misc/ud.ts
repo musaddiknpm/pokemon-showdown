@@ -1,5 +1,4 @@
 import { PG } from '../../pg';
-import { wrapCommands } from '../../impulse-utils';
 import { escapeHTML } from '../../../lib/utils';
 import { Net } from '../../../lib/net';
 import { initMiscDB } from './database';
@@ -15,7 +14,6 @@ interface ApiCacheRow {
 const getCacheTable = () => PG.getTable<ApiCacheRow>('api_cache', 'id');
 
 async function getCached(cacheId: string) {
-	if (!PG.isReady) return null;
 	await initMiscDB();
 	const cached = await getCacheTable().findById(cacheId);
 	if (cached && (Date.now() - Number(cached.timestamp)) < CACHE_TIME) {
@@ -25,7 +23,6 @@ async function getCached(cacheId: string) {
 }
 
 async function saveCache(cacheId: string, data: any) {
-	if (!PG.isReady) return;
 	await initMiscDB();
 	await getCacheTable().upsert({
 		id: cacheId,
@@ -58,7 +55,7 @@ async function fetchUrbanDictionary(query: string) {
 	}
 }
 
-export const commands: Chat.ChatCommands = wrapCommands({
+export const commands: Chat.ChatCommands = {
 	async ud(target, room, user) {
 		if (!this.runBroadcast()) return;
 		if (!target) return this.parse('/help ud');
@@ -80,4 +77,4 @@ export const commands: Chat.ChatCommands = wrapCommands({
 		this.sendReplyBox(`<div style="max-height: 250px; overflow: auto;"><b>${escapeHTML(word)}:</b><br />${definition}</div>`);
 	},
 	udhelp: [`/ud [word] - Search for the definition of a word on Urban Dictionary.`],
-});
+};

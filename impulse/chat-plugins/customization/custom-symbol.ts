@@ -1,5 +1,3 @@
-import { wrapCommands } from '../../impulse-utils';
-
 import { toID } from '../../../sim/dex';
 import { Customization, initDB, getCustomizationTable } from './manager';
 import { nameColor } from './custom-color';
@@ -92,7 +90,7 @@ const SymbolManager = {
 
 void SymbolManager.init().catch(err => Monitor.crashlog(err, 'Custom symbol JSON init failed'));
 
-export const commands: Chat.ChatCommands = wrapCommands({
+export const commands: Chat.ChatCommands = {
 	cs: 'symbol',
 	customsymbol: 'symbol',
 	symbol: {
@@ -166,7 +164,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 		'': 'help',
 	},
 	symbolhelp: 'symbol help',
-});
+};
 
 export const loginfilter: Chat.LoginFilter = user => {
 	SymbolManager.apply(user.id);

@@ -1,5 +1,4 @@
 import { PG } from '../../pg';
-import { wrapCommands } from '../../impulse-utils';
 
 import { toID } from '../../../sim/dex';
 import { Table } from '../../impulse-utils';
@@ -144,7 +143,7 @@ void AutotourManager.init().catch(err => {
 	Monitor.crashlog(err, 'Autotours PG init failed');
 });
 
-export const commands: Chat.ChatCommands = wrapCommands({
+export const commands: Chat.ChatCommands = {
 	at: 'autotour',
 	autotour: {
 		async enable(target, room) {
@@ -222,7 +221,7 @@ export const commands: Chat.ChatCommands = wrapCommands({
 			);
 		},
 	},
-});
+};
 
 export const destroy = () => {
 	if (globalScheduler) {

@@ -1,4 +1,3 @@
-import { wrapCommands } from '../../impulse-utils';
 import { getBalance, updateBalance, CURRENCY_NAME } from '../economy/economy';
 import { nameColor } from '../customization/custom-color';
 import { activeCasinoGames, CASINO_ROOM, Suit, Rank, Card, SUITS, RANKS, renderHand } from './shared';
@@ -267,7 +266,7 @@ async function dealGame(game: BaccaratGame) {
 	room.add(`|uhtmlchange|${game.uid}|${winHtml}`).update();
 }
 
-export const commands: Chat.ChatCommands = wrapCommands({
+export const commands: Chat.ChatCommands = {
 	bacc: 'baccarat',
 	baccarat: {
 		async start(target, room, user) {
@@ -401,4 +400,4 @@ export const commands: Chat.ChatCommands = wrapCommands({
 	bacchelp: 'baccarat help',
 	baccaratrules: 'baccarat rules',
 	baccrules: 'baccarat rules',
-});
+};

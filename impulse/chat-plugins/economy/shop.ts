@@ -1,5 +1,4 @@
 import { PG } from '../../pg';
-import { wrapCommands } from '../../impulse-utils';
 import { escapeHTML } from '../../../lib/utils';
 import { getBalance, setBalance, CURRENCY_NAME, initEconomy } from './economy';
 import { Table } from '../../impulse-utils';
@@ -77,7 +76,7 @@ export async function cleanLogs(): Promise<void> {
 	await PG.getTable<GlobalShopLogRow>('global_shop_log', 'id').delete({ timestamp: { lt: cutoff } });
 }
 
-export const commands: Chat.ChatCommands = wrapCommands({
+export const commands: Chat.ChatCommands = {
 	shop: {
 		async ''(target, room, user) {
 			if (!this.runBroadcast()) return;
@@ -166,4 +165,4 @@ export const commands: Chat.ChatCommands = wrapCommands({
 		},
 	},
 	shophelp: 'shop help',
-});
+};

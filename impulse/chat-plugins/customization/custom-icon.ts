@@ -1,5 +1,3 @@
-import { wrapCommands } from '../../impulse-utils';
-
 import { toID } from '../../../sim/dex';
 import { Customization, initDB, getCustomizationTable } from './manager';
 import { nameColor } from './custom-color';
@@ -119,7 +117,7 @@ export const IconManager = {
 	}
 };
 
-export const commands: Chat.ChatCommands = wrapCommands({
+export const commands: Chat.ChatCommands = {
 	ic: 'icon',
 	usericon: 'icon',
 	icon: {
@@ -214,6 +212,6 @@ export const commands: Chat.ChatCommands = wrapCommands({
 		},
 	},
 	iconhelp: 'icon help',
-});
+};
 
 void IconManager.init().catch(err => Monitor.crashlog(err, 'Custom icon JSON init failed'));

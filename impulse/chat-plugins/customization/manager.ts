@@ -26,13 +26,15 @@ export const initDB = async (): Promise<void> => {
 	if (!initPromise) {
 		initPromise = (async () => {
 			let attempts = 0;
-			while (!PG.isReady && attempts < 20) {
-				await new Promise(resolve => setTimeout(resolve, 500));
-				attempts++;
-			}
-			if (!PG.isReady) {
-				initPromise = null;
-				return;
+			while (attempts < 5) {
+				try {
+					await PG.checkConnection();
+					break;
+				} catch (err) {
+					attempts++;
+					if (attempts >= 5) throw err;
+					await new Promise(resolve => setTimeout(resolve, 5000));
+				}
 			}
 			await PG.query(`
 				CREATE TABLE IF NOT EXISTS user_customization (
