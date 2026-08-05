@@ -35,10 +35,9 @@ for (const user of users) {
 ```
 
 ## 3. Use the `Utils` Module
-Do not reinvent the wheel for common utility functions (like random numbers, HTML escaping, or ID generation). Always use the built-in `Utils` module provided by Pokémon Showdown.
+Do not reinvent the wheel for common utility functions (like random array elements or HTML escaping). Always use the built-in `Utils` module provided by Pokémon Showdown.
 - Use `Utils.escapeHTML(str)` instead of custom escaping.
 - Use `Utils.randomElement(array)` instead of `Math.random()`.
-- Use `Utils.random(max)` instead of `Math.floor(Math.random() * max)`.
 
 **Important:** You must explicitly import `Utils` in every file where it is used.
 ```typescript

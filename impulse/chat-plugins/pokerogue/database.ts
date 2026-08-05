@@ -92,13 +92,20 @@ const getStartersTable = () => PG.getTable<any>('pokerogue_starters');
 const getEggsTable = () => PG.getTable<any>('pokerogue_eggs', 'id');
 const getGlobalStatsTable = () => PG.getTable<any>('pokerogue_global_stats', 'id');
 
-export let globalStats: Record<string, GlobalStatEntry> = {};
-export const userCache: Record<string, UserSaveData> = {};
-const userSaveQueue = new Map<string, Promise<void>>();
-const lastSavedState = new Map<string, { starters: string, eggs: string, stats: string, saveSlots: string }>();
+export let globalStats: Record<string, GlobalStatEntry> = (global as any).PokeRogueGlobalStats || {};
+(global as any).PokeRogueGlobalStats = globalStats;
+export const userCache: Record<string, UserSaveData> = (global as any).PokeRogueUserCache || {};
+(global as any).PokeRogueUserCache = userCache;
+const userSaveQueue: Map<string, Promise<void>> = (global as any).PokeRogueUserSaveQueue || new Map<string, Promise<void>>();
+(global as any).PokeRogueUserSaveQueue = userSaveQueue;
+const lastSavedState: Map<string, { starters: string, eggs: string, stats: string, saveSlots: string }> = (global as any).PokeRogueLastSavedState || new Map();
+(global as any).PokeRogueLastSavedState = lastSavedState;
 
-const userActivity = new Map<string, number>();
+const userActivity: Map<string, number> = (global as any).PokeRogueUserActivity || new Map<string, number>();
+(global as any).PokeRogueUserActivity = userActivity;
+if ((global as any).PokeRogueCleanupInterval) clearInterval((global as any).PokeRogueCleanupInterval);
 const cleanupInterval = setInterval(() => {
+	(global as any).PokeRogueCleanupInterval = cleanupInterval;
 	const now = Date.now();
 	for (const [userid, lastActive] of userActivity.entries()) {
 		if (now - lastActive > 30 * 60 * 1000) {
