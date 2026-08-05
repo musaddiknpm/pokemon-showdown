@@ -37,15 +37,15 @@ async function expireGame(roomid: string): Promise<void> {
 export const commands: Chat.ChatCommands = {
 	dice: {
 		async start(target, room, user) {
-			if (!room || room.battle || room.roomid !== CASINO_ROOM) return this.errorReply("This command can only be used in the Casino room.");
+			if (!room || room.battle || room.roomid !== CASINO_ROOM) throw new Chat.ErrorMessage("This command can only be used in the Casino room.");
 
 			const bet = parseInt(target.trim());
-			if (isNaN(bet) || bet <= 0) return this.errorReply("Usage: /dice start [coins]");
+			if (isNaN(bet) || bet <= 0) throw new Chat.ErrorMessage("Usage: /dice start [coins]");
 
-			if (activeCasinoGames.has(room.roomid)) return this.errorReply(`A ${activeCasinoGames.get(room.roomid)} game is already running in this room.`);
+			if (activeCasinoGames.has(room.roomid)) throw new Chat.ErrorMessage(`A ${activeCasinoGames.get(room.roomid)} game is already running in this room.`);
 
 			const bal = await getBalance(user.id);
-			if (bal < bet) return this.errorReply(`You don't have enough ${CURRENCY_NAME}. (Balance: ${bal})`);
+			if (bal < bet) throw new Chat.ErrorMessage(`You don't have enough ${CURRENCY_NAME}. (Balance: ${bal})`);
 
 			await updateBalance(user.id, -bet);
 
@@ -78,15 +78,15 @@ export const commands: Chat.ChatCommands = {
 		},
 
 		async end(target, room, user) {
-			if (!room || room.battle || room.roomid !== CASINO_ROOM) return this.errorReply("This command can only be used in the Casino room.");
+			if (!room || room.battle || room.roomid !== CASINO_ROOM) throw new Chat.ErrorMessage("This command can only be used in the Casino room.");
 
 			const game = activeGames.get(room.roomid);
-			if (!game) return this.errorReply("No active dice game in this room.");
+			if (!game) throw new Chat.ErrorMessage("No active dice game in this room.");
 
 			const canEnd = user.id === game.host || user.can('roommod', null, room);
-			if (!canEnd) return this.errorReply("Only the host or a room moderator can end the game.");
+			if (!canEnd) throw new Chat.ErrorMessage("Only the host or a room moderator can end the game.");
 
-			if (game.opponent) return this.errorReply("The game is already in progress and cannot be ended.");
+			if (game.opponent) throw new Chat.ErrorMessage("The game is already in progress and cannot be ended.");
 
 			clearTimeout(game.timer);
 			await updateBalance(game.host, game.bet);
@@ -97,15 +97,15 @@ export const commands: Chat.ChatCommands = {
 		},
 
 		async join(target, room, user) {
-			if (!room || room.battle || room.roomid !== CASINO_ROOM) return this.errorReply("This command can only be used in the Casino room.");
+			if (!room || room.battle || room.roomid !== CASINO_ROOM) throw new Chat.ErrorMessage("This command can only be used in the Casino room.");
 
 			const game = activeGames.get(room.roomid);
-			if (!game) return this.errorReply("No active dice game in this room.");
-			if (user.id === game.host) return this.errorReply("You cannot join your own dice game.");
-			if (game.opponent) return this.errorReply("This dice game already has two players.");
+			if (!game) throw new Chat.ErrorMessage("No active dice game in this room.");
+			if (user.id === game.host) throw new Chat.ErrorMessage("You cannot join your own dice game.");
+			if (game.opponent) throw new Chat.ErrorMessage("This dice game already has two players.");
 
 			const bal = await getBalance(user.id);
-			if (bal < game.bet) return this.errorReply(`You don't have enough ${CURRENCY_NAME}. (Cost: ${game.bet}, Balance: ${bal})`);
+			if (bal < game.bet) throw new Chat.ErrorMessage(`You don't have enough ${CURRENCY_NAME}. (Cost: ${game.bet}, Balance: ${bal})`);
 
 			clearTimeout(game.timer);
 			await updateBalance(user.id, -game.bet);
@@ -152,7 +152,7 @@ export const commands: Chat.ChatCommands = {
 				`Roll a 6-sided die against an opponent. Highest roll wins the entire pot!<br>` +
 				`In the event of a tie, both players are refunded.`
 			);
-		}
+		},
 	},
 	dicehelp: 'dice help',
 	dicerules: 'dice rules',

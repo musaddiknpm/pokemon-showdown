@@ -81,35 +81,35 @@ const EmoteManager = {
 
 		buildRegex();
 	},
-	
+
 	async addEmote(name: string, url: string, addedBy: string) {
 		const addedAt = Date.now();
 		emoteCache[name] = { url, addedBy, addedAt };
 		buildRegex();
-		
+
 		await initMiscDB();
 		await getEmoteTable().upsert({
 			name,
 			url,
 			added_by: addedBy,
-			added_at: addedAt
+			added_at: addedAt,
 		}, ['name']);
 	},
-	
+
 	async removeEmote(name: string) {
 		delete emoteCache[name];
 		buildRegex();
-		
+
 		await initMiscDB();
 		await getEmoteTable().deleteById(name);
 	},
-	
+
 	async setSize(size: number) {
 		currentEmoteSize = size;
 		await initMiscDB();
 		await getEmoteSettingsTable().updateById(1, { emote_size: size });
 	},
-	
+
 	async setIgnore(userid: string, ignore: boolean) {
 		if (ignore) {
 			ignoreCache.add(userid);

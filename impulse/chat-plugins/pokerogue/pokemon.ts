@@ -1,3 +1,4 @@
+import { Utils } from '../../../lib';
 import { type PokemonEntry, type ModeConfig, type ModeData, type BiomeEntry, type TrainerMon, type PokeRogueState, type StatTable, type RarityTier } from './types';
 import { BASE_EXP, GROWTH_RATES } from './pokemon-basic-data';
 import { SHOP_ITEMS } from './items';
@@ -233,7 +234,7 @@ export function getLevelUpEvo(speciesId: string, currentHappiness = 70): { evoTo
 		if (evoLevel > 0) validEvos.push({ evoTo: toID(evoName), evoLevel });
 	}
 	if (!validEvos.length) return null;
-	return validEvos[Math.floor(Math.random() * validEvos.length)];
+	return Utils.randomElement(validEvos);
 }
 
 export function processLevelUpEvolutions(mon: PokemonEntry): boolean {
@@ -542,21 +543,21 @@ function pickMovesLateFloor(viableMoves: string[], species: Species): string[] {
 function pickBestMoves(speciesId: string, chosenLevel: number, genNumber: number, floor: number, config?: ModeConfig): string[] {
 	if (config?.randomizeMoves) {
 		const allMoves = Dex.moves.all().filter(m => !m.isNonstandard && m.category !== 'Status' && !m.isZ && !m.isMax && m.id !== 'struggle');
-		return Array.from({ length: 4 }, () => allMoves[Math.floor(Math.random() * allMoves.length)].id);
+		return Array.from({ length: 4 }, () => Utils.randomElement(allMoves).id);
 	}
 
 	const species = Dex.species.get(toID(speciesId));
 	const viableMoves = collectViableMoves(speciesId, chosenLevel, genNumber, floor);
 
-	return floor <= 100
-		? pickMovesEarlyFloor(viableMoves, species)
-		: pickMovesLateFloor(viableMoves, species);
+	return floor <= 100 ?
+		pickMovesEarlyFloor(viableMoves, species) :
+		pickMovesLateFloor(viableMoves, species);
 }
 
 function pickBestAbility(species: Species, floor: number, config?: ModeConfig, abilityCharms = 0): string {
 	if (config?.randomizeAbilities) {
 		const allAbilities = Dex.abilities.all().filter(a => !a.isNonstandard);
-		return allAbilities[Math.floor(Math.random() * allAbilities.length)].id;
+		return Utils.randomElement(allAbilities).id;
 	}
 
 	const abilities = species.abilities;
@@ -594,10 +595,10 @@ function pickBestAbility(species: Species, floor: number, config?: ModeConfig, a
 function pickNatureForSpecies(species: Species, floor: number): string {
 	const natures = Dex.natures.all().map(n => n.name);
 
-	if (floor <= 10) return natures[Math.floor(Math.random() * natures.length)] ?? 'Hardy';
+	if (floor <= 10) return Utils.randomElement(natures) ?? 'Hardy';
 
 	const forceGood = floor > 150 || Math.random() < 0.5;
-	if (!forceGood) return natures[Math.floor(Math.random() * natures.length)] ?? 'Hardy';
+	if (!forceGood) return Utils.randomElement(natures) ?? 'Hardy';
 
 	const bs = species.baseStats;
 	const isPhysical = bs.atk > bs.spa;
@@ -622,9 +623,9 @@ function calcEVSpread(_species: Species, _floor: number): StatTable {
 export function rollTeraTypeForSpecies(speciesName: string): string {
 	const dexSpecies = Dex.species.get(toID(speciesName));
 	const speciesTypes = dexSpecies.types.length ? dexSpecies.types : ['Normal'];
-	if (Math.random() < 0.8) return speciesTypes[Math.floor(Math.random() * speciesTypes.length)] || 'Normal';
+	if (Math.random() < 0.8) return Utils.randomElement(speciesTypes) || 'Normal';
 	const allTypes = Dex.types.all().map(t => t.name);
-	return allTypes[Math.floor(Math.random() * allTypes.length)] || 'Normal';
+	return Utils.randomElement(allTypes) || 'Normal';
 }
 
 function pickRandomHeldItem(speciesName: string): string {
@@ -636,7 +637,7 @@ function pickRandomHeldItem(speciesName: string): string {
 		return Object.values(i).some(v => typeof v === 'function');
 	});
 	if (!allItems.length) return '';
-	return allItems[Math.floor(Math.random() * allItems.length)].id;
+	return Utils.randomElement(allItems).id;
 }
 
 function rollRaritySpawn(floor: number, isBoss: boolean, isStarter: boolean, luck = 0): RarityTier {
@@ -714,9 +715,9 @@ function buildSpawnPool(
 	const activeBiome = currentBiome || config?.startingBiome || 'Town';
 	const biomeName = resolveBiome(floor, activeBiome, config ?? {} as ModeConfig);
 
-	let pool: BiomeEntry[] = starter
-		? Object.values(activeBiomes).flatMap(b => b[rarity] || [])
-		: activeBiomes[biomeName]?.[rarity] || activeBiomes[activeBiome]?.[rarity] || [];
+	let pool: BiomeEntry[] = starter ?
+		Object.values(activeBiomes).flatMap(b => b[rarity] || []) :
+		activeBiomes[biomeName]?.[rarity] || activeBiomes[activeBiome]?.[rarity] || [];
 
 	if (!pool.length) {
 		if (config?.emptyPoolFallbackFn) {
@@ -884,7 +885,7 @@ export function genPokemon(
 		let cfg: ForcedMonConfig = { exactSpecies: false };
 
 		if (isForced) {
-			const extracted = extractForcedConfig(forcedSpeciesPool![depth], '');
+			const extracted = extractForcedConfig(forcedSpeciesPool[depth], '');
 			speciesId = extracted.finalSpeciesId;
 			cfg = extracted;
 		} else {
@@ -901,12 +902,12 @@ export function genPokemon(
 		const ability = resolveAbility(finalSpecie, cfg.forcedAbility, floor, config, abilityCharms);
 		const shiny = cfg.forcedShiny ?? rollShiny(shinyCharms);
 		const item = cfg.forcedItem ?? pickRandomHeldItem(finalSpecie.name);
-		const teraType = cfg.forcedTeraType ?? (Math.floor(Math.random() * 20) === 0
-			? allTypes[Math.floor(Math.random() * allTypes.length)]
-			: finalSpecie.types[Math.floor(Math.random() * finalSpecie.types.length)]);
-		const moves = config?.randomizeMoves || !cfg.forcedMoves
-			? pickBestMoves(finalSpecie.name, chosenLevel, genNumber, floor, config)
-			: cfg.forcedMoves.slice(0, 4).map(m => Dex.moves.get(m).id || toID(m));
+		const teraType = cfg.forcedTeraType ?? (Math.floor(Math.random() * 20) === 0 ?
+			Utils.randomElement(allTypes) :
+			Utils.randomElement(finalSpecie.types));
+		const moves = config?.randomizeMoves || !cfg.forcedMoves ?
+			pickBestMoves(finalSpecie.name, chosenLevel, genNumber, floor, config) :
+			cfg.forcedMoves.slice(0, 4).map(m => Dex.moves.get(m).id || toID(m));
 
 		gennedMons.push({
 			species: finalSpecie.id,
@@ -948,7 +949,7 @@ function resolveTrainerTeam(
 			if (rememberedSpecies[i - 1]) {
 				let pick: TrainerMon = { species: rememberedSpecies[i - 1] };
 				if (trainerData.slotPools?.[i]?.length) {
-					const slotConfig = trainerData.slotPools[i][Math.floor(Math.random() * trainerData.slotPools[i].length)];
+					const slotConfig = Utils.randomElement(trainerData.slotPools[i]);
 					if (typeof slotConfig === 'object') pick = { ...slotConfig, species: rememberedSpecies[i - 1] };
 				}
 				if (trainerData.exactSpecies !== undefined && pick.exactSpecies === undefined) pick.exactSpecies = trainerData.exactSpecies;
@@ -956,7 +957,7 @@ function resolveTrainerTeam(
 			} else {
 				let rawPick: string | TrainerMon | undefined;
 				if (trainerData.slotPools?.[i]?.length) {
-					rawPick = trainerData.slotPools[i][Math.floor(Math.random() * trainerData.slotPools[i].length)];
+					rawPick = Utils.randomElement(trainerData.slotPools[i]);
 				} else if (globalIdx < globalPool.length) {
 					rawPick = globalPool[globalIdx++];
 				}
@@ -992,14 +993,14 @@ export function genAIPokemon(
 	const scale = getLevelScaling(floor, config);
 	const activeBossInterval = config?.bossInterval || 10;
 	const isBossFloor = floor % activeBossInterval === 0;
-	const effectiveScale: [number, number] = (isBossFloor && scale.bossLevel !== undefined)
-		? [scale.bossLevel, scale.bossLevel]
-		: [scale.min, scale.max];
+	const effectiveScale: [number, number] = (isBossFloor && scale.bossLevel !== undefined) ?
+		[scale.bossLevel, scale.bossLevel] :
+		[scale.min, scale.max];
 
 	const lookupKey = trainerKey || floor.toString();
-	let { forcedTeam, actualQuantity, isTrainerBattle, trainerName, isTrainerDoubles } = forcedTrainer && config && data
-		? resolveTrainerTeam(floor, forcedTrainer, lookupKey, config, data)
-		: { forcedTeam: undefined, actualQuantity: quantity, isTrainerBattle: false, trainerName: undefined, isTrainerDoubles: false };
+	let { forcedTeam, actualQuantity, isTrainerBattle, trainerName, isTrainerDoubles } = forcedTrainer && config && data ?
+		resolveTrainerTeam(floor, forcedTrainer, lookupKey, config, data) :
+		{ forcedTeam: undefined, actualQuantity: quantity, isTrainerBattle: false, trainerName: undefined, isTrainerDoubles: false };
 
 	if (!actualQuantity) actualQuantity = quantity;
 
@@ -1038,8 +1039,8 @@ export function packPokemon(mon: PokemonEntry): string {
 	const spaBoost = mon.activeBuffs?.spa ? 10 : 0;
 	const spdBoost = mon.activeBuffs?.spd ? 10 : 0;
 	const speBoost = mon.activeBuffs?.spe ? 10 : 0;
-	const bstBoostsStr = (atkBoost || defBoost || spaBoost || spdBoost || speBoost)
-		? `${atkBoost}:${defBoost}:${spaBoost}:${spdBoost}:${speBoost}` : '';
+	const bstBoostsStr = (atkBoost || defBoost || spaBoost || spdBoost || speBoost) ?
+		`${atkBoost}:${defBoost}:${spaBoost}:${spdBoost}:${speBoost}` : '';
 
 	const misc = [
 		mon.happiness !== undefined && mon.happiness !== 255 ? mon.happiness.toString() : '',

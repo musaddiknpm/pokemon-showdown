@@ -1,3 +1,4 @@
+import { Utils } from '../../../lib';
 import { PG } from '../../pg';
 
 import { toID } from '../../../sim/dex';
@@ -74,7 +75,7 @@ const AutotourManager = {
 	async saveConfig(roomid: RoomID) {
 		const config = this.getConfig(roomid);
 		await initMiscDB();
-		
+
 		await getTourTable().upsert({
 			room_id: config.roomid,
 			enabled: config.enabled ? 1 : 0,
@@ -84,7 +85,7 @@ const AutotourManager = {
 			autostart: config.autostart,
 			autodq: config.autodq,
 			player_cap: config.playerCap,
-			last_tour_time: config.lastTourTime
+			last_tour_time: config.lastTourTime,
 		}, ['room_id']);
 	},
 
@@ -113,8 +114,8 @@ const AutotourManager = {
 		const room = Rooms.get(roomid);
 		if (!config.enabled || !room || room.game?.gameid === 'tournament') return;
 
-		const format = config.formats[Math.floor(Math.random() * config.formats.length)];
-		const type = config.types[Math.floor(Math.random() * config.types.length)];
+		const format = Utils.randomElement(config.formats);
+		const type = Utils.randomElement(config.types);
 		const modifier = (type === 'elimination' && Math.random() < 0.2) ? '2' : undefined;
 
 		const mockContext: Partial<Chat.CommandContext> = {
@@ -169,7 +170,7 @@ export const commands: Chat.ChatCommands = {
 			const config = AutotourManager.getConfig(roomid);
 			this.checkCan('declare', null, room);
 			const val = parseInt(target);
-			if (isNaN(val) || val < 1) return this.errorReply("Interval must be at least 1 minute.");
+			if (isNaN(val) || val < 1) throw new Chat.ErrorMessage("Interval must be at least 1 minute.");
 			config.interval = val;
 			await AutotourManager.saveConfig(roomid);
 			this.sendReply(`Tournament interval set to ${val} minutes.`);
@@ -180,7 +181,7 @@ export const commands: Chat.ChatCommands = {
 			const config = AutotourManager.getConfig(roomid);
 			this.checkCan('declare', null, room);
 			const formats = target.split(',').map(f => toID(f)).filter(Boolean);
-			if (!formats.length) return this.errorReply("Usage: /at formats [format1], [format2]");
+			if (!formats.length) throw new Chat.ErrorMessage("Usage: /at formats [format1], [format2]");
 			config.formats = formats;
 			await AutotourManager.saveConfig(roomid);
 			this.sendReply("Rotation formats updated.");
@@ -203,7 +204,7 @@ export const commands: Chat.ChatCommands = {
 		next(target, room) {
 			const roomid = this.requireRoom().roomid;
 			const config = AutotourManager.getConfig(roomid);
-			if (!config.enabled) return this.errorReply("Autotour is not enabled here.");
+			if (!config.enabled) throw new Chat.ErrorMessage("Autotour is not enabled here.");
 			const next = (config.lastTourTime + (config.interval * 60000)) - Date.now();
 			const remaining = next > 0 ? Math.floor(next / 60000) : 0;
 			this.sendReply(`The next tournament in ${roomid} is scheduled in ~${remaining} minute(s).`);

@@ -128,7 +128,7 @@ export function loadGlobalData() {
 			await PG.query(`ALTER TABLE pokerogue_user_profiles ADD COLUMN IF NOT EXISTS "eggsHatched" INTEGER DEFAULT 0;`);
 			await PG.query(`ALTER TABLE pokerogue_user_profiles ADD COLUMN IF NOT EXISTS "shiniesUnlocked" INTEGER DEFAULT 0;`);
 		} catch {}
-		
+
 		const globalRow = await getGlobalStatsTable().findById('stats');
 		if (globalRow) {
 			globalStats = JSON.parse(globalRow.data as string);
@@ -225,7 +225,7 @@ export function loadUser(userid: string): Promise<void> {
 			};
 		}
 
-		Object.assign(userCache, { [userid]: userData! });
+		Object.assign(userCache, { [userid]: userData });
 	})();
 }
 
@@ -247,8 +247,6 @@ export function getUserData(userid: string): UserSaveData {
 	}
 	return userCache[userid];
 }
-
-
 
 export function saveUserData(userid: string): void {
 	if (!userCache[userid]) return;
@@ -299,14 +297,14 @@ export function saveUserData(userid: string): void {
 			voucher_regular: vouchers.regular,
 			voucher_plus: vouchers.plus,
 			voucher_premium: vouchers.premium,
-			voucher_gold: vouchers.gold
+			voucher_gold: vouchers.gold,
 		}, ['userid']);
 
 		for (const mode in runsStrMap) {
 			await getRunsTable().upsert({
 				userid,
 				gameMode: mode,
-				state: runsStrMap[mode]
+				state: runsStrMap[mode],
 			}, ['userid', 'gameMode']);
 		}
 
@@ -331,7 +329,7 @@ export function saveUserData(userid: string): void {
 					highestFloor: s.highestFloor || 0,
 					activeFloor: s.activeFloor || 0,
 					wins: s.wins || 0,
-					recordTeam: JSON.stringify(s.recordTeam || [])
+					recordTeam: JSON.stringify(s.recordTeam || []),
 				});
 			}
 			if (stats.length > 0) {
@@ -358,7 +356,7 @@ export function saveUserData(userid: string): void {
 					selectedAbility: s.selectedAbility || '',
 					selectedTeraType: s.selectedTeraType || 'Normal',
 					shiny: s.shiny ? 1 : 0,
-					eggTier: s.eggTier || 'Common'
+					eggTier: s.eggTier || 'Common',
 				}, ['userid', 'species']);
 			}
 			lastSaved.starters = startersStr;
@@ -370,7 +368,7 @@ export function saveUserData(userid: string): void {
 				slots.push({
 					userid,
 					slot: parseInt(slot),
-					state: JSON.stringify(saveSlotsMap[slot])
+					state: JSON.stringify(saveSlotsMap[slot]),
 				});
 			}
 			await getSaveSlotsTable().delete({ userid });
@@ -504,17 +502,17 @@ export function recordRunStats(userid: string, mode: GameMode, floor: number, te
 
 void loadGlobalData();
 
-export function incrementAccountStat(userid: string, stat: 'eggsHatched' | 'shiniesUnlocked', amount: number = 1) {
+export function incrementAccountStat(userid: string, stat: 'eggsHatched' | 'shiniesUnlocked', amount = 1) {
 	const userData = getUserData(userid);
 	if (!userData[stat]) userData[stat] = 0;
-	userData[stat]! += amount;
+	userData[stat] += amount;
 	saveUserData(userid);
 
 	if (!globalStats[userid]) {
 		globalStats[userid] = { displayName: userData.displayName, stats: {} };
 	}
 	if (!globalStats[userid][stat]) globalStats[userid][stat] = 0;
-	globalStats[userid][stat]! += amount;
+	globalStats[userid][stat] += amount;
 	globalStats[userid].displayName = userData.displayName;
 	void saveGlobalStats();
 }

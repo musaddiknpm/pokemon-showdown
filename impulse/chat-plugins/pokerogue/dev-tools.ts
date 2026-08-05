@@ -1,3 +1,4 @@
+import { Utils } from '../../../lib';
 import { loadUser, getState, setState, deleteState, getUserData, saveUserData, globalStats, saveGlobalStats, userCache, saveAllData, incrementAccountStat } from './database';
 import { getLevelUpEvo, getExpType, getLevelUpMoves, expForLevel, getEggMoves } from './pokemon';
 import { type PokeRogueState, type PokemonEntry, type GameMode } from './types';
@@ -29,7 +30,7 @@ export const devCommands: Chat.ChatCommands = {
 		if (s) {
 			const amount = parseInt(amt || '1000');
 			if (isNaN(amount) || amount <= 0) {
-				return this.errorReply(`Amount must be a positive number.`);
+				throw new Chat.ErrorMessage(`Amount must be a positive number.`);
 			}
 			s.money = (s.money ?? 0) + amount;
 			setState(tId, s);
@@ -37,7 +38,7 @@ export const devCommands: Chat.ChatCommands = {
 			const staffName = nameColor(user.name, false, true);
 			notifyUser(tId, `You have been given <b>$${amount}</b> by ${staffName}.`);
 		} else {
-			return this.errorReply(`${tId} does not have an active run.`);
+			throw new Chat.ErrorMessage(`${tId} does not have an active run.`);
 		}
 	},
 
@@ -52,7 +53,7 @@ export const devCommands: Chat.ChatCommands = {
 		if (s) {
 			const amount = parseInt(amt || '1000');
 			if (isNaN(amount) || amount <= 0) {
-				return this.errorReply(`Amount must be a positive number.`);
+				throw new Chat.ErrorMessage(`Amount must be a positive number.`);
 			}
 			s.money = Math.max(0, (s.money ?? 0) - amount);
 			setState(tId, s);
@@ -60,7 +61,7 @@ export const devCommands: Chat.ChatCommands = {
 			const staffName = nameColor(user.name, false, true);
 			notifyUser(tId, `${staffName} has removed <b>$${amount}</b> from you.`);
 		} else {
-			return this.errorReply(`${tId} does not have an active run.`);
+			throw new Chat.ErrorMessage(`${tId} does not have an active run.`);
 		}
 	},
 
@@ -79,20 +80,20 @@ export const devCommands: Chat.ChatCommands = {
 			amt = '1';
 		}
 
-		if (!itemName) return this.errorReply(`Usage: /pokerogue giveitem [user], [item], [amount]`);
+		if (!itemName) throw new Chat.ErrorMessage(`Usage: /pokerogue giveitem [user], [item], [amount]`);
 
 		const tId = toID(name) || user.id;
 		await loadUser(tId);
 		const s = getState(tId);
-		if (!s) return this.errorReply(`${tId} does not have an active run.`);
+		if (!s) throw new Chat.ErrorMessage(`${tId} does not have an active run.`);
 
 		const itemKey = toID(itemName);
 		const item = SHOP_ITEMS[itemKey];
 
-		if (!item) return this.errorReply(`Item "${itemName}" does not exist in the PokéRogue Shop DB.`);
+		if (!item) throw new Chat.ErrorMessage(`Item "${itemName}" does not exist in the PokéRogue Shop DB.`);
 
 		const amount = parseInt(amt || '1');
-		if (isNaN(amount) || amount <= 0) return this.errorReply(`Amount must be a positive number.`);
+		if (isNaN(amount) || amount <= 0) throw new Chat.ErrorMessage(`Amount must be a positive number.`);
 
 		if (item.type === 'pokeball') {
 			s.inventory = s.inventory || {};
@@ -100,7 +101,7 @@ export const devCommands: Chat.ChatCommands = {
 			const maxStack = item.maxStack ?? 99;
 			const added = Math.min(amount, maxStack - current);
 
-			if (added <= 0) return this.errorReply(`${tId} is already at the maximum stack size for ${item.name}.`);
+			if (added <= 0) throw new Chat.ErrorMessage(`${tId} is already at the maximum stack size for ${item.name}.`);
 			s.inventory[itemKey] = current + added;
 
 			this.sendReply(`Gave ${added}x ${item.name} to ${tId}.`);
@@ -111,13 +112,13 @@ export const devCommands: Chat.ChatCommands = {
 			const maxStack = item.maxStack ?? 1;
 			const added = Math.min(amount, maxStack - current);
 
-			if (added <= 0) return this.errorReply(`${tId} is already at the maximum stack size for ${item.name}.`);
+			if (added <= 0) throw new Chat.ErrorMessage(`${tId} is already at the maximum stack size for ${item.name}.`);
 			s.keyItems[item.name] = current + added;
 
 			this.sendReply(`Gave ${added}x ${item.name} to ${tId}.`);
 			notifyUser(tId, `${nameColor(user.name, false, true)} gave you <b>${added}x ${item.name}</b>.`);
 		} else {
-			return this.errorReply(`Only Pokeballs and Key Items can be directly given via this command.`);
+			throw new Chat.ErrorMessage(`Only Pokeballs and Key Items can be directly given via this command.`);
 		}
 
 		setState(tId, s);
@@ -142,7 +143,7 @@ export const devCommands: Chat.ChatCommands = {
 
 		type = type?.toLowerCase();
 		if (!type || !validTypes.includes(type)) {
-			return this.errorReply(`Usage: /pokerogue givevoucher [user], [type], [amount]. Valid types: regular, plus, premium, gold.`);
+			throw new Chat.ErrorMessage(`Usage: /pokerogue givevoucher [user], [type], [amount]. Valid types: regular, plus, premium, gold.`);
 		}
 
 		const tId = toID(name) || user.id;
@@ -150,7 +151,7 @@ export const devCommands: Chat.ChatCommands = {
 		const userData = getUserData(tId);
 
 		const amount = parseInt(amt || '1');
-		if (isNaN(amount) || amount <= 0) return this.errorReply(`Amount must be a positive number.`);
+		if (isNaN(amount) || amount <= 0) throw new Chat.ErrorMessage(`Amount must be a positive number.`);
 
 		if (!userData.vouchers) userData.vouchers = { regular: 0, plus: 0, premium: 0, gold: 0 };
 
@@ -170,12 +171,12 @@ export const devCommands: Chat.ChatCommands = {
 		const userData = getUserData(targetId);
 
 		if (!userData.eggs || userData.eggs.length === 0) {
-			return this.errorReply(`${targetId} has no eggs in their incubator.`);
+			throw new Chat.ErrorMessage(`${targetId} has no eggs in their incubator.`);
 		}
 
 		const state = getState(targetId);
 		if (!state) {
-			return this.errorReply(`${targetId} does not have an active run. An active run is required to receive hatched eggs.`);
+			throw new Chat.ErrorMessage(`${targetId} does not have an active run. An active run is required to receive hatched eggs.`);
 		}
 
 		const config = MODE_CONFIGS[state.gameMode] || MODE_CONFIGS['classic'];
@@ -188,7 +189,7 @@ export const devCommands: Chat.ChatCommands = {
 			const dexSpecies = Dex.species.get(sid);
 
 			const allNatures = Dex.natures.all().map(n => n.name);
-			const randomNature = allNatures[Math.floor(Math.random() * allNatures.length)] || 'Hardy';
+			const randomNature = Utils.randomElement(allNatures) || 'Hardy';
 
 			const generatedTeraType = rollTeraTypeForSpecies(sid);
 
@@ -204,7 +205,7 @@ export const devCommands: Chat.ChatCommands = {
 				const existingUnlocked = userData.starters[sid]?.unlockedEggMoves || [];
 				const availableToUnlock = allEggMoves.filter(m => !existingUnlocked.includes(m));
 				if (availableToUnlock.length > 0) {
-					unlockedEggMove = availableToUnlock[Math.floor(Math.random() * availableToUnlock.length)];
+					unlockedEggMove = Utils.randomElement(availableToUnlock);
 				}
 			}
 
@@ -302,9 +303,9 @@ export const devCommands: Chat.ChatCommands = {
 			s.pendingChoice = [];
 		}
 
-		if (s.team.length >= 6) return this.errorReply(`${tId}'s team is full.`);
+		if (s.team.length >= 6) throw new Chat.ErrorMessage(`${tId}'s team is full.`);
 		const species = Dex.species.get(toID(mon));
-		if (!species.exists) return this.errorReply("Invalid Pokémon.");
+		if (!species.exists) throw new Chat.ErrorMessage("Invalid Pokémon.");
 
 		const level = parseInt(lvl) || 1;
 		let finalSpecies: string = species.id;
@@ -317,7 +318,7 @@ export const devCommands: Chat.ChatCommands = {
 		const finalExpType = getExpType(finalSpecies);
 		const moves = getLevelUpMoves(finalSpecies, level);
 		const natures = Dex.natures.all().map(n => n.name);
-		const displayNature = natures[Math.floor(Math.random() * natures.length)] ?? 'Hardy';
+		const displayNature = Utils.randomElement(natures) ?? 'Hardy';
 		const gender = species.gender || (Math.random() < 0.5 ? 'M' : 'F');
 
 		s.team.push({
@@ -361,7 +362,7 @@ export const devCommands: Chat.ChatCommands = {
 		if (s) {
 			const floor = parseInt(fl || '1');
 			if (isNaN(floor) || floor < 1) {
-				return this.errorReply(`Floor must be a positive number.`);
+				throw new Chat.ErrorMessage(`Floor must be a positive number.`);
 			}
 			s.floor = floor;
 			setState(tId, s);
@@ -369,7 +370,7 @@ export const devCommands: Chat.ChatCommands = {
 			const staffName = nameColor(user.name, false, true);
 			notifyUser(tId, `Your PokéRogue floor has been set to <b>${floor}</b> by ${staffName}.`);
 		} else {
-			return this.errorReply(`${tId} does not have an active run.`);
+			throw new Chat.ErrorMessage(`${tId} does not have an active run.`);
 		}
 	},
 
@@ -389,7 +390,7 @@ export const devCommands: Chat.ChatCommands = {
 			const staffName = nameColor(user.name, false, true);
 			notifyUser(tId, `Your PokéRogue team has been fully healed by ${staffName}.`);
 		} else {
-			return this.errorReply(`${tId} does not have an active run.`);
+			throw new Chat.ErrorMessage(`${tId} does not have an active run.`);
 		}
 	},
 
@@ -404,7 +405,7 @@ export const devCommands: Chat.ChatCommands = {
 			const staffName = nameColor(user.name, false, true);
 			notifyUser(tId, `Your PokéRogue run has been wiped by ${staffName}.`);
 		} else {
-			return this.errorReply(`${tId} does not have an active run.`);
+			throw new Chat.ErrorMessage(`${tId} does not have an active run.`);
 		}
 	},
 
@@ -413,7 +414,7 @@ export const devCommands: Chat.ChatCommands = {
 		this.checkCan("bypassall");
 		const trimmedTarget = target.trim();
 		if (!trimmedTarget) {
-			return this.errorReply(`Usage: /pokerogue resetladder [user|all]`);
+			throw new Chat.ErrorMessage(`Usage: /pokerogue resetladder [user|all]`);
 		}
 
 		const [scope, ...rest] = trimmedTarget.split(' ').map(t => t.trim()).filter(Boolean);
@@ -425,14 +426,14 @@ export const devCommands: Chat.ChatCommands = {
 			const pendingAt = pendingLadderResetConfirmations.get(user.id);
 			if (token !== 'confirm') {
 				pendingLadderResetConfirmations.set(user.id, now);
-				return this.errorReply(
+				throw new Chat.ErrorMessage(
 					`This will reset highestFloor and recordTeam for every PokéRogue user. ` +
 					`If you're sure, run /pokerogue resetladder all confirm within 2 minutes.`
 				);
 			}
 			if (!pendingAt || now - pendingAt > LADDER_RESET_CONFIRM_WINDOW) {
 				pendingLadderResetConfirmations.delete(user.id);
-				return this.errorReply(
+				throw new Chat.ErrorMessage(
 					`No pending ladder reset confirmation found. Run /pokerogue resetladder all first.`
 				);
 			}
@@ -469,7 +470,7 @@ export const devCommands: Chat.ChatCommands = {
 		const targetId = toID(trimmedTarget);
 		await loadUser(targetId);
 		if (!targetId) {
-			return this.errorReply(`Usage: /pokerogue resetladder [user|all]`);
+			throw new Chat.ErrorMessage(`Usage: /pokerogue resetladder [user|all]`);
 		}
 
 		const userData = getUserData(targetId);

@@ -1,3 +1,4 @@
+import { Utils } from '../../../../../lib';
 import { type ModeConfig, type ModeData, type PokeRogueState, type TrainerMon } from '../../types';
 import { BIOMES as ClassicBiomes, BIOME_TRANSITIONS as ClassicTransitions } from './biomes';
 import { TRAINERS as ClassicTrainers } from './trainers';
@@ -77,7 +78,7 @@ export const classicData: ModeData = {
 		const floorKey = `Floor_${floor}`;
 		if (trainers[floorKey]) {
 			const trainerNames = Object.keys(trainers[floorKey]);
-			const selectedName = trainerNames[Math.floor(Math.random() * trainerNames.length)];
+			const selectedName = Utils.randomElement(trainerNames);
 			return { key: floorKey, name: selectedName };
 		}
 
@@ -98,7 +99,7 @@ export const classicData: ModeData = {
 				const gymTrainers = Object.keys(trainers[scaledGymKey]);
 
 				if (gymTrainers.length > 0) {
-					const selectedGymTrainer = gymTrainers[Math.floor(Math.random() * gymTrainers.length)];
+					const selectedGymTrainer = Utils.randomElement(gymTrainers);
 					return { key: scaledGymKey, name: selectedGymTrainer };
 				}
 			}
@@ -158,7 +159,7 @@ export const classicData: ModeData = {
 
 		if (CLASSIC_BOSSES[floorKey]) {
 			const bossNames = Object.keys(CLASSIC_BOSSES[floorKey]);
-			const selectedBoss = bossNames[Math.floor(Math.random() * bossNames.length)];
+			const selectedBoss = Utils.randomElement(bossNames);
 			return CLASSIC_BOSSES[floorKey][selectedBoss].pool;
 		}
 

@@ -68,12 +68,12 @@ const getSettingsTable = () => PG.getTable<GuildSettingsRow>('guild_settings', '
 
 const guildCache = new Map<string, Guild>();
 
-export const destroy = () => { 
+export const destroy = () => {
 	// No longer need listenerClient for single process
 };
 
 let initPromise: Promise<void> | null = null;
-let listenerClient: import('pg').PoolClient | null = null;
+const listenerClient: import('pg').PoolClient | null = null;
 
 export const initDB = async (): Promise<void> => {
 	if (!initPromise) {
@@ -162,7 +162,7 @@ async function reconstructGuild(guildRow: GuildRow): Promise<Guild> {
 	const [membersRes, invitesRes, bansRes] = await Promise.all([
 		getMemberTable().select({ guild_id: guildRow.id }),
 		getInviteTable().select({ guild_id: guildRow.id }),
-		getBanTable().select({ guild_id: guildRow.id })
+		getBanTable().select({ guild_id: guildRow.id }),
 	]);
 
 	const members: GuildMember[] = membersRes.map(m => ({
@@ -212,7 +212,7 @@ export const GuildRepository = {
 
 		const row = await getGuildTable().findById(guildId);
 		if (!row) return null;
-		
+
 		const guild = await reconstructGuild(row);
 		guildCache.set(guildId, guild);
 		return guild;
@@ -283,7 +283,7 @@ export const GuildRepository = {
 
 	async updateGuildSettings(guildId: string, settings: Partial<Guild>): Promise<void> {
 		await initDB();
-		
+
 		const mapping: Record<string, string> = {
 			ownerId: 'owner_id', name: 'name', chatroom: 'chatroom', description: 'description',
 			icon: 'icon', background: 'background', visibility: 'visibility', joinPolicy: 'join_policy',
@@ -298,7 +298,7 @@ export const GuildRepository = {
 				let dbVal = val;
 				if (typeof val === 'boolean') dbVal = val ? 1 : 0;
 				if (val instanceof Date) dbVal = val.getTime();
-				
+
 				(updateData as any)[mapping[key]] = dbVal;
 				hasUpdates = true;
 			}
@@ -323,7 +323,7 @@ export const GuildRepository = {
 			role: member.role,
 			joined_at: member.joinedAt.getTime(),
 			points: member.points,
-			total_points: member.totalPoints
+			total_points: member.totalPoints,
 		});
 		await getGuildTable().updateById(guildId, { updated_at: Date.now() });
 		await invalidateCache(guildId);
@@ -399,7 +399,7 @@ export const GuildRepository = {
 			invited_at: invite.invitedAt.getTime(),
 			expires_at: invite.expiresAt.getTime(),
 			invited_by: invite.invitedBy,
-			status: invite.status
+			status: invite.status,
 		}, ['guild_id', 'user_id']);
 		await getGuildTable().updateById(guildId, { updated_at: Date.now() });
 		await invalidateCache(guildId);
@@ -448,7 +448,7 @@ export async function setGuildCooldowns(userIds: string[]): Promise<void> {
 	if (userIds.length === 0) return;
 	await initDB();
 	const expiration = Date.now() + 12 * 60 * 60 * 1000;
-	
+
 	const placeholders = [];
 	const args = [];
 	let argCount = 1;
@@ -456,7 +456,7 @@ export async function setGuildCooldowns(userIds: string[]): Promise<void> {
 		placeholders.push(`($${argCount++}, $${argCount++})`);
 		args.push(id, expiration);
 	}
-	
+
 	// Kept raw SQL: PGTable lacks a batch upsert mechanism for array payloads
 	await PG.query(`
 		INSERT INTO guild_cooldown (userid, expiration) VALUES ${placeholders.join(', ')}
@@ -468,7 +468,7 @@ export async function getGuildCooldown(userId: string): Promise<number | null> {
 	await initDB();
 	const row = await getCooldownTable().findById(userId);
 	if (!row) return null;
-	
+
 	const expiration = Number(row.expiration);
 	if (Date.now() > expiration) {
 		await getCooldownTable().deleteById(userId);
@@ -504,7 +504,7 @@ export async function saveSeasonInfo(data: SeasonInfo): Promise<void> {
 		id: 1,
 		season: data.season,
 		lastresetat: data.lastResetAt,
-		nextresetat: data.nextResetAt
+		nextresetat: data.nextResetAt,
 	}, ['id']);
 }
 
@@ -519,19 +519,19 @@ export async function getGlobalMemberLimit(): Promise<number> {
 		globalMemberLimitCache = Number(row.global_member_limit);
 		return globalMemberLimitCache;
 	}
-	
+
 	await getSettingsTable().upsert({ id: 1, global_member_limit: 10 }, ['id']);
 	globalMemberLimitCache = 10;
 	return 10;
 }
 
 export async function setGlobalMemberLimit(limit: number): Promise<void> {
-		await getSettingsTable().upsert({ id: 1, global_member_limit: limit }, ['id']);
+	await getSettingsTable().upsert({ id: 1, global_member_limit: limit }, ['id']);
 	globalMemberLimitCache = limit;
-	
+
 	// Update all existing guilds
 	await PG.query(`UPDATE guild SET member_limit = $1`, [limit]);
-	
+
 	// Clear cache
 	guildCache.clear();
 }

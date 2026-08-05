@@ -29,10 +29,10 @@ const ColorManager = {
 		await initDB();
 		if (color) {
 			customColors[userid] = color;
-			await getCustomizationTable().upsert({ 
-				user_id: userid, 
-				color, 
-				updated_at: Date.now() 
+			await getCustomizationTable().upsert({
+				user_id: userid,
+				color,
+				updated_at: Date.now(),
 			}, ['user_id']);
 		} else {
 			delete customColors[userid];
@@ -153,7 +153,7 @@ export const commands: Chat.ChatCommands = {
 		preview(target) {
 			this.checkBroadcast();
 			const [name, color] = target.split(',').map(t => t.trim());
-			if (!name || !ColorManager.validateHex(color)) return this.errorReply("Usage: /cc preview [user], [hex]");
+			if (!name || !ColorManager.validateHex(color)) throw new Chat.ErrorMessage("Usage: /cc preview [user], [hex]");
 			this.sendReplyBox(`<b><font size="3" color="${color}">${escapeHTML(name)}</font></b>`);
 		},
 

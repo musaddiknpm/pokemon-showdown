@@ -12,8 +12,8 @@ interface CustomSymbolEntry {
 }
 
 type ValidationResult =
-	| { valid: true }
-	| { valid: false, error: string };
+	| { valid: true } |
+	{ valid: false, error: string };
 
 let symbolData: Record<string, CustomSymbolEntry> = {};
 
@@ -65,7 +65,7 @@ const SymbolManager = {
 			await getCustomizationTable().upsert({
 				user_id: userid,
 				symbol: entry.symbol,
-				updated_at: Date.now()
+				updated_at: Date.now(),
 			}, ['user_id']);
 		} else {
 			delete symbolData[userid];

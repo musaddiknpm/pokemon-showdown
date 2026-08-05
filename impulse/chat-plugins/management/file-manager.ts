@@ -147,8 +147,8 @@ export const commands: Chat.ChatCommands = {
 			this.checkCan('bypassall');
 			FileManager.checkAccess(user);
 			const [source, dest] = target.split(',').map(s => s.trim());
-			if (!source || !dest) return this.errorReply("Usage: /file move [source], [dest]");
-			
+			if (!source || !dest) throw new Chat.ErrorMessage("Usage: /file move [source], [dest]");
+
 			FileManager.checkPath(source);
 			FileManager.checkPath(dest);
 
@@ -206,7 +206,7 @@ export const commands: Chat.ChatCommands = {
 			this.checkCan('bypassall');
 			FileManager.checkAccess(user);
 			const [filePath, url] = target.split(',').map(s => s.trim());
-			if (!filePath || !url) return this.errorReply("Usage: /file save [path], [url]");
+			if (!filePath || !url) throw new Chat.ErrorMessage("Usage: /file save [path], [url]");
 
 			FileManager.checkPath(filePath);
 
@@ -238,10 +238,10 @@ export const commands: Chat.ChatCommands = {
 				const dir = FS(backupDir);
 				if (!await dir.exists()) throw new Error(`Directory not found: ${backupDir}`);
 				if (!await dir.isDirectory()) throw new Error(`${backupDir} is not a directory.`);
-				
+
 				const archiveName = `backup-${Date.now()}.tar.gz`;
 				const archivePath = FS(archiveName).path;
-				
+
 				// Using system tar command since zip might not be installed
 				await new Promise((resolve, reject) => {
 					require('child_process').exec(`tar -czf "${archivePath}" "${backupDir}"`, { cwd: FS.ROOT_PATH }, (error: any) => {
@@ -252,7 +252,7 @@ export const commands: Chat.ChatCommands = {
 
 				const content = await FS(archiveName).readBuffer();
 				const url = await FileManager.uploadFile(archiveName, content);
-				
+
 				// Clean up the archive file
 				await FS(archiveName).unlinkIfExists();
 

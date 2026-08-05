@@ -238,6 +238,6 @@ export const STARTER_COSTS: Record<string, number> = {
 };
 
 export function getStarterCost(species: string): number {
-	const id = species.toLowerCase().replace(/[^a-z0-9]/g, '');
+	const id = toID(species);
 	return STARTER_COSTS[id] || 3;
 }

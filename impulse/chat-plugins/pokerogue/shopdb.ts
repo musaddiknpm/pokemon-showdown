@@ -65,7 +65,7 @@ const MEGA_STONES = [
 
 const generatedMegaStones: Record<string, ShopItem> = {};
 for (const stone of MEGA_STONES) {
-	const id = stone.toLowerCase().replace(/[^a-z0-9]/g, '');
+	const id = toID(stone);
 	generatedMegaStones[id] = {
 		name: stone, icon: stone, type: "megaStone", category: "Mega Stones",
 		desc: `A mysterious stone that allows certain Pokémon to Mega Evolve.`,

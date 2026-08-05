@@ -31,13 +31,13 @@ interface GlobalShopLogRow {
 
 export async function getItems(): Promise<Record<string, ShopItem>> {
 	await initEconomyDB();
-	
+
 	const rows = await PG.getTable<GlobalShopRow>('global_shop', 'name').select();
 	const items: Record<string, ShopItem> = {};
 	for (const row of rows) {
 		items[row.name] = { description: row.description, cost: Number(row.cost) };
 	}
-	
+
 	return items;
 }
 export async function getItem(name: string): Promise<ShopItem | null> {
@@ -58,16 +58,16 @@ export async function addLog(user: string, item: string): Promise<void> {
 }
 export async function getLogs(): Promise<LogEntry[]> {
 	await initEconomyDB();
-	const rows = await PG.getTable<GlobalShopLogRow>('global_shop_log', 'id').select({}, ['user_id', 'item', 'timestamp'], { 
-		limit: 100, 
-		orderBy: 'timestamp', 
-		order: 'DESC' 
+	const rows = await PG.getTable<GlobalShopLogRow>('global_shop_log', 'id').select({}, ['user_id', 'item', 'timestamp'], {
+		limit: 100,
+		orderBy: 'timestamp',
+		order: 'DESC',
 	});
-	
+
 	return rows.map(r => ({
-		user: r.user_id, 
-		item: r.item, 
-		timestamp: Number(r.timestamp)
+		user: r.user_id,
+		item: r.item,
+		timestamp: Number(r.timestamp),
 	}));
 }
 export async function cleanLogs(): Promise<void> {
@@ -98,10 +98,10 @@ export const commands: Chat.ChatCommands = {
 		async buy(target, room, user) {
 			const itemName = target.trim();
 			const item = await getItem(itemName);
-			if (!item) return this.errorReply(`Item "${itemName}" not found.`);
+			if (!item) throw new Chat.ErrorMessage(`Item "${itemName}" not found.`);
 
 			const bal = await getBalance(user.id);
-			if (bal < item.cost) return this.errorReply(`Insufficient ${CURRENCY_NAME}. (Cost: ${item.cost}, Bal: ${bal})`);
+			if (bal < item.cost) throw new Chat.ErrorMessage(`Insufficient ${CURRENCY_NAME}. (Cost: ${item.cost}, Bal: ${bal})`);
 
 			await setBalance(user.id, bal - item.cost);
 			await addLog(user.name, itemName);
@@ -120,7 +120,7 @@ export const commands: Chat.ChatCommands = {
 			const [name, desc, costStr] = target.split(',').map(s => s.trim());
 			const cost = parseInt(costStr);
 
-			if (!name || !desc || isNaN(cost) || cost <= 0) return this.errorReply("Usage: /shop add [name], [desc], [cost]");
+			if (!name || !desc || isNaN(cost) || cost <= 0) throw new Chat.ErrorMessage("Usage: /shop add [name], [desc], [cost]");
 
 			await setItem(name, desc, cost);
 			this.sendReplyBox(`Item <b>${name}</b> has been added/updated.`);
@@ -130,7 +130,7 @@ export const commands: Chat.ChatCommands = {
 			this.checkCan('bypassall');
 			const name = target.trim();
 			const item = await getItem(name);
-			if (!item) return this.errorReply(`Item "${name}" not found.`);
+			if (!item) throw new Chat.ErrorMessage(`Item "${name}" not found.`);
 
 			await removeItem(name);
 			this.sendReplyBox(`Item "${name}" removed from the global shop.`);
@@ -140,7 +140,7 @@ export const commands: Chat.ChatCommands = {
 			this.checkCan('bypassall');
 			await cleanLogs();
 			const logs = await getLogs();
-			
+
 			if (!logs.length) return this.sendReplyBox("No shop logs found.");
 
 			let html = `<div class="infobox" style="max-height: 200px; overflow-y: auto;"><strong>Global Shop Logs</strong><hr />`;

@@ -46,9 +46,9 @@ interface RoomShopLogRow {
 
 export async function getRoomData(roomid: string): Promise<ShopConfig> {
 	await initEconomyDB();
-	
+
 	let configRow = await PG.getTable<RoomShopRow>('room_shop', 'room_id').findById(roomid);
-	
+
 	if (!configRow) {
 		try {
 			configRow = await PG.getTable<RoomShopRow>('room_shop', 'room_id').insert({ room_id: roomid, enabled: 0, bank: null });
@@ -57,23 +57,23 @@ export async function getRoomData(roomid: string): Promise<ShopConfig> {
 			configRow = await PG.getTable<RoomShopRow>('room_shop', 'room_id').findById(roomid);
 		}
 	}
-	
+
 	const enabled = configRow?.enabled === 1;
 	const bank = configRow?.bank ?? null;
-	
+
 	const itemRows = await PG.getTable<RoomShopItemRow>('room_shop_item', 'room_id').select({ room_id: roomid });
 	const items: Record<string, ShopItem> = {};
 	for (const row of itemRows) {
 		items[row.name] = { description: row.description, cost: Number(row.cost) };
 	}
-	
+
 	return { enabled, bank, items };
 }
 
 export async function setRoomConfig(roomid: string, enabled: boolean, bank: string | null): Promise<void> {
 	await initEconomyDB();
 	await PG.getTable<RoomShopRow>('room_shop', 'room_id').upsert(
-		{ room_id: roomid, enabled: enabled ? 1 : 0, bank }, 
+		{ room_id: roomid, enabled: enabled ? 1 : 0, bank },
 		['room_id']
 	);
 }
@@ -81,7 +81,7 @@ export async function setRoomConfig(roomid: string, enabled: boolean, bank: stri
 export async function setRoomItem(roomid: string, name: string, description: string, cost: number): Promise<void> {
 	await initEconomyDB();
 	await PG.getTable<RoomShopItemRow>('room_shop_item', 'room_id').upsert(
-		{ room_id: roomid, name, description, cost }, 
+		{ room_id: roomid, name, description, cost },
 		['room_id', 'name']
 	);
 }
@@ -93,26 +93,26 @@ export async function removeRoomItem(roomid: string, name: string): Promise<void
 
 export async function addLog(roomid: string, user: string, item: string): Promise<void> {
 	await initEconomyDB();
-	await PG.getTable<RoomShopLogRow>('room_shop_log', 'id').insert({ 
-		room_id: roomid, 
-		user_id: user, 
-		item, 
-		timestamp: Date.now() 
+	await PG.getTable<RoomShopLogRow>('room_shop_log', 'id').insert({
+		room_id: roomid,
+		user_id: user,
+		item,
+		timestamp: Date.now(),
 	});
 }
 
 export async function getLogs(roomid: string): Promise<LogEntry[]> {
 	await initEconomyDB();
-	const rows = await PG.getTable<RoomShopLogRow>('room_shop_log', 'id').select({ room_id: roomid }, ['user_id', 'item', 'timestamp'], { 
-		limit: 100, 
-		orderBy: 'timestamp', 
-		order: 'DESC' 
+	const rows = await PG.getTable<RoomShopLogRow>('room_shop_log', 'id').select({ room_id: roomid }, ['user_id', 'item', 'timestamp'], {
+		limit: 100,
+		orderBy: 'timestamp',
+		order: 'DESC',
 	});
-	
+
 	return rows.map(r => ({
-		user: r.user_id, 
-		item: r.item, 
-		timestamp: Number(r.timestamp)
+		user: r.user_id,
+		item: r.item,
+		timestamp: Number(r.timestamp),
 	}));
 }
 
@@ -125,9 +125,9 @@ export async function cleanLogs(roomid: string): Promise<void> {
 export const commands: Chat.ChatCommands = {
 	roomshop: {
 		async ''(target, room, user) {
-			if (!room || room.battle) return this.errorReply("This command must be used in a chat room.");
+			if (!room || room.battle) throw new Chat.ErrorMessage("This command must be used in a chat room.");
 			const data = await getRoomData(room.roomid);
-			if (!data.enabled) return this.errorReply("The shop is not enabled for this room.");
+			if (!data.enabled) throw new Chat.ErrorMessage("The shop is not enabled for this room.");
 
 			if (!this.runBroadcast()) return;
 
@@ -145,18 +145,18 @@ export const commands: Chat.ChatCommands = {
 		},
 
 		async buy(target, room, user) {
-			if (!room || room.battle) return this.errorReply("This command must be used in a chat room.");
+			if (!room || room.battle) throw new Chat.ErrorMessage("This command must be used in a chat room.");
 			const data = await getRoomData(room.roomid);
 			const itemName = target.trim();
 
-			if (!data.enabled) return this.errorReply("Shop is disabled.");
-			if (!data.bank) return this.errorReply("No bank set for this room.");
+			if (!data.enabled) throw new Chat.ErrorMessage("Shop is disabled.");
+			if (!data.bank) throw new Chat.ErrorMessage("No bank set for this room.");
 
 			const item = data.items[itemName];
-			if (!item) return this.errorReply(`Item "${itemName}" not found.`);
+			if (!item) throw new Chat.ErrorMessage(`Item "${itemName}" not found.`);
 
 			const bal = await getBalance(user.id);
-			if (bal < item.cost) return this.errorReply(`Insufficient ${CURRENCY_NAME}. (Cost: ${item.cost}, Bal: ${bal})`);
+			if (bal < item.cost) throw new Chat.ErrorMessage(`Insufficient ${CURRENCY_NAME}. (Cost: ${item.cost}, Bal: ${bal})`);
 
 			if (user.id !== data.bank) {
 				const bankBal = await getBalance(data.bank);
@@ -170,19 +170,19 @@ export const commands: Chat.ChatCommands = {
 		},
 
 		async bank(target, room, user) {
-			if (!room || room.battle) return this.errorReply("Use this in a room.");
+			if (!room || room.battle) throw new Chat.ErrorMessage("Use this in a room.");
 			this.checkCan('roommod', null, room);
 			const targetId = toID(target);
-			if (!targetId) return this.errorReply("Usage: /roomshop bank [user]");
+			if (!targetId) throw new Chat.ErrorMessage("Usage: /roomshop bank [user]");
 
 			const data = await getRoomData(room.roomid);
 			await setRoomConfig(room.roomid, data.enabled, targetId);
-			
+
 			this.sendReplyBox(`|raw|Room bank set to: ${nameColor(targetId, true)}`);
 		},
 
 		async showbank(target, room, user) {
-			if (!room || room.battle) return this.errorReply("Use this in a room.");
+			if (!room || room.battle) throw new Chat.ErrorMessage("Use this in a room.");
 			const data = await getRoomData(room.roomid);
 			if (!data.bank) return this.sendReplyBox("No bank has been set for this room.");
 			this.sendReplyBox(`The current bank for this room is: ${nameColor(data.bank, true)}`);
@@ -190,57 +190,57 @@ export const commands: Chat.ChatCommands = {
 
 		add: 'edit',
 		async edit(target, room, user) {
-			if (!room || room.battle) return this.errorReply("Use this in a room.");
+			if (!room || room.battle) throw new Chat.ErrorMessage("Use this in a room.");
 			this.checkCan('roommod', null, room);
 			const [name, desc, costStr] = target.split(',').map(s => s.trim());
 			const cost = parseInt(costStr);
 
-			if (!name || !desc || isNaN(cost) || cost <= 0) return this.errorReply("Usage: /roomshop add [name], [desc], [cost]");
+			if (!name || !desc || isNaN(cost) || cost <= 0) throw new Chat.ErrorMessage("Usage: /roomshop add [name], [desc], [cost]");
 
 			const data = await getRoomData(room.roomid);
-			if (!data.enabled) return this.errorReply("Room shop is not enabled.");
+			if (!data.enabled) throw new Chat.ErrorMessage("Room shop is not enabled.");
 
 			await setRoomItem(room.roomid, name, desc, cost);
 			this.sendReplyBox(`Item <b>${name}</b> has been added/updated.`);
 		},
 
 		async remove(target, room, user) {
-			if (!room || room.battle) return this.errorReply("Use this in a room.");
+			if (!room || room.battle) throw new Chat.ErrorMessage("Use this in a room.");
 			this.checkCan('roommod', null, room);
 			const data = await getRoomData(room.roomid);
 			const name = target.trim();
 
-			if (!data.items[name]) return this.errorReply(`Item "${name}" not found.`);
-			
+			if (!data.items[name]) throw new Chat.ErrorMessage(`Item "${name}" not found.`);
+
 			await removeRoomItem(room.roomid, name);
 			this.sendReplyBox(`Item "${name}" removed.`);
 		},
 
 		async enable(target, room, user) {
 			this.checkCan('bypassall');
-			if (!room || room.battle) return this.errorReply("Use this in a room.");
+			if (!room || room.battle) throw new Chat.ErrorMessage("Use this in a room.");
 			const data = await getRoomData(room.roomid);
-			
+
 			await setRoomConfig(room.roomid, true, data.bank);
 			this.sendReplyBox("Room Shop enabled.");
 		},
 
 		async disable(target, room, user) {
 			this.checkCan('bypassall');
-			if (!room || room.battle) return this.errorReply("Use this in a room.");
+			if (!room || room.battle) throw new Chat.ErrorMessage("Use this in a room.");
 			const data = await getRoomData(room.roomid);
-			
+
 			await setRoomConfig(room.roomid, false, data.bank);
 			this.sendReplyBox("Room Shop disabled.");
 		},
 
 		async logs(target, room, user) {
-			if (!room || room.battle) return this.errorReply("Use this in a room.");
+			if (!room || room.battle) throw new Chat.ErrorMessage("Use this in a room.");
 			this.checkCan('roommod', null, room);
-			
+
 			await cleanLogs(room.roomid);
 			const logs = await getLogs(room.roomid);
-			
+
 			if (!logs.length) return this.sendReplyBox("No shop logs found.");
 
 			let html = `<div class="infobox" style="max-height: 200px; overflow-y: auto;"><strong>Shop Logs: ${room.title}</strong><hr />`;

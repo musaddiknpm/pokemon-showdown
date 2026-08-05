@@ -42,8 +42,8 @@ export const commands: Chat.ChatCommands = {
 	git: {
 		async add(target, room, user) {
 			this.checkCan('bypassall');
-			if (!WHITELISTED_USERS.includes(user.id)) return this.errorReply("Access denied.");
-			if (!target) return this.errorReply("Specify files to add (e.g., '.', 'filename.ts').");
+			if (!WHITELISTED_USERS.includes(user.id)) throw new Chat.ErrorMessage("Access denied.");
+			if (!target) throw new Chat.ErrorMessage("Specify files to add (e.g., '.', 'filename.ts').");
 
 			const gitRoot = await GitManager.findRoot(FS.ROOT_PATH);
 			if (!gitRoot) throw new Chat.ErrorMessage("Git root not found.");
@@ -55,8 +55,8 @@ export const commands: Chat.ChatCommands = {
 
 		async commit(target, room, user) {
 			this.checkCan('bypassall');
-			if (!WHITELISTED_USERS.includes(user.id)) return this.errorReply("Access denied.");
-			if (!target) return this.errorReply("You must provide a commit message.");
+			if (!WHITELISTED_USERS.includes(user.id)) throw new Chat.ErrorMessage("Access denied.");
+			if (!target) throw new Chat.ErrorMessage("You must provide a commit message.");
 
 			const gitRoot = await GitManager.findRoot(FS.ROOT_PATH);
 			if (!gitRoot) throw new Chat.ErrorMessage("Git root not found.");
@@ -70,7 +70,7 @@ export const commands: Chat.ChatCommands = {
 
 		async stash(target, room, user) {
 			this.checkCan('bypassall');
-			if (!WHITELISTED_USERS.includes(user.id)) return this.errorReply("Access denied.");
+			if (!WHITELISTED_USERS.includes(user.id)) throw new Chat.ErrorMessage("Access denied.");
 
 			const gitRoot = await GitManager.findRoot(FS.ROOT_PATH);
 			if (!gitRoot) throw new Chat.ErrorMessage("Git root not found.");
@@ -93,7 +93,7 @@ export const commands: Chat.ChatCommands = {
 
 		async checkout(target, room, user) {
 			this.checkCan('bypassall');
-			if (!WHITELISTED_USERS.includes(user.id)) return this.errorReply("Access denied.");
+			if (!WHITELISTED_USERS.includes(user.id)) throw new Chat.ErrorMessage("Access denied.");
 			if (!target) return this.parse('/git help');
 
 			const gitRoot = await GitManager.findRoot(FS.ROOT_PATH);
@@ -106,7 +106,7 @@ export const commands: Chat.ChatCommands = {
 
 		async pull(target, room, user) {
 			this.checkCan('bypassall');
-			if (!WHITELISTED_USERS.includes(user.id)) return this.errorReply("Access denied.");
+			if (!WHITELISTED_USERS.includes(user.id)) throw new Chat.ErrorMessage("Access denied.");
 
 			const gitRoot = await GitManager.findRoot(FS.ROOT_PATH);
 			if (!gitRoot) throw new Chat.ErrorMessage("Git root not found.");
@@ -117,7 +117,7 @@ export const commands: Chat.ChatCommands = {
 
 		async status(target, room, user) {
 			this.checkCan('bypassall');
-			if (!WHITELISTED_USERS.includes(user.id)) return this.errorReply("Access denied.");
+			if (!WHITELISTED_USERS.includes(user.id)) throw new Chat.ErrorMessage("Access denied.");
 
 			const gitRoot = await GitManager.findRoot(FS.ROOT_PATH);
 			if (!gitRoot) throw new Chat.ErrorMessage("Git root not found.");

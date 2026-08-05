@@ -60,7 +60,7 @@ const OntimeManager = {
 		} else {
 			ontimeData[userid] = { totalTime: sessionTime, isBlocked: false };
 		}
-		
+
 		pendingOntimeUpdates.set(userid, (pendingOntimeUpdates.get(userid) || 0) + sessionTime);
 		if (!ontimeBatchTimer) {
 			ontimeBatchTimer = setTimeout(() => {
@@ -95,9 +95,9 @@ const OntimeManager = {
 		await getOntimeTable().upsert({
 			user_id: userid,
 			total_time: totalTime,
-			is_blocked: blocked ? 1 : 0
+			is_blocked: blocked ? 1 : 0,
 		}, ['user_id'], 'is_blocked');
-	}
+	},
 };
 
 export const handlers: Chat.Handlers = {

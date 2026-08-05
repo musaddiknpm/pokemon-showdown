@@ -3,13 +3,13 @@ export const Table = (title: string, headerRow: string[], dataRows: string[][]):
 	output += `<h3 class="themed-table-title">${title}</h3>`;
 	output += `<table class="themed-table" style="width: 100%; border-collapse: collapse;">`;
 	output += `<tr class="themed-table-header">`;
-	headerRow.forEach(header => { output += `<th>${header}</th>`; });
+	for (const header of headerRow) { output += `<th>${header}</th>`; }
 	output += `</tr>`;
-	dataRows.forEach(row => {
+	for (const row of dataRows) {
 		output += `<tr class="themed-table-row">`;
-		row.forEach(cell => { output += `<td>${cell}</td>`; });
+		for (const cell of row) { output += `<td>${cell}</td>`; }
 		output += `</tr>`;
-	});
+	}
 	output += `</table></div>`;
 	return output;
 };

@@ -84,12 +84,12 @@ const SeenManager = {
 				removed++;
 			}
 		}
-		
+
 		if (removed > 0) {
 			await initMiscDB();
 			await getSeenTable().delete({ last_seen: { lt: cutoff } });
 		}
-		
+
 		return removed;
 	},
 

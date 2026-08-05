@@ -36,35 +36,35 @@ export const IconManager = {
 					const dir = entry.direction || DEFAULTS.DIRECTION;
 					const c1 = entry.color1 || DEFAULTS.COLOR1;
 					const c2 = entry.color2 || DEFAULTS.COLOR2;
-					
+
 					if (dir === 'none') {
 						return `[id$="-userlist-user-${userId}"] { ` +
 							`background-image: url("${entry.url}") !important; ` +
 							`background-repeat: no-repeat !important; ` +
 							`background-position: right 5px center !important; ` +
 							`background-size: ${size}px auto !important; ` +
-						`}`;
+							`}`;
 					}
 
-					const gradient = dir === 'center'
-						? `radial-gradient(circle, ${c1}, ${c2})`
-						: `linear-gradient(${dir}, ${c1}, ${c2})`;
+					const gradient = dir === 'center' ?
+						`radial-gradient(circle, ${c1}, ${c2})` :
+						`linear-gradient(${dir}, ${c1}, ${c2})`;
 
 					return `[id$="-userlist-user-${userId}"] { ` +
 						`background-image: url("${entry.url}"), ${gradient} !important; ` +
 						`background-repeat: no-repeat, no-repeat !important; ` +
 						`background-position: right 5px center, center !important; ` +
 						`background-size: ${size}px auto, 100% 100% !important; ` +
-					`}`;
+						`}`;
 				})
 				.join('\n'),
 		});
 
 		await initDB();
 		const rows = await getCustomizationTable().select({}, [
-			'user_id', 'icon_url', 'icon_size', 'icon_direction', 'icon_color1', 'icon_color2'
+			'user_id', 'icon_url', 'icon_size', 'icon_direction', 'icon_color1', 'icon_color2',
 		]);
-		
+
 		iconData = {};
 		for (const row of rows) {
 			if (row.icon_url) {
@@ -93,16 +93,16 @@ export const IconManager = {
 				icon_direction: entry.direction,
 				icon_color1: entry.color1,
 				icon_color2: entry.color2,
-				updated_at: Date.now()
+				updated_at: Date.now(),
 			}, ['user_id']);
 		} else {
 			delete iconData[userid];
-			await getCustomizationTable().update({ 
-				icon_url: null, 
-				icon_size: null, 
-				icon_direction: null, 
-				icon_color1: null, 
-				icon_color2: null 
+			await getCustomizationTable().update({
+				icon_url: null,
+				icon_size: null,
+				icon_direction: null,
+				icon_color1: null,
+				icon_color2: null,
 			}, { user_id: userid });
 		}
 	},
@@ -114,7 +114,7 @@ export const IconManager = {
 			return { valid: false, error: `Size must be an integer between ${DEFAULTS.MIN} and ${DEFAULTS.MAX}.` };
 		}
 		return { valid: true, size };
-	}
+	},
 };
 
 export const commands: Chat.ChatCommands = {
@@ -130,9 +130,9 @@ export const commands: Chat.ChatCommands = {
 			if (targetId.length > 19) throw new Chat.ErrorMessage("Username too long.");
 
 			const result = IconManager.validateSize(sizeStr);
-			if (!result.valid) return this.errorReply(result.error);
+			if (!result.valid) throw new Chat.ErrorMessage(result.error);
 
-			const direction = directionStr || DEFAULTS.DIRECTION; 
+			const direction = directionStr || DEFAULTS.DIRECTION;
 			const c1 = color1 || DEFAULTS.COLOR1;
 			const c2 = color2 || DEFAULTS.COLOR2;
 
@@ -144,7 +144,7 @@ export const commands: Chat.ChatCommands = {
 			iconData[targetId] = {
 				url,
 				size: result.size,
-				direction, 
+				direction,
 				color1: c1,
 				color2: c2,
 				setBy: user.id,
@@ -172,7 +172,7 @@ export const commands: Chat.ChatCommands = {
 			if (url) iconData[targetId].url = url;
 			if (sizeStr) {
 				const result = IconManager.validateSize(sizeStr);
-				if (!result.valid) return this.errorReply(result.error);
+				if (!result.valid) throw new Chat.ErrorMessage(result.error);
 				iconData[targetId].size = result.size;
 			}
 			if (directionStr) iconData[targetId].direction = directionStr;

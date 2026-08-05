@@ -1,3 +1,4 @@
+import { Utils } from '../../../lib';
 let poofDisabled = false;
 
 function setPoofState(enabled: boolean) {
@@ -59,7 +60,7 @@ const generateRandomColor = (): string => {
 };
 
 const getRandomMessage = (): string => {
-	return messages[Math.floor(Math.random() * messages.length)];
+	return Utils.randomElement(messages);
 };
 
 const formatMessage = (message: string, userName: string): string => {
@@ -74,7 +75,7 @@ export const commands: Chat.ChatCommands = {
 	poof: {
 		''(target: string, room: Room, user: User): void {
 			if (poofDisabled) {
-				return this.errorReply("Poof is currently disabled.");
+				throw new Chat.ErrorMessage("Poof is currently disabled.");
 			}
 			const message = target || getRandomMessage();
 			const formattedMessage = formatMessage(message, user.name);

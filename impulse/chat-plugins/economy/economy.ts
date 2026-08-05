@@ -30,7 +30,7 @@ export const getBalance = async (userid: string): Promise<number> => {
 export const setBalance = async (userid: string, amount: number): Promise<void> => {
 	const newBal = Math.max(0, amount);
 	await initEconomyDB();
-	
+
 	await PG.getTable<EconomyRow>('economy', 'user_id').upsert(
 		{ user_id: userid, balance: newBal, last_claim: 0 },
 		['user_id'],
@@ -40,7 +40,7 @@ export const setBalance = async (userid: string, amount: number): Promise<void> 
 
 export const updateBalance = async (userid: string, delta: number): Promise<void> => {
 	await initEconomyDB();
-	
+
 	// Kept raw SQL: PGTable.update() cannot handle relative mathematical assignment logic.
 	await PG.query(`
 		INSERT INTO economy (user_id, balance, last_claim)
@@ -86,7 +86,7 @@ export const commands: Chat.ChatCommands = {
 
 		if (remaining > 0) {
 			const timeParts = Chat.toDurationString(remaining, { precision: true });
-			return this.errorReply(`You've already claimed your daily ${CONFIG.CURRENCY}. Please wait ${timeParts}.`);
+			throw new Chat.ErrorMessage(`You've already claimed your daily ${CONFIG.CURRENCY}. Please wait ${timeParts}.`);
 		}
 
 		const reward = Math.floor(Math.random() * (CONFIG.DAILY_MAX - CONFIG.DAILY_MIN + 1)) + CONFIG.DAILY_MIN;
@@ -102,11 +102,11 @@ export const commands: Chat.ChatCommands = {
 		const amount = parseInt(amountStr);
 		const targetId = toID(targetName);
 
-		if (!targetId || isNaN(amount) || amount <= 0) return this.errorReply("Usage: /transfer [user], [amount]");
-		if (targetId === user.id) return this.errorReply("You cannot transfer to yourself.");
+		if (!targetId || isNaN(amount) || amount <= 0) throw new Chat.ErrorMessage("Usage: /transfer [user], [amount]");
+		if (targetId === user.id) throw new Chat.ErrorMessage("You cannot transfer to yourself.");
 
 		const senderBal = await getBalance(user.id);
-		if (senderBal < amount) return this.errorReply(`You don't have enough ${CONFIG.CURRENCY}.`);
+		if (senderBal < amount) throw new Chat.ErrorMessage(`You don't have enough ${CONFIG.CURRENCY}.`);
 
 		await updateBalance(user.id, -amount);
 		await updateBalance(targetId, amount);
@@ -121,7 +121,7 @@ export const commands: Chat.ChatCommands = {
 		const amount = parseInt(amountStr);
 		const targetId = toID(targetName);
 
-		if (!targetId || isNaN(amount) || amount <= 0) return this.errorReply("Usage: /givemoney [user], [amount]");
+		if (!targetId || isNaN(amount) || amount <= 0) throw new Chat.ErrorMessage("Usage: /givemoney [user], [amount]");
 
 		await updateBalance(targetId, amount);
 		this.sendReplyBox(`Gave <b>${amount}</b> ${CONFIG.CURRENCY} to ${targetName}.`);
@@ -136,7 +136,7 @@ export const commands: Chat.ChatCommands = {
 		const amount = parseInt(amountStr);
 		const targetId = toID(targetName);
 
-		if (!targetId || isNaN(amount) || amount <= 0) return this.errorReply("Usage: /takemoney [user], [amount]");
+		if (!targetId || isNaN(amount) || amount <= 0) throw new Chat.ErrorMessage("Usage: /takemoney [user], [amount]");
 
 		await updateBalance(targetId, -amount);
 		this.sendReplyBox(`Took <b>${amount}</b> ${CONFIG.CURRENCY} from ${targetName}.`);
@@ -150,10 +150,10 @@ export const commands: Chat.ChatCommands = {
 		if (!this.runBroadcast()) return;
 		await initEconomyDB();
 
-		const rows = await PG.getTable<EconomyRow>('economy', 'user_id').select({}, ['user_id', 'balance'], { 
-			limit: 50, 
-			orderBy: 'balance', 
-			order: 'DESC' 
+		const rows = await PG.getTable<EconomyRow>('economy', 'user_id').select({}, ['user_id', 'balance'], {
+			limit: 50,
+			orderBy: 'balance',
+			order: 'DESC',
 		});
 
 		if (!rows.length) return this.sendReplyBox("No economy data found.");

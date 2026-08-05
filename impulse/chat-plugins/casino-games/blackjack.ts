@@ -1,11 +1,10 @@
+import { Utils } from '../../../lib';
 import { getBalance, updateBalance, CURRENCY_NAME } from '../economy/economy';
 import { nameColor } from '../customization/custom-color';
-import { activeCasinoGames, CASINO_ROOM, Suit, Rank, Card, SUITS, RANKS, renderHand } from './shared';
+import { activeCasinoGames, CASINO_ROOM, Suit, Rank, type Card, SUITS, RANKS, renderHand } from './shared';
 
 const LOBBY_TIMEOUT = 60 * 1000;
 const TURN_TIMEOUT = 15 * 1000;
-
-
 
 interface Player {
 	id: string;
@@ -31,11 +30,9 @@ interface BlackjackGame {
 
 const activeGames = new Map<string, BlackjackGame>();
 
-
-
 function drawCard(): Card {
-	const suit = SUITS[Math.floor(Math.random() * SUITS.length)];
-	const rank = RANKS[Math.floor(Math.random() * RANKS.length)];
+	const suit = Utils.randomElement(SUITS);
+	const rank = Utils.randomElement(RANKS);
 	let value = parseInt(rank);
 	if (isNaN(value)) {
 		value = rank === 'A' ? 11 : 10;
@@ -56,8 +53,6 @@ function calculateHandValue(hand: Card[]): number {
 	}
 	return total;
 }
-
-
 
 async function refundAll(game: BlackjackGame, message: string) {
 	for (const p of game.players) {
@@ -163,7 +158,7 @@ function getBoardHtml(game: BlackjackGame, userId: string | null): string {
 	let html = `<div class="casino-board">`;
 	html += `<div class="casino-header">Blackjack <small>(Bet: <b>${game.bet}</b> ${CURRENCY_NAME})</small></div>`;
 	html += `Host: ${nameColor(game.hostName, true)}<hr>`;
-	
+
 	if (game.state === 'lobby') {
 		html += `<div class="casino-player-list">`;
 		if (game.players.length === 0) {
@@ -187,37 +182,35 @@ function getBoardHtml(game: BlackjackGame, userId: string | null): string {
 	} else {
 		const hideFirst = game.state === 'playing';
 		const dealerVal = hideFirst ? '?' : calculateHandValue(game.dealerHand);
-		
+
 		if (game.state === 'ended') {
 			html += `<div style="padding: 4px; background: rgba(0,0,0,0.2); border-radius: 4px; margin-bottom: 6px;">`;
 			html += `<b>Dealer's Hand:</b> <small>[${dealerVal}]</small> ${renderHand(game.dealerHand, hideFirst, true)}`;
 			html += `</div>`;
-			
+
 			html += `<div style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom: 8px;">`;
 			for (let i = 0; i < game.players.length; i++) {
 				const p = game.players[i];
 				const val = calculateHandValue(p.hand);
 				let statusStr = `<small>[${val}]</small> `;
-				if (p.status === 'blackjack') { statusStr += '<b style="color:#4CAF50;">BJ</b>'; }
-				else if (p.status === 'busted') { statusStr += '<b style="color:#F44336;">Bust</b>'; }
-				else if (p.status === 'stood') { statusStr += '<b style="color:#aaa;">Stood</b>'; }
-				
+				if (p.status === 'blackjack') { statusStr += '<b style="color:#4CAF50;">BJ</b>'; } else if (p.status === 'busted') { statusStr += '<b style="color:#F44336;">Bust</b>'; } else if (p.status === 'stood') { statusStr += '<b style="color:#aaa;">Stood</b>'; }
+
 				html += `<div style="flex: 1 1 45%; background: rgba(0,0,0,0.1); padding: 4px; border-radius: 4px; border-left: 2px solid #FFC107;">`;
 				html += `<b>${nameColor(p.name, true)}</b>: ${statusStr} ${renderHand(p.hand, false, true)}`;
 				if (p.payoutStr) html += ` <small>${p.payoutStr}</small>`;
 				html += `</div>`;
 			}
 			html += `</div>`;
-			
-			let winners = [];
+
+			const winners = [];
 			for (const p of game.players) {
-				if (p.payoutStr && p.payoutStr.includes('Won')) {
-					const amtMatch = p.payoutStr.match(/Won <b>(\d+)<\/b>/);
+				if (p.payoutStr?.includes('Won')) {
+					const amtMatch = /Won <b>(\d+)<\/b>/.exec(p.payoutStr);
 					const amt = amtMatch ? amtMatch[1] : '0';
-					winners.push({ name: p.name, amt: amt });
+					winners.push({ name: p.name, amt });
 				}
 			}
-			
+
 			let winHtml = '';
 			if (winners.length > 0) {
 				if (winners.length === 1) {
@@ -232,30 +225,26 @@ function getBoardHtml(game: BlackjackGame, userId: string | null): string {
 				else winHtml = `The Dealer won the Blackjack.`;
 			}
 			html += `<div style="text-align: center; font-size: 1.1em; color: #FFC107;">${winHtml}</div>`;
-			
 		} else {
 			html += `<b>Dealer's Hand:</b> <small>[${dealerVal}]</small><br>`;
 			html += renderHand(game.dealerHand, hideFirst) + `<hr>`;
-			
+
 			html += `<div class="casino-player-list">`;
 			for (let i = 0; i < game.players.length; i++) {
 				const p = game.players[i];
 				const val = calculateHandValue(p.hand);
 				let statusStr = `<small>[${val}]</small> `;
 				let badgeClass = '';
-				if (p.status === 'blackjack') { statusStr += '<b style="color:#4CAF50;">BJ</b>'; badgeClass = 'active'; }
-				else if (p.status === 'busted') { statusStr += '<b style="color:#F44336;">Bust</b>'; badgeClass = 'folded'; }
-				else if (p.status === 'stood') { statusStr += '<b style="color:#aaa;">Stood</b>'; badgeClass = 'eliminated'; }
-				else { badgeClass = 'active'; }
-				
+				if (p.status === 'blackjack') { statusStr += '<b style="color:#4CAF50;">BJ</b>'; badgeClass = 'active'; } else if (p.status === 'busted') { statusStr += '<b style="color:#F44336;">Bust</b>'; badgeClass = 'folded'; } else if (p.status === 'stood') { statusStr += '<b style="color:#aaa;">Stood</b>'; badgeClass = 'eliminated'; } else { badgeClass = 'active'; }
+
 				const isTurn = game.state === 'playing' && game.turnIndex === i;
 				if (isTurn) badgeClass = 'all-in';
-				
+
 				html += `<div class="casino-player-badge ${badgeClass}">`;
 				html += `<span class="casino-player-name">${nameColor(p.name, true)}</span>`;
 				html += `Status: ${statusStr}<br>`;
 				html += `<div style="margin-top: 4px;">${renderHand(p.hand)}</div>`;
-				
+
 				if (isTurn && p.id === userId) {
 					html += `<div style="margin-top: 6px; text-align: center;">`;
 					html += `<button class="button casino-btn" name="send" value="/bj hit">Hit</button> `;
@@ -263,7 +252,7 @@ function getBoardHtml(game: BlackjackGame, userId: string | null): string {
 					html += `<div style="margin-top: 4px;"><small style="color:#FFC107;">You have 15 seconds to act.</small></div>`;
 					html += `</div>`;
 				}
-				
+
 				html += `</div>`;
 			}
 			html += `</div>`;
@@ -276,7 +265,7 @@ function getBoardHtml(game: BlackjackGame, userId: string | null): string {
 function updateRoom(game: BlackjackGame) {
 	const room = Rooms.get(game.roomid);
 	if (!room) return;
-	
+
 	if (game.state === 'ended') {
 		const html = getBoardHtml(game, null);
 		room.add(`|uhtmlchange|${game.uid}|${html}`).update();
@@ -284,7 +273,7 @@ function updateRoom(game: BlackjackGame) {
 	}
 
 	const boardHtml = getBoardHtml(game, null);
-	
+
 	if (room.log && room.log.log) {
 		const originalStart = `|uhtml|${game.uid}|`;
 		for (let i = 0; i < room.log.log.length; i++) {
@@ -294,7 +283,7 @@ function updateRoom(game: BlackjackGame) {
 			}
 		}
 	}
-	
+
 	for (const id in room.users) {
 		const u = room.users[id];
 		u.sendTo(room, `|uhtmlchange|${game.uid}|${getBoardHtml(game, u.id)}`);
@@ -322,17 +311,17 @@ export const commands: Chat.ChatCommands = {
 	bj: 'blackjack',
 	blackjack: {
 		async start(target, room, user) {
-			if (!room || room.battle || room.roomid !== CASINO_ROOM) return this.errorReply("This command can only be used in the Casino room.");
+			if (!room || room.battle || room.roomid !== CASINO_ROOM) throw new Chat.ErrorMessage("This command can only be used in the Casino room.");
 
 			const bet = parseInt(target.trim());
-			if (isNaN(bet) || bet <= 0) return this.errorReply("Usage: /bj start [coins]");
+			if (isNaN(bet) || bet <= 0) throw new Chat.ErrorMessage("Usage: /bj start [coins]");
 
-			if (activeCasinoGames.has(room.roomid)) return this.errorReply(`A ${activeCasinoGames.get(room.roomid)} game is already running in this room.`);
+			if (activeCasinoGames.has(room.roomid)) throw new Chat.ErrorMessage(`A ${activeCasinoGames.get(room.roomid)} game is already running in this room.`);
 
 			// Host no longer auto-joins, so balance check is deferred to join command
 
 			const uid = `bj-${room.roomid}-${Date.now()}`;
-			
+
 			const game: BlackjackGame = {
 				roomid: room.roomid,
 				uid,
@@ -363,7 +352,7 @@ export const commands: Chat.ChatCommands = {
 
 			activeGames.set(room.roomid, game);
 			activeCasinoGames.set(room.roomid, 'blackjack');
-			
+
 			const roomObj = Rooms.get(game.roomid);
 			if (roomObj) {
 				roomObj.add(`|uhtml|${game.uid}|${getBoardHtml(game, null)}`).update();
@@ -375,15 +364,15 @@ export const commands: Chat.ChatCommands = {
 		},
 
 		async join(target, room, user) {
-			if (!room || room.battle || room.roomid !== CASINO_ROOM) return this.errorReply("This command can only be used in the Casino room.");
+			if (!room || room.battle || room.roomid !== CASINO_ROOM) throw new Chat.ErrorMessage("This command can only be used in the Casino room.");
 			const game = activeGames.get(room.roomid);
-			if (!game) return this.errorReply("No active blackjack game in this room.");
-			if (game.state !== 'lobby') return this.errorReply("This game has already started.");
-			if (game.players.some(p => p.id === user.id)) return this.errorReply("You are already in this game.");
-			if (game.players.length >= 4) return this.errorReply("This game is full (max 4 players).");
+			if (!game) throw new Chat.ErrorMessage("No active blackjack game in this room.");
+			if (game.state !== 'lobby') throw new Chat.ErrorMessage("This game has already started.");
+			if (game.players.some(p => p.id === user.id)) throw new Chat.ErrorMessage("You are already in this game.");
+			if (game.players.length >= 4) throw new Chat.ErrorMessage("This game is full (max 4 players).");
 
 			const bal = await getBalance(user.id);
-			if (bal < game.bet) return this.errorReply(`You don't have enough ${CURRENCY_NAME}. (Cost: ${game.bet}, Balance: ${bal})`);
+			if (bal < game.bet) throw new Chat.ErrorMessage(`You don't have enough ${CURRENCY_NAME}. (Cost: ${game.bet}, Balance: ${bal})`);
 
 			await updateBalance(user.id, -game.bet);
 			game.players.push({
@@ -391,37 +380,37 @@ export const commands: Chat.ChatCommands = {
 				name: user.name,
 				hand: [],
 				status: 'playing',
-				bet: game.bet
+				bet: game.bet,
 			});
 
 			updateRoom(game);
 		},
 
 		async deal(target, room, user) {
-			if (!room || room.battle || room.roomid !== CASINO_ROOM) return this.errorReply("This command can only be used in the Casino room.");
+			if (!room || room.battle || room.roomid !== CASINO_ROOM) throw new Chat.ErrorMessage("This command can only be used in the Casino room.");
 			const game = activeGames.get(room.roomid);
-			if (!game) return this.errorReply("No active blackjack game in this room.");
-			if (game.state !== 'lobby') return this.errorReply("This game has already started.");
-			
-			const isHost = typeof user === 'string' ? user === game.host : user.id === game.host;
-			if (!isHost) return this.errorReply("Only the host can start dealing.");
+			if (!game) throw new Chat.ErrorMessage("No active blackjack game in this room.");
+			if (game.state !== 'lobby') throw new Chat.ErrorMessage("This game has already started.");
 
-			if (game.players.length === 0) return this.errorReply("Cannot deal without any players.");
+			const isHost = typeof user === 'string' ? user === game.host : user.id === game.host;
+			if (!isHost) throw new Chat.ErrorMessage("Only the host can start dealing.");
+
+			if (game.players.length === 0) throw new Chat.ErrorMessage("Cannot deal without any players.");
 
 			void startDealing(game);
 		},
 
 		async hit(target, room, user) {
-			if (!room || room.battle || room.roomid !== CASINO_ROOM) return this.errorReply("This command can only be used in the Casino room.");
+			if (!room || room.battle || room.roomid !== CASINO_ROOM) throw new Chat.ErrorMessage("This command can only be used in the Casino room.");
 			const game = activeGames.get(room.roomid);
-			if (!game || game.state !== 'playing') return this.errorReply("There is no active blackjack game waiting for moves.");
-			
+			if (!game || game.state !== 'playing') throw new Chat.ErrorMessage("There is no active blackjack game waiting for moves.");
+
 			const currentPlayer = game.players[game.turnIndex];
-			if (!currentPlayer || currentPlayer.id !== user.id) return this.errorReply("It's not your turn.");
+			if (!currentPlayer || currentPlayer.id !== user.id) throw new Chat.ErrorMessage("It's not your turn.");
 
 			currentPlayer.hand.push(drawCard());
 			const val = calculateHandValue(currentPlayer.hand);
-			
+
 			if (val > 21) {
 				currentPlayer.status = 'busted';
 				await nextTurn(game);
@@ -439,26 +428,26 @@ export const commands: Chat.ChatCommands = {
 		},
 
 		async stand(target, room, user) {
-			if (!room || room.battle || room.roomid !== CASINO_ROOM) return this.errorReply("This command can only be used in the Casino room.");
+			if (!room || room.battle || room.roomid !== CASINO_ROOM) throw new Chat.ErrorMessage("This command can only be used in the Casino room.");
 			const game = activeGames.get(room.roomid);
-			if (!game || game.state !== 'playing') return this.errorReply("There is no active blackjack game waiting for moves.");
-			
+			if (!game || game.state !== 'playing') throw new Chat.ErrorMessage("There is no active blackjack game waiting for moves.");
+
 			const currentPlayer = game.players[game.turnIndex];
-			if (!currentPlayer || currentPlayer.id !== user.id) return this.errorReply("It's not your turn.");
+			if (!currentPlayer || currentPlayer.id !== user.id) throw new Chat.ErrorMessage("It's not your turn.");
 
 			currentPlayer.status = 'stood';
 			await nextTurn(game);
 		},
 
 		async end(target, room, user) {
-			if (!room || room.battle || room.roomid !== CASINO_ROOM) return this.errorReply("This command can only be used in the Casino room.");
+			if (!room || room.battle || room.roomid !== CASINO_ROOM) throw new Chat.ErrorMessage("This command can only be used in the Casino room.");
 			const game = activeGames.get(room.roomid);
-			if (!game) return this.errorReply("No active blackjack game in this room.");
-			
-			const canEnd = user.id === game.host || user.can('roommod', null, room);
-			if (!canEnd) return this.errorReply("Only the host or a room moderator can cancel the game.");
+			if (!game) throw new Chat.ErrorMessage("No active blackjack game in this room.");
 
-			if (game.state !== 'lobby') return this.errorReply("The game is already in progress and cannot be cancelled.");
+			const canEnd = user.id === game.host || user.can('roommod', null, room);
+			if (!canEnd) throw new Chat.ErrorMessage("Only the host or a room moderator can cancel the game.");
+
+			if (game.state !== 'lobby') throw new Chat.ErrorMessage("The game is already in progress and cannot be cancelled.");
 
 			if (game.timer) clearTimeout(game.timer);
 			activeGames.delete(room.roomid);
@@ -488,7 +477,7 @@ export const commands: Chat.ChatCommands = {
 				`Number cards are face value, face cards are 10, and Aces can be 1 or 11.<br>` +
 				`Beating the dealer pays 2x your bet, and getting a natural Blackjack pays 2.5x!`
 			);
-		}
+		},
 	},
 	blackjackhelp: 'blackjack help',
 	bjhelp: 'blackjack help',

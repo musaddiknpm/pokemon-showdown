@@ -1,5 +1,3 @@
-
-
 const ClearManager = {
 	resetRoomUsers(room: Room) {
 		const userIds = Object.keys(room.users) as ID[];
@@ -52,7 +50,7 @@ export const commands: Chat.ChatCommands = {
 		''(target, room, user) {
 			room = this.requireRoom();
 			this.checkCan('roommod', null, room);
-			if (room.battle) return this.errorReply("Cannot use clearall in battle rooms.");
+			if (room.battle) throw new Chat.ErrorMessage("Cannot use clearall in battle rooms.");
 
 			const result = ClearManager.execute([room]);
 
@@ -76,7 +74,7 @@ export const commands: Chat.ChatCommands = {
 			}
 
 			if (result.failed.length) {
-				this.errorReply(`Failed to clear (Tournament running): ${result.failed.join(', ')}`);
+				throw new Chat.ErrorMessage(`Failed to clear (Tournament running): ${result.failed.join(', ')}`);
 			}
 		},
 

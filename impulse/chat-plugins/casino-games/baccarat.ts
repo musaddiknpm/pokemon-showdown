@@ -1,6 +1,7 @@
+import { Utils } from '../../../lib';
 import { getBalance, updateBalance, CURRENCY_NAME } from '../economy/economy';
 import { nameColor } from '../customization/custom-color';
-import { activeCasinoGames, CASINO_ROOM, Suit, Rank, Card, SUITS, RANKS, renderHand } from './shared';
+import { activeCasinoGames, CASINO_ROOM, Suit, Rank, type Card, SUITS, RANKS, renderHand } from './shared';
 
 const LOBBY_TIMEOUT = 60 * 1000;
 
@@ -26,11 +27,9 @@ interface BaccaratGame {
 
 const activeGames = new Map<string, BaccaratGame>();
 
-
-
 function drawCard(): Card {
-	const suit = SUITS[Math.floor(Math.random() * SUITS.length)];
-	const rank = RANKS[Math.floor(Math.random() * RANKS.length)];
+	const suit = Utils.randomElement(SUITS);
+	const rank = Utils.randomElement(RANKS);
 	let value = parseInt(rank);
 	if (isNaN(value)) {
 		value = rank === 'A' ? 1 : 0;
@@ -45,8 +44,6 @@ function calculateHandValue(hand: Card[]): number {
 	}
 	return total % 10;
 }
-
-
 
 async function refundAll(game: BaccaratGame, message: string) {
 	for (const p of game.players) {
@@ -68,7 +65,7 @@ function getLobbyHtml(game: BaccaratGame, userId: string | null): string {
 	let html = `<div class="casino-board">`;
 	html += `<div class="casino-header">Baccarat <small>(Bet: <b>${game.bet}</b> ${CURRENCY_NAME})</small></div>`;
 	html += `Host: ${nameColor(game.hostName, true)}<hr>`;
-	
+
 	html += `<div class="casino-player-list">`;
 	if (game.players.length === 0) {
 		html += `<i>No players yet</i>`;
@@ -79,7 +76,7 @@ function getLobbyHtml(game: BaccaratGame, userId: string | null): string {
 		}
 	}
 	html += `</div>`;
-	
+
 	let hasControls = false;
 	let controlsHtml = `<div>`;
 	if (game.players.length < 4 && (!userId || !game.players.some(p => p.id === userId))) {
@@ -89,7 +86,7 @@ function getLobbyHtml(game: BaccaratGame, userId: string | null): string {
 		controlsHtml += `<button class="button casino-btn" name="send" value="/bacc join tie">Bet Tie (9x)</button>`;
 	}
 	controlsHtml += `</div>`;
-	
+
 	if (userId === game.host) {
 		hasControls = true;
 		controlsHtml += `<div style="margin-top: 8px;">`;
@@ -97,11 +94,11 @@ function getLobbyHtml(game: BaccaratGame, userId: string | null): string {
 		controlsHtml += `<button class="button casino-btn" name="send" value="/bacc end">Cancel Game</button>`;
 		controlsHtml += `</div>`;
 	}
-	
+
 	if (hasControls) {
 		html += `<hr>${controlsHtml}`;
 	}
-	
+
 	html += `<br><small>This game will automatically start in 60 seconds.</small>`;
 	html += `</div>`;
 	return html;
@@ -110,9 +107,9 @@ function getLobbyHtml(game: BaccaratGame, userId: string | null): string {
 function updateLobby(game: BaccaratGame) {
 	const room = Rooms.get(game.roomid);
 	if (!room) return;
-	
+
 	const boardHtml = getLobbyHtml(game, null);
-	
+
 	if (room.log && room.log.log) {
 		const originalStart = `|uhtml|${game.uid}|`;
 		for (let i = 0; i < room.log.log.length; i++) {
@@ -122,7 +119,7 @@ function updateLobby(game: BaccaratGame) {
 			}
 		}
 	}
-	
+
 	for (const id in room.users) {
 		const u = room.users[id];
 		u.sendTo(room, `|uhtmlchange|${game.uid}|${getLobbyHtml(game, u.id)}`);
@@ -137,20 +134,20 @@ async function dealGame(game: BaccaratGame) {
 	game.state = 'ended';
 	activeGames.delete(game.roomid);
 	activeCasinoGames.delete(game.roomid);
-	
+
 	const room = Rooms.get(game.roomid);
 	if (!room) return;
-	
+
 	const playerHand = [drawCard(), drawCard()];
 	const bankerHand = [drawCard(), drawCard()];
-	
+
 	let playerVal = calculateHandValue(playerHand);
 	let bankerVal = calculateHandValue(bankerHand);
-	
+
 	if (playerVal < 8 && bankerVal < 8) {
 		let playerDrew = false;
 		let playerThirdCardVal = -1;
-		
+
 		if (playerVal <= 5) {
 			const thirdCard = drawCard();
 			playerHand.push(thirdCard);
@@ -158,7 +155,7 @@ async function dealGame(game: BaccaratGame) {
 			playerVal = calculateHandValue(playerHand);
 			playerDrew = true;
 		}
-		
+
 		if (!playerDrew) {
 			if (bankerVal <= 5) {
 				bankerHand.push(drawCard());
@@ -171,14 +168,14 @@ async function dealGame(game: BaccaratGame) {
 			else if (bankerVal === 4 && playerThirdCardVal >= 2 && playerThirdCardVal <= 7) bankerDraws = true;
 			else if (bankerVal === 5 && playerThirdCardVal >= 4 && playerThirdCardVal <= 7) bankerDraws = true;
 			else if (bankerVal === 6 && (playerThirdCardVal === 6 || playerThirdCardVal === 7)) bankerDraws = true;
-			
+
 			if (bankerDraws) {
 				bankerHand.push(drawCard());
 				bankerVal = calculateHandValue(bankerHand);
 			}
 		}
 	}
-	
+
 	let result: Choice;
 	let resultStr = '';
 	if (playerVal > bankerVal) {
@@ -191,46 +188,46 @@ async function dealGame(game: BaccaratGame) {
 		result = 'tie';
 		resultStr = '<span style="color:#FFEB3B">Tie!</span>';
 	}
-	
-	let winners: {name: string, amount: number}[] = [];
+
+	const winners: { name: string, amount: number }[] = [];
 	for (const p of game.players) {
 		if (p.choice === result) {
 			if (result === 'tie') {
 				const winAmount = p.bet * 9;
 				await updateBalance(p.id, winAmount);
-				winners.push({name: p.name, amount: winAmount});
+				winners.push({ name: p.name, amount: winAmount });
 			} else {
 				const winAmount = p.bet * 2;
 				await updateBalance(p.id, winAmount);
-				winners.push({name: p.name, amount: winAmount});
+				winners.push({ name: p.name, amount: winAmount });
 			}
 		} else if (result === 'tie' && (p.choice === 'player' || p.choice === 'banker')) {
 			await updateBalance(p.id, p.bet);
 		}
 	}
-	
+
 	let winHtml = `<div class="casino-board ended">`;
 	winHtml += `<div class="casino-header">Baccarat Results</div>`;
 
 	winHtml += `<div style="display:flex; gap:8px; margin-bottom: 8px;">`;
-	
+
 	winHtml += `<div style="flex: 1; padding: 6px; background: rgba(0,0,0,0.2); border-radius: 4px; text-align: center;">`;
 	winHtml += `<b>Player Hand</b> <small>[${playerVal}]</small><br>`;
 	winHtml += `<div style="margin-top:4px;">${renderHand(playerHand, true)}</div>`;
 	winHtml += `</div>`;
-	
+
 	winHtml += `<div style="flex: 1; padding: 6px; background: rgba(0,0,0,0.2); border-radius: 4px; text-align: center;">`;
 	winHtml += `<b>Banker Hand</b> <small>[${bankerVal}]</small><br>`;
 	winHtml += `<div style="margin-top:4px;">${renderHand(bankerHand, true)}</div>`;
 	winHtml += `</div>`;
-	
+
 	winHtml += `</div>`;
 
 	winHtml += `<div style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom: 8px;">`;
 	for (const p of game.players) {
 		winHtml += `<div style="flex: 1 1 45%; background: rgba(0,0,0,0.1); padding: 4px; border-radius: 4px; border-left: 2px solid #FFC107;">`;
 		winHtml += `<b>${nameColor(p.name, true)}</b>: Bet ${p.bet} on <b>${p.choice.charAt(0).toUpperCase() + p.choice.slice(1)}</b>`;
-		
+
 		let payoutStr = '';
 		const w = winners.find(winner => winner.name === p.name);
 		if (w) {
@@ -259,7 +256,7 @@ async function dealGame(game: BaccaratGame) {
 			summaryHtml = `The Dealer won the Baccarat.`;
 		}
 	}
-	
+
 	winHtml += `<div style="text-align: center; font-size: 1.1em; color: #FFC107;">${summaryHtml}</div>`;
 	winHtml += `</div>`;
 
@@ -270,15 +267,15 @@ export const commands: Chat.ChatCommands = {
 	bacc: 'baccarat',
 	baccarat: {
 		async start(target, room, user) {
-			if (!room || room.battle || room.roomid !== CASINO_ROOM) return this.errorReply("This command can only be used in the Casino room.");
+			if (!room || room.battle || room.roomid !== CASINO_ROOM) throw new Chat.ErrorMessage("This command can only be used in the Casino room.");
 
 			const bet = parseInt(target.trim());
-			if (isNaN(bet) || bet <= 0) return this.errorReply("Usage: /bacc start [coins]");
+			if (isNaN(bet) || bet <= 0) throw new Chat.ErrorMessage("Usage: /bacc start [coins]");
 
-			if (activeCasinoGames.has(room.roomid)) return this.errorReply(`A ${activeCasinoGames.get(room.roomid)} game is already running in this room.`);
+			if (activeCasinoGames.has(room.roomid)) throw new Chat.ErrorMessage(`A ${activeCasinoGames.get(room.roomid)} game is already running in this room.`);
 
 			const uid = `bac-${room.roomid}-${Date.now()}`;
-			
+
 			const game: BaccaratGame = {
 				roomid: room.roomid,
 				uid,
@@ -307,7 +304,7 @@ export const commands: Chat.ChatCommands = {
 
 			activeGames.set(room.roomid, game);
 			activeCasinoGames.set(room.roomid, 'baccarat');
-			
+
 			const roomObj = Rooms.get(game.roomid);
 			if (roomObj) {
 				roomObj.add(`|uhtml|${game.uid}|${getLobbyHtml(game, null)}`).update();
@@ -319,53 +316,53 @@ export const commands: Chat.ChatCommands = {
 		},
 
 		async join(target, room, user) {
-			if (!room || room.battle || room.roomid !== CASINO_ROOM) return this.errorReply("This command can only be used in the Casino room.");
+			if (!room || room.battle || room.roomid !== CASINO_ROOM) throw new Chat.ErrorMessage("This command can only be used in the Casino room.");
 			const game = activeGames.get(room.roomid);
-			if (!game) return this.errorReply("No active baccarat game in this room.");
-			if (game.state !== 'lobby') return this.errorReply("This game has already started.");
-			if (game.players.some(p => p.id === user.id)) return this.errorReply("You are already in this game.");
-			if (game.players.length >= 4) return this.errorReply("This game is full (max 4 players).");
+			if (!game) throw new Chat.ErrorMessage("No active baccarat game in this room.");
+			if (game.state !== 'lobby') throw new Chat.ErrorMessage("This game has already started.");
+			if (game.players.some(p => p.id === user.id)) throw new Chat.ErrorMessage("You are already in this game.");
+			if (game.players.length >= 4) throw new Chat.ErrorMessage("This game is full (max 4 players).");
 
 			const choice = target.trim().toLowerCase();
-			if (!['player', 'banker', 'tie'].includes(choice)) return this.errorReply("Choice must be player, banker, or tie.");
+			if (!['player', 'banker', 'tie'].includes(choice)) throw new Chat.ErrorMessage("Choice must be player, banker, or tie.");
 
 			const bal = await getBalance(user.id);
-			if (bal < game.bet) return this.errorReply(`You don't have enough ${CURRENCY_NAME}. (Cost: ${game.bet}, Balance: ${bal})`);
+			if (bal < game.bet) throw new Chat.ErrorMessage(`You don't have enough ${CURRENCY_NAME}. (Cost: ${game.bet}, Balance: ${bal})`);
 
 			await updateBalance(user.id, -game.bet);
 			game.players.push({
 				id: user.id,
 				name: user.name,
 				choice: choice as Choice,
-				bet: game.bet
+				bet: game.bet,
 			});
 
 			updateLobby(game);
 		},
 
 		async deal(target, room, user) {
-			if (!room || room.battle || room.roomid !== CASINO_ROOM) return this.errorReply("This command can only be used in the Casino room.");
+			if (!room || room.battle || room.roomid !== CASINO_ROOM) throw new Chat.ErrorMessage("This command can only be used in the Casino room.");
 			const game = activeGames.get(room.roomid);
-			if (!game) return this.errorReply("No active baccarat game in this room.");
-			if (game.state !== 'lobby') return this.errorReply("This game has already started.");
-			
+			if (!game) throw new Chat.ErrorMessage("No active baccarat game in this room.");
+			if (game.state !== 'lobby') throw new Chat.ErrorMessage("This game has already started.");
+
 			const isHost = typeof user === 'string' ? user === game.host : user.id === game.host;
-			if (!isHost) return this.errorReply("Only the host can deal the cards.");
-			
-			if (game.players.length === 0) return this.errorReply("Cannot deal without any players.");
+			if (!isHost) throw new Chat.ErrorMessage("Only the host can deal the cards.");
+
+			if (game.players.length === 0) throw new Chat.ErrorMessage("Cannot deal without any players.");
 
 			void dealGame(game);
 		},
 
 		async end(target, room, user) {
-			if (!room || room.battle || room.roomid !== CASINO_ROOM) return this.errorReply("This command can only be used in the Casino room.");
+			if (!room || room.battle || room.roomid !== CASINO_ROOM) throw new Chat.ErrorMessage("This command can only be used in the Casino room.");
 			const game = activeGames.get(room.roomid);
-			if (!game) return this.errorReply("No active baccarat game in this room.");
-			
-			const canEnd = user.id === game.host || user.can('roommod', null, room);
-			if (!canEnd) return this.errorReply("Only the host or a room moderator can cancel the game.");
+			if (!game) throw new Chat.ErrorMessage("No active baccarat game in this room.");
 
-			if (game.state !== 'lobby') return this.errorReply("The game is already in progress and cannot be cancelled.");
+			const canEnd = user.id === game.host || user.can('roommod', null, room);
+			if (!canEnd) throw new Chat.ErrorMessage("Only the host or a room moderator can cancel the game.");
+
+			if (game.state !== 'lobby') throw new Chat.ErrorMessage("The game is already in progress and cannot be cancelled.");
 
 			if (game.timer) clearTimeout(game.timer);
 			activeGames.delete(room.roomid);
@@ -394,7 +391,7 @@ export const commands: Chat.ChatCommands = {
 				`Hand values only use the last digit of the sum (e.g., 15 is 5).<br>` +
 				`Winning Player or Banker bets pay 2x, and a Tie bet pays 9x! In the event of a Tie, Player and Banker bets push (refund).`
 			);
-		}
+		},
 	},
 	baccarathelp: 'baccarat help',
 	bacchelp: 'baccarat help',

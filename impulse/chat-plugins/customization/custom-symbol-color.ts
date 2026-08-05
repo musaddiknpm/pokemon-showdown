@@ -50,7 +50,7 @@ const SymbolColorManager = {
 			await getCustomizationTable().upsert({
 				user_id: userid,
 				symbol_color: entry.color,
-				updated_at: Date.now()
+				updated_at: Date.now(),
 			}, ['user_id']);
 		} else {
 			delete symbolData[userid];
@@ -72,7 +72,7 @@ export const commands: Chat.ChatCommands = {
 			this.checkCan('bypassall');
 			const [name, rawColor] = target.split(',').map(s => s.trim());
 			if (!name || !rawColor) return this.parse('/sc help');
-			
+
 			const color = rawColor.startsWith('#') ? rawColor : `#${rawColor}`;
 
 			const targetId = toID(name);

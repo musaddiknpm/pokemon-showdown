@@ -1,4 +1,4 @@
-
+import { Utils } from '../../../lib';
 import { type PokemonEntry, type PokeRogueState, type StatusCondition, type GameMode, type ModeConfig, type BiomePool, type PokeRogueView, type EggData, type StatTable } from './types';
 import { EGG_POOLS, getStarterCost, type EggTier } from './starter-data';
 import { MODE_CONFIGS, MODE_REGISTRY } from './config';
@@ -53,7 +53,7 @@ export const commands: Chat.ChatCommands = {
 	pokerogue: {
 		async start(target, room, user) {
 			await loadUser(user.id);
-			if (!user.named) return this.errorReply("Login required.");
+			if (!user.named) throw new Chat.ErrorMessage("Login required.");
 			let state = getState(user.id);
 
 			if (state && Array.isArray(state.keyItems)) {
@@ -148,11 +148,11 @@ export const commands: Chat.ChatCommands = {
 		async saveslot(target, room, user) {
 			await loadUser(user.id);
 			const state = getState(user.id);
-			if (!state || state.gameOver || state.battleRoomId) return this.errorReply("Cannot save right now.");
-			if (hasPendingActions(state)) return this.errorReply("You must resolve your pending choices before saving.");
+			if (!state || state.gameOver || state.battleRoomId) throw new Chat.ErrorMessage("Cannot save right now.");
+			if (hasPendingActions(state)) throw new Chat.ErrorMessage("You must resolve your pending choices before saving.");
 
 			const slot = parseInt(target.trim());
-			if (isNaN(slot) || slot < 1 || slot > 3) return this.errorReply("Invalid save slot. Must be 1, 2, or 3.");
+			if (isNaN(slot) || slot < 1 || slot > 3) throw new Chat.ErrorMessage("Invalid save slot. Must be 1, 2, or 3.");
 
 			const userData = getUserData(user.id);
 			if (!userData.saveSlots) userData.saveSlots = {};
@@ -180,16 +180,16 @@ export const commands: Chat.ChatCommands = {
 		async loadslot(target, room, user) {
 			await loadUser(user.id);
 			const slot = parseInt(target.trim());
-			if (isNaN(slot) || slot < 1 || slot > 3) return this.errorReply("Invalid save slot. Must be 1, 2, or 3.");
+			if (isNaN(slot) || slot < 1 || slot > 3) throw new Chat.ErrorMessage("Invalid save slot. Must be 1, 2, or 3.");
 
 			const userData = getUserData(user.id);
 			const slotData = userData.saveSlots?.[slot];
-			if (!slotData) return this.errorReply("That save slot is empty.");
+			if (!slotData) throw new Chat.ErrorMessage("That save slot is empty.");
 
 			const currentState = getState(user.id);
 			if (currentState?.battleRoomId) {
 				const bRoom = Rooms.get(currentState.battleRoomId as RoomID);
-				if (bRoom?.battle && !bRoom.battle.ended) return this.errorReply("You cannot load a game while currently in a battle!");
+				if (bRoom?.battle && !bRoom.battle.ended) throw new Chat.ErrorMessage("You cannot load a game while currently in a battle!");
 			}
 
 			const restoredState = JSON.parse(JSON.stringify(slotData)) as PokeRogueState;
@@ -212,7 +212,7 @@ export const commands: Chat.ChatCommands = {
 			if (!this.runBroadcast()) return;
 			const tId = toID(target) || user.id;
 			const s = getState(tId);
-			if (!s) return this.errorReply(`No run found for ${tId}.`);
+			if (!s) throw new Chat.ErrorMessage(`No run found for ${tId}.`);
 			const buf = `<b>PokéRogue Status: ${tId}</b><br>Mode: ${s.gameMode || 'classic'} | Floor ${s.floor} | Money: $${s.money ?? 0}<br>${s.team.map(m => `Lv.${m.level} ${m.species}`).join(', ')}`;
 			this.sendReplyBox(buf);
 		},
@@ -318,7 +318,7 @@ export const commands: Chat.ChatCommands = {
 			const bannerType: EggData['bannerType'] = rawBanner === 'shiny' || rawBanner === 'eggmove' || rawBanner === 'generic' ? rawBanner : 'generic';
 
 			const validTypes: Record<string, number> = { regular: 1, plus: 5, premium: 10, gold: 25 };
-			if (!validTypes[type]) return this.errorReply("Invalid voucher type.");
+			if (!validTypes[type]) throw new Chat.ErrorMessage("Invalid voucher type.");
 
 			const userData = getUserData(user.id);
 			if (!userData.vouchers) userData.vouchers = { regular: 0, plus: 0, premium: 0, gold: 0 };
@@ -337,7 +337,7 @@ export const commands: Chat.ChatCommands = {
 			}
 
 			const currentVouchers = userData.vouchers[type] || 0;
-			if (currentVouchers <= 0) return this.errorReply(`You don't have any ${type} vouchers!`);
+			if (currentVouchers <= 0) throw new Chat.ErrorMessage(`You don't have any ${type} vouchers!`);
 
 			userData.vouchers[type] = currentVouchers - 1;
 
@@ -381,7 +381,7 @@ export const commands: Chat.ChatCommands = {
 				const haRoll = Math.floor(Math.random() * 192) === 0;
 
 				const pool = EGG_POOLS[tier] && EGG_POOLS[tier].length > 0 ? EGG_POOLS[tier] : allSpeciesFallback;
-				const species = pool[Math.floor(Math.random() * pool.length)];
+				const species = Utils.randomElement(pool);
 
 				userData.eggs.push({ species, wavesRemaining: waves, tier, shiny: false, hiddenAbility: haRoll, bannerType } satisfies EggData);
 			}
@@ -551,7 +551,7 @@ export const commands: Chat.ChatCommands = {
 
 			let totalCost = 0;
 			for (const mon of state.team) totalCost += getStarterCost(mon.species);
-			if (totalCost > maxCost) return this.errorReply(`Total starter cost cannot exceed ${maxCost}.`);
+			if (totalCost > maxCost) throw new Chat.ErrorMessage(`Total starter cost cannot exceed ${maxCost}.`);
 
 			delete state.pendingChoice;
 			delete state.pendingChoiceType;
@@ -568,7 +568,7 @@ export const commands: Chat.ChatCommands = {
 			const state = getState(user.id);
 			if (!state || state.view !== 'starterselect') return;
 			const slot = parseInt(target.trim());
-			if (isNaN(slot) || slot < 0 || slot >= state.team.length) return this.errorReply("Invalid slot.");
+			if (isNaN(slot) || slot < 0 || slot >= state.team.length) throw new Chat.ErrorMessage("Invalid slot.");
 			state.team.splice(slot, 1);
 			if (state.team.length === 0) delete state.isConfiguringStarter;
 			setState(user.id, state);
@@ -579,14 +579,14 @@ export const commands: Chat.ChatCommands = {
 			await loadUser(user.id);
 			const state = getState(user.id);
 			if (!state || state.view !== 'starterselect') return;
-			if (!state.team || state.team.length === 0) return this.errorReply("You must select at least one starter.");
+			if (!state.team || state.team.length === 0) throw new Chat.ErrorMessage("You must select at least one starter.");
 
 			const config = MODE_CONFIGS[state.gameMode] || MODE_CONFIGS['classic'];
 			const maxCost = config.maxStarterCost || 10;
 
 			let totalCost = 0;
 			for (const mon of state.team) totalCost += getStarterCost(mon.species);
-			if (totalCost > maxCost) return this.errorReply(`Total starter cost cannot exceed ${maxCost}.`);
+			if (totalCost > maxCost) throw new Chat.ErrorMessage(`Total starter cost cannot exceed ${maxCost}.`);
 
 			delete state.pendingChoice;
 			delete state.pendingChoiceType;
@@ -601,8 +601,8 @@ export const commands: Chat.ChatCommands = {
 			await loadUser(user.id);
 			const state = getState(user.id);
 			if (!state) return this.parse('/pokerogue start');
-			if (state.gameOver) return this.errorReply("No active run.");
-			if (state.battleRoomId) return this.errorReply("Can't organize your team during a battle.");
+			if (state.gameOver) throw new Chat.ErrorMessage("No active run.");
+			if (state.battleRoomId) throw new Chat.ErrorMessage("Can't organize your team during a battle.");
 
 			const args = target.split(' ').map(s => s.trim());
 
@@ -617,7 +617,7 @@ export const commands: Chat.ChatCommands = {
 				if (state.pendingMoveSlot === undefined) return;
 				const toSlot = parseInt(args[1]) - 1;
 				const fromSlot = state.pendingMoveSlot;
-				if (isNaN(toSlot) || toSlot < 0 || toSlot >= state.team.length) return this.errorReply("Invalid slot.");
+				if (isNaN(toSlot) || toSlot < 0 || toSlot >= state.team.length) throw new Chat.ErrorMessage("Invalid slot.");
 
 				const temp = state.team[fromSlot];
 				state.team[fromSlot] = state.team[toSlot];
@@ -629,10 +629,10 @@ export const commands: Chat.ChatCommands = {
 				return;
 			}
 
-			if (hasPendingActions(state)) return this.errorReply("Resolve pending choices first.");
+			if (hasPendingActions(state)) throw new Chat.ErrorMessage("Resolve pending choices first.");
 
 			const fromSlot = parseInt(args[0]) - 1;
-			if (isNaN(fromSlot) || fromSlot < 0 || fromSlot >= state.team.length) return this.errorReply("Invalid slot.");
+			if (isNaN(fromSlot) || fromSlot < 0 || fromSlot >= state.team.length) throw new Chat.ErrorMessage("Invalid slot.");
 			state.pendingMoveSlot = fromSlot;
 			setState(user.id, state);
 			refreshGamePage(user);
@@ -642,8 +642,8 @@ export const commands: Chat.ChatCommands = {
 			await loadUser(user.id);
 			const state = getState(user.id);
 			if (!state) return this.parse('/pokerogue start');
-			if (state.gameOver) return this.errorReply("No active run.");
-			if (state.battleRoomId) return this.errorReply("Can't release Pokémon during a battle.");
+			if (state.gameOver) throw new Chat.ErrorMessage("No active run.");
+			if (state.battleRoomId) throw new Chat.ErrorMessage("Can't release Pokémon during a battle.");
 
 			const args = target.split(' ').map(s => s.trim());
 
@@ -657,8 +657,8 @@ export const commands: Chat.ChatCommands = {
 			if (args[0] === 'confirm') {
 				if (state.pendingReleaseSlot === undefined) return;
 				const slot = state.pendingReleaseSlot;
-				if (slot < 0 || slot >= state.team.length) return this.errorReply("Invalid slot.");
-				if (state.team.length <= 1) return this.errorReply("You cannot release your last Pokémon!");
+				if (slot < 0 || slot >= state.team.length) throw new Chat.ErrorMessage("Invalid slot.");
+				if (state.team.length <= 1) throw new Chat.ErrorMessage("You cannot release your last Pokémon!");
 
 				const mon = state.team[slot];
 				const spName = Dex.species.get(toID(mon.species)).name;
@@ -671,11 +671,11 @@ export const commands: Chat.ChatCommands = {
 				return;
 			}
 
-			if (hasPendingActions(state)) return this.errorReply("Resolve pending choices first.");
+			if (hasPendingActions(state)) throw new Chat.ErrorMessage("Resolve pending choices first.");
 
 			const slot = parseInt(args[0]) - 1;
-			if (isNaN(slot) || slot < 0 || slot >= state.team.length) return this.errorReply("Invalid slot.");
-			if (state.team.length <= 1) return this.errorReply("You cannot release your last Pokémon!");
+			if (isNaN(slot) || slot < 0 || slot >= state.team.length) throw new Chat.ErrorMessage("Invalid slot.");
+			if (state.team.length <= 1) throw new Chat.ErrorMessage("You cannot release your last Pokémon!");
 			state.pendingReleaseSlot = slot;
 			setState(user.id, state);
 			refreshGamePage(user);
@@ -685,17 +685,17 @@ export const commands: Chat.ChatCommands = {
 			await loadUser(user.id);
 			const state = getState(user.id);
 			if (!state || state.battleRoomId) return;
-			if (hasPendingActions(state)) return this.errorReply("Resolve pending choices first.");
+			if (hasPendingActions(state)) throw new Chat.ErrorMessage("Resolve pending choices first.");
 
 			const parts = target.trim().split(' ');
 			const fromSlot = parseInt(parts[0]) - 1;
 			const toSlot = parseInt(parts[1]) - 1;
 
-			if (isNaN(fromSlot) || isNaN(toSlot) || fromSlot < 0 || toSlot >= state.team.length) return this.errorReply("Invalid team slot.");
+			if (isNaN(fromSlot) || isNaN(toSlot) || fromSlot < 0 || toSlot >= state.team.length) throw new Chat.ErrorMessage("Invalid team slot.");
 
 			const fromMon = state.team[fromSlot];
 			const toMon = state.team[toSlot];
-			if (!fromMon.heldItem) return this.errorReply("That Pokémon isn't holding anything.");
+			if (!fromMon.heldItem) throw new Chat.ErrorMessage("That Pokémon isn't holding anything.");
 
 			const fromDexSpecies = Dex.species.get(toID(fromMon.species));
 			const toDexSpecies = Dex.species.get(toID(toMon.species));
@@ -743,13 +743,13 @@ export const commands: Chat.ChatCommands = {
 			await loadUser(user.id);
 			const state = getState(user.id);
 			if (!state || state.battleRoomId) return;
-			if (hasPendingActions(state)) return this.errorReply("Resolve pending choices first.");
+			if (hasPendingActions(state)) throw new Chat.ErrorMessage("Resolve pending choices first.");
 
 			const slot = parseInt(target.trim()) - 1;
-			if (isNaN(slot) || slot < 0 || slot >= state.team.length) return this.errorReply("Invalid team slot.");
+			if (isNaN(slot) || slot < 0 || slot >= state.team.length) throw new Chat.ErrorMessage("Invalid team slot.");
 
 			const mon = state.team[slot];
-			if (!mon.heldItem) return this.errorReply("That Pokémon isn't holding anything.");
+			if (!mon.heldItem) throw new Chat.ErrorMessage("That Pokémon isn't holding anything.");
 
 			const dexOldItem = Dex.items.get(mon.heldItem);
 			const dexSpecies = Dex.species.get(toID(mon.species));
@@ -769,10 +769,10 @@ export const commands: Chat.ChatCommands = {
 			await loadUser(user.id);
 			const state = getState(user.id);
 			if (!state || state.view !== 'draft') return;
-			if (hasPendingActions(state, true)) return this.errorReply("You must resolve your pending actions first.");
+			if (hasPendingActions(state, true)) throw new Chat.ErrorMessage("You must resolve your pending actions first.");
 
 			const cost = getRerollCost(state.floor, state.rerollCount || 0);
-			if ((state.money || 0) < cost) return this.errorReply(`Not enough money! Need $${cost}.`);
+			if ((state.money || 0) < cost) throw new Chat.ErrorMessage(`Not enough money! Need $${cost}.`);
 
 			state.money -= cost;
 			state.rerollCount = (state.rerollCount || 0) + 1;
@@ -787,10 +787,10 @@ export const commands: Chat.ChatCommands = {
 			await loadUser(user.id);
 			const state = getState(user.id);
 			if (!state || state.view !== 'draft') return;
-			if (!state.keyItems?.['Lock Capsule']) return this.errorReply("You need the Lock Capsule to lock shop items.");
+			if (!state.keyItems?.['Lock Capsule']) throw new Chat.ErrorMessage("You need the Lock Capsule to lock shop items.");
 
 			const slot = parseInt(target.trim()) - 1;
-			if (isNaN(slot) || slot < 0 || slot >= (state.pendingRewardDraft?.length || 0)) return this.errorReply("Invalid slot.");
+			if (isNaN(slot) || slot < 0 || slot >= (state.pendingRewardDraft?.length || 0)) throw new Chat.ErrorMessage("Invalid slot.");
 
 			if (!state.lockedSlots) state.lockedSlots = [];
 			state.lockedSlots[slot] = !state.lockedSlots[slot];
@@ -803,7 +803,7 @@ export const commands: Chat.ChatCommands = {
 			await loadUser(user.id);
 			const state = getState(user.id);
 			if (!state || state.view !== 'draft' || !state.pendingRewardDraft) return;
-			if (hasPendingActions(state, true)) return this.errorReply("You must resolve your pending actions first.");
+			if (hasPendingActions(state, true)) throw new Chat.ErrorMessage("You must resolve your pending actions first.");
 
 			if (handleDraftAction(target, user, state, this)) {
 				if (!state.pendingRewardDraft) delete state.lockedSlots;
@@ -816,7 +816,7 @@ export const commands: Chat.ChatCommands = {
 			await loadUser(user.id);
 			const state = getState(user.id);
 			if (!state || state.view !== 'draft') return;
-			if (hasPendingActions(state, true)) return this.errorReply("You must resolve your pending actions first.");
+			if (hasPendingActions(state, true)) throw new Chat.ErrorMessage("You must resolve your pending actions first.");
 
 			if (handleBuyShopAction(target, user, state, this)) {
 				setState(user.id, state);
@@ -839,7 +839,7 @@ export const commands: Chat.ChatCommands = {
 					refreshGamePage(user);
 				}
 			} else {
-				return this.errorReply("Unknown resolve action.");
+				throw new Chat.ErrorMessage("Unknown resolve action.");
 			}
 		},
 
@@ -857,23 +857,23 @@ export const commands: Chat.ChatCommands = {
 		async catch(target, room, user) {
 			await loadUser(user.id);
 			const state = getState(user.id);
-			if (!state || state.gameOver) return this.errorReply("No active run.");
-			if (!room?.battle) return this.errorReply("You must be in a battle to catch Pokémon.");
+			if (!state || state.gameOver) throw new Chat.ErrorMessage("No active run.");
+			if (!room?.battle) throw new Chat.ErrorMessage("You must be in a battle to catch Pokémon.");
 
 			handleCatchAction(target, room, user, state, this);
 		},
 
 		async prebattle(target, room, user) {
 			await loadUser(user.id);
-			if (!user.named) return this.errorReply("Login required.");
+			if (!user.named) throw new Chat.ErrorMessage("Login required.");
 			const state = getState(user.id);
 			if (!state) return this.parse('/pokerogue start');
-			if (state.gameOver) return this.errorReply("The run is over. Start a new run first.");
+			if (state.gameOver) throw new Chat.ErrorMessage("The run is over. Start a new run first.");
 
 			clearStaleBattleRoom(state, user.id);
-			if (hasPendingActions(state)) return this.errorReply("Resolve all pending choices before starting a battle.");
-			if (!state.team.some(m => (m.currentHp ?? 100) > 0)) return this.errorReply("All your Pokémon have fainted! Buy a Revive from the shop before battling.");
-			if (state.battleRoomId) return this.errorReply("You are already in a battle.");
+			if (hasPendingActions(state)) throw new Chat.ErrorMessage("Resolve all pending choices before starting a battle.");
+			if (!state.team.some(m => (m.currentHp ?? 100) > 0)) throw new Chat.ErrorMessage("All your Pokémon have fainted! Buy a Revive from the shop before battling.");
+			if (state.battleRoomId) throw new Chat.ErrorMessage("You are already in a battle.");
 
 			if (state.pendingTrainer && state.pendingTrainerKey) {
 				state.view = 'trainer';
@@ -909,11 +909,11 @@ export const commands: Chat.ChatCommands = {
 			await loadUser(user.id);
 			const state = getState(user.id);
 			if (!state) return this.parse('/pokerogue start');
-			if (state.gameOver) return this.errorReply("The run is over. Start a new run first.");
+			if (state.gameOver) throw new Chat.ErrorMessage("The run is over. Start a new run first.");
 
 			clearStaleBattleRoom(state, user.id);
-			if (hasPendingActions(state)) return this.errorReply("Resolve all pending choices before starting a battle.");
-			if (!state.team.some(m => (m.currentHp ?? 100) > 0)) return this.errorReply("All your Pokémon have fainted! Buy a Revive from the shop before battling.");
+			if (hasPendingActions(state)) throw new Chat.ErrorMessage("Resolve all pending choices before starting a battle.");
+			if (!state.team.some(m => (m.currentHp ?? 100) > 0)) throw new Chat.ErrorMessage("All your Pokémon have fainted! Buy a Revive from the shop before battling.");
 
 			const config = MODE_CONFIGS[state.gameMode] || MODE_CONFIGS['classic'];
 			const isBossFloor = state.floor % config.bossInterval === 0;
@@ -1016,7 +1016,7 @@ export const commands: Chat.ChatCommands = {
 export const pages: Chat.PageTable = {
 	async pokerogue(args, user) {
 		await loadUser(user.id);
-		if (!user.named) return this.errorReply('Login required.');
+		if (!user.named) throw new Chat.ErrorMessage('Login required.');
 		const state = getState(user.id);
 		if (!state) return `<div class="pr-popup"><div class="pr-popup-header"><h2>PokéRogue</h2></div><div style="text-align:center;padding:16px"><button name="send" value="/pokerogue start" class="button">Start New Run</button></div></div>`;
 		const v = state.view || 'main';

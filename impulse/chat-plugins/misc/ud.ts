@@ -33,15 +33,15 @@ async function saveCache(cacheId: string, data: any) {
 
 async function fetchUrbanDictionary(query: string) {
 	const cacheId = `ud:${query.toLowerCase()}`;
-	
+
 	const cached = await getCached(cacheId);
 	if (cached) return cached;
 
 	try {
 		const response = await Net(`https://api.urbandictionary.com/v0/define?term=${encodeURIComponent(query)}`).get();
 		const json = JSON.parse(response);
-		
-		if (!json.list || !json.list.length) {
+
+		if (!json.list?.length) {
 			return null;
 		}
 
@@ -59,19 +59,19 @@ export const commands: Chat.ChatCommands = {
 	async ud(target, room, user) {
 		if (!this.runBroadcast()) return;
 		if (!target) return this.parse('/help ud');
-		
+
 		const targetQuery = target.trim();
 
 		const data = await fetchUrbanDictionary(targetQuery);
 		if (!data) {
 			return this.sendReplyBox(`No definition found for "<strong>${escapeHTML(targetQuery)}</strong>" on Urban Dictionary.`);
 		}
-		
+
 		const word = data.word || targetQuery;
 		let definition = data.definition || 'No definition available.';
-		
+
 		definition = definition.replace(/\[|\]/g, '');
-		
+
 		definition = escapeHTML(definition).replace(/\r\n/g, '<br />').replace(/\n/g, '<br />');
 
 		this.sendReplyBox(`<div style="max-height: 250px; overflow: auto;"><b>${escapeHTML(word)}:</b><br />${definition}</div>`);

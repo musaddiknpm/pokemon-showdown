@@ -1,3 +1,4 @@
+import { Utils } from '../../../lib';
 import { escapeHTML } from '../../../lib/utils';
 import { type PokemonEntry, type PokeRogueState, type StatusCondition, type GameMode, type ModeConfig, type BiomePool, type PokeRogueView, type EggData, type StatTable } from './types';
 import { EGG_POOLS, getStarterCost, type EggTier } from './starter-data';
@@ -87,7 +88,7 @@ export function pickNextBiome(
 	}
 
 	const fallbackOptions = Object.keys(data.biomes).filter(b => b !== startingBiome && !excluded.has(b));
-	return fallbackOptions[Math.floor(Math.random() * fallbackOptions.length)] || startingBiome;
+	return Utils.randomElement(fallbackOptions) || startingBiome;
 }
 
 export function clearStaleBattleRoom(state: PokeRogueState, userId: string): void {
@@ -435,7 +436,7 @@ export function processFloorRewards(
 				const dexSpecies = Dex.species.get(sid);
 
 				const allNatures = Dex.natures.all().map(n => n.name);
-				const randomNature = allNatures[Math.floor(Math.random() * allNatures.length)] || 'Hardy';
+				const randomNature = Utils.randomElement(allNatures) || 'Hardy';
 
 				const generatedTeraType = rollTeraTypeForSpecies(sid);
 
@@ -461,7 +462,7 @@ export function processFloorRewards(
 					const existingUnlocked = userData.starters[sid]?.unlockedEggMoves || [];
 					const availableToUnlock = allEggMoves.filter(m => !existingUnlocked.includes(m));
 					if (availableToUnlock.length > 0) {
-						unlockedEggMove = availableToUnlock[Math.floor(Math.random() * availableToUnlock.length)];
+						unlockedEggMove = Utils.randomElement(availableToUnlock);
 					}
 				}
 
@@ -759,7 +760,7 @@ export const ActionResolvers: Record<string, (state: PokeRogueState, user: User,
 				ctx.errorReply("This Pokémon has no moves to remember.");
 				return false;
 			}
-			state.pendingMoves = [{ pokemonIndex: slot, move: allMoves[Math.floor(Math.random() * allMoves.length)], speciesName: mon.species }];
+			state.pendingMoves = [{ pokemonIndex: slot, move: Utils.randomElement(allMoves), speciesName: mon.species }];
 			delete state.purchasedItem;
 			delete state.pendingItemName;
 
@@ -1227,8 +1228,8 @@ export function handleChooseAction(target: string, user: User, state: PokeRogueS
 	const gender = savedStarter?.gender || Dex.species.get(finalSpecies).gender || (Math.random() < 0.5 ? 'M' : 'F');
 	const allTypes = Dex.types.all().map(t => t.name);
 	const teraType = savedStarter?.selectedTeraType || savedStarter?.teraType || (Math.floor(Math.random() * 20) === 0 ?
-		allTypes[Math.floor(Math.random() * allTypes.length)] :
-		Dex.species.get(finalSpecies).types[Math.floor(Math.random() * Dex.species.get(finalSpecies).types.length)]);
+		Utils.randomElement(allTypes) :
+		Utils.randomElement(Dex.species.get(finalSpecies).types));
 
 	const commonProps = {
 		ivs: savedStarter?.ivs ? { ...savedStarter.ivs } : randomIvs,
@@ -1458,7 +1459,7 @@ export function handleCatchAction(target: string, room: AnyObject, user: User, s
 
 		const hpPct = Math.max(1, Math.round((p2Hp / p2MaxHp) * 100));
 		const natures = Dex.natures.all().map(n => n.name);
-		const randomNature = natures[Math.floor(Math.random() * natures.length)];
+		const randomNature = Utils.randomElement(natures);
 
 		let caughtMoves = getLevelUpMoves(p2Species, p2Level, config.generation);
 		let caughtAbility = Dex.species.get(p2Species).abilities[0] || '';

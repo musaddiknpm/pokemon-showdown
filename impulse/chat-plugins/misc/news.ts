@@ -109,12 +109,12 @@ const NewsManager = {
 		if (display.includes('No recent news.')) return;
 		user.send(`|pm|${SERVER_NAME} News|${user.getIdentity()}|/raw ${display}`);
 	},
-	
+
 	async addPost(id: string, title: string, desc: string, postedBy: string) {
 		const postTime = this.formatDate();
 		const timestamp = Date.now();
 		posts[id] = { id, title, desc, postedBy, postTime, timestamp };
-		
+
 		await initMiscDB();
 		await getNewsTable().upsert({
 			id,
@@ -122,16 +122,16 @@ const NewsManager = {
 			description: desc,
 			posted_by: postedBy,
 			post_time: postTime,
-			timestamp
+			timestamp,
 		}, ['id']);
 	},
-	
+
 	async removePost(id: string) {
 		delete posts[id];
 		await initMiscDB();
 		await getNewsTable().deleteById(id);
 	},
-	
+
 	async setBlocked(userid: string, isBlocked: boolean) {
 		if (isBlocked) {
 			blocked.add(userid);
@@ -142,7 +142,7 @@ const NewsManager = {
 			await initMiscDB();
 			await getNewsBlockedTable().deleteById(userid);
 		}
-	}
+	},
 };
 
 void initNews()
@@ -183,7 +183,7 @@ export const commands: Chat.ChatCommands = {
 			if (!id) return this.parse('/svn help');
 
 			if (!posts[id]) throw new Chat.ErrorMessage(`News entry "${target}" not found.`);
-			
+
 			await NewsManager.removePost(id);
 			this.sendReply(`Deleted news entry: "${target}"`);
 		},

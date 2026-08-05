@@ -104,19 +104,19 @@ export const commands: Chat.ChatCommands = {
 			if (!targetName || !url) return this.parse('/ca help');
 
 			const userId = toID(targetName);
-			if (!userId) return this.errorReply("Invalid username.");
+			if (!userId) throw new Chat.ErrorMessage("Invalid username.");
 
 			const ext = getExtension(url);
 			if (!VALID_EXTENSIONS.includes(ext)) {
-				return this.errorReply(`URL must end with ${VALID_EXTENSIONS.join(', ')}`);
+				throw new Chat.ErrorMessage(`URL must end with ${VALID_EXTENSIONS.join(', ')}`);
 			}
 
 			const processedUrl = url.startsWith('http') ? url : `https://${url}`;
-			
+
 			const userAvatarsList = Users.Avatars.avatars[userId]?.allowed || [];
 			const currentAvatars = userAvatarsList.filter(avatar => avatar && !avatar.startsWith('#'));
 			if (currentAvatars.length >= 2) {
-				return this.errorReply("User already has the maximum of 2 custom avatars. Use '/ca delete' first.");
+				throw new Chat.ErrorMessage("User already has the maximum of 2 custom avatars. Use '/ca delete' first.");
 			}
 
 			this.sendReply(`Downloading avatar for ${userId}...`);
@@ -140,13 +140,13 @@ export const commands: Chat.ChatCommands = {
 			const filename = baseFilename + ext;
 
 			const result = await downloadImage(processedUrl, baseFilename, ext);
-			if (result.error) return this.errorReply(`Failed: ${result.error}`);
+			if (result.error) throw new Chat.ErrorMessage(`Failed: ${result.error}`);
 
 			const alreadyHasAvatar = userAvatarsList.includes(filename);
 
 			if (!Users.Avatars.addPersonal(userId, filename) && !alreadyHasAvatar) {
 				await FS(CONFIG.path + filename).unlinkIfExists();
-				return this.errorReply("Failed to register avatar. User may be banned from avatars.");
+				throw new Chat.ErrorMessage("Failed to register avatar. User may be banned from avatars.");
 			}
 
 			Users.Avatars.save(true);
@@ -158,18 +158,18 @@ export const commands: Chat.ChatCommands = {
 			this.checkCan('bypassall');
 			const [targetName, avatarNumStr] = target.split(',').map(s => s.trim());
 			const userId = toID(targetName);
-			if (!userId) return this.errorReply('Invalid username.');
+			if (!userId) throw new Chat.ErrorMessage('Invalid username.');
 
 			const userAvatars = Users.Avatars.avatars[userId];
-			if (!userAvatars || !userAvatars.allowed || userAvatars.allowed.length === 0) {
-				return this.errorReply(`${targetName} does not have a custom avatar set.`);
+			if (!userAvatars?.allowed || userAvatars.allowed.length === 0) {
+				throw new Chat.ErrorMessage(`${targetName} does not have a custom avatar set.`);
 			}
 
 			let indexToDelete = 0;
 			if (avatarNumStr) {
 				const parsedNum = parseInt(avatarNumStr, 10);
 				if (isNaN(parsedNum) || parsedNum < 1 || parsedNum > userAvatars.allowed.length) {
-					return this.errorReply(`Invalid avatar number. Must be between 1 and ${userAvatars.allowed.length}.`);
+					throw new Chat.ErrorMessage(`Invalid avatar number. Must be between 1 and ${userAvatars.allowed.length}.`);
 				}
 				indexToDelete = parsedNum - 1;
 			}
@@ -177,7 +177,7 @@ export const commands: Chat.ChatCommands = {
 			const filename = userAvatars.allowed[indexToDelete];
 
 			if (!filename || filename.startsWith('#')) {
-				return this.errorReply(`Selected avatar is not a custom avatar.`);
+				throw new Chat.ErrorMessage(`Selected avatar is not a custom avatar.`);
 			}
 
 			try {
@@ -189,7 +189,7 @@ export const commands: Chat.ChatCommands = {
 				this.sendReply(`${targetName}'s avatar removed.`);
 				notifyChanges(user, userId, 'delete');
 			} catch (e) {
-				this.errorReply("Error deleting avatar.");
+				throw new Chat.ErrorMessage("Error deleting avatar.");
 			}
 		},
 

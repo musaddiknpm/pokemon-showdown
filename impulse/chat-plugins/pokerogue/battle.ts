@@ -158,7 +158,7 @@ export function parseBattleState(logLines: string[], playerTeam: PokemonEntry[])
 		p1TeamHp: {}, p1TeamStatus: {}, p1FaintedIndices: new Set(),
 		p2Active: new Map(), consumedItems: [], p1SlotToTeamIdx: {},
 		p1ActivelyAssigned: new Set(), itemSlotMap: {}, itemAssigned: new Set(),
-		p1SlotState: new Map(), playerTeam
+		p1SlotState: new Map(), playerTeam,
 	};
 
 	for (const line of logLines) {
@@ -765,7 +765,7 @@ function scoreActiveMoves(allMoves: BattleRequestMove[], usableMoves: BattleRequ
 		const originalIdx = allMoves.indexOf(m) + 1;
 		const needsTarget = !['all', 'allAdjacent', 'allAdjacentFoes', 'allySide', 'allyTeam', 'foeSide', 'randomNormal', 'scripted', 'self'].includes(moveData.target || 'normal');
 		const targetsAlly = ['adjacentAlly', 'adjacentAllyOrSelf'].includes(moveData.target || '');
-		
+
 		let ppMod = 1;
 		const pp = m.pp ?? 99;
 		if (pp > 1) {
@@ -777,17 +777,17 @@ function scoreActiveMoves(allMoves: BattleRequestMove[], usableMoves: BattleRequ
 			if (targetsAlly) {
 				const allySlot = i === 0 ? 1 : 0;
 				const allyPokemon = request.side?.pokemon?.[allySlot];
-				let score = isFainted(allyPokemon) ? -Infinity : 5 * ppMod;
+				const score = isFainted(allyPokemon) ? -Infinity : 5 * ppMod;
 				scored.push({ m, originalIdx, score, target: -(allySlot + 1) });
 			} else {
 				for (const targetSlot of oppActiveSlots) {
 					const targetCtx = getMatchupContext(room, targetSlot, pokemon, gen, turn);
-					let score = scoreMove(m, targetCtx) * ppMod;
+					const score = scoreMove(m, targetCtx) * ppMod;
 					scored.push({ m, originalIdx, score, target: targetSlot + 1 });
 				}
 			}
 		} else {
-			let score = scoreMove(m, defaultCtx) * ppMod;
+			const score = scoreMove(m, defaultCtx) * ppMod;
 			scored.push({ m, originalIdx, score, target: null });
 		}
 	}
