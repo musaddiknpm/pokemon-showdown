@@ -36,13 +36,47 @@ for (const user of users) {
 
 ## 3. Use the `Utils` Module
 Do not reinvent the wheel for common utility functions (like random array elements or HTML escaping). Always use the built-in `Utils` module provided by Pokémon Showdown.
-- Use `Utils.escapeHTML(str)` instead of custom escaping.
-- Use `Utils.randomElement(array)` instead of `Math.random()`.
 
 **Important:** You must explicitly import `Utils` in every file where it is used.
 ```typescript
 import { Utils } from '../../../lib'; // Adjust relative path as necessary
 ```
+
+Here are the available functions and classes in the `Utils` module that you should use instead of writing custom logic:
+
+**String & HTML Manipulation:**
+- `Utils.getString(str)`: Safely converts any variable to a string without crashing.
+- `Utils.escapeRegex(str)`: Escapes regex special characters in a string.
+- `Utils.escapeHTML(str)`: Escapes HTML characters.
+- `Utils.stripHTML(htmlContent)`: Strips HTML tags from a string.
+- `Utils.normalize(message)`: Normalizes a string for searching.
+- `Utils.html(strings, ...args)`: Template string tag function for automatically escaping HTML.
+- `Utils.escapeHTMLForceWrap(text)`: Escapes HTML and allows long words to wrap.
+- `Utils.forceWrap(text)`: Inserts zero-width spaces to force long words to wrap.
+- `Utils.formatOrder(place)`: Returns the ordinal string for a number (e.g., `1st`, `2nd`).
+
+**Arrays, Objects & Sorting:**
+- `Utils.shuffle(arr)`: In-place array shuffle (Fisher-Yates).
+- `Utils.randomElement(arr)`: Returns a random element from an array.
+- `Utils.sortBy(array, callback?)`: Sorts an array using a smart comparator.
+- `Utils.compare(a, b)`: Smart comparator for sorting (numbers low-to-high, strings A-Z, booleans true-first).
+- `Utils.splitFirst(str, delimiter, limit)`: Splits a string a limited number of times.
+- `Utils.deepClone(obj)`: Deeply clones an object or array.
+- `Utils.deepFreeze(obj)`: Deeply freezes an object or array.
+
+**Numbers & Math:**
+- `Utils.clampIntRange(num, min, max)`: Forces a number to be an integer within a range.
+- `Utils.parseExactInt(str)`: Like `parseInt`, but strict.
+- `Utils.levenshtein(s, t, l)`: Calculates Levenshtein distance between two strings.
+
+**Async & Environment:**
+- `Utils.waitUntil(time)`: Returns a Promise that resolves at a specific timestamp.
+- `Utils.clearRequireCache(options)`: Clears Node.js require cache.
+
+**Data Formats & Structures:**
+- `Utils.Multiset`: A specialized `Map` subclass for counting items (e.g., `set.add(key)` increments count).
+- `Utils.formatSQLArray(arr, args)`: Helper for formatting SQL query variables.
+- `Utils.bufFromHex(hex)`, `Utils.bufWriteHex(buf, hex)`, `Utils.bufReadHex(buf)`: Helpers for dealing with hex strings and Uint8Arrays.
 
 ## 4. Chat Error Handling
 When a user inputs a bad command, do not use legacy error replies like `this.errorReply()`. Instead, throw a `Chat.ErrorMessage`.
@@ -95,8 +129,21 @@ Because Pokémon Showdown is a single-threaded Node.js server managing hundreds 
 ## 12. Hotpatch-Safe State
 Avoid storing important mutable state in raw global variables at the top of a plugin file (e.g., `let activeGames = {};`). When you run `/hotpatch chat` to update code live, the module is reloaded and that local state is wiped, potentially causing memory leaks or data loss. If you must store state, attach it to a persistent object, use a database, or use proper hotpatch hooks if available.
 
+**Reference Implementations:**
+- `impulse/chat-plugins/pokerogue/database.ts`
+- `impulse/chat-plugins/pokerogue/battle.ts`
+- `impulse/chat-plugins/pokerogue/ai.ts`
+
 ## 13. Command Permissions
 Never assume a command is safe just because it is hidden. Always explicitly check a user's permissions at the very top of sensitive commands using `this.checkCan('permission')` (e.g., `this.checkCan('lock')`) before executing any logic.
+
+Here are the required permissions you should check for each target rank group (as defined in `config/config-example.js`):
+- **Administrator (`~`)**: `this.checkCan('bypassall')`
+- **Leader (`&`)**: `this.checkCan('bypassall')`
+- **Room Owner (`#`)**: `this.checkCan('roommod')`
+- **Moderator (`@`)**: `this.checkCan('globalban')`
+- **Driver (`%`)**: `this.checkCan('kick')`
+- **Voice (`+`)**: `this.checkCan('show')`
 
 ## 14. Custom Plugin Architecture
 When building custom chat plugins for this server, always follow these architectural rules:
