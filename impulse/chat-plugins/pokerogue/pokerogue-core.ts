@@ -1243,10 +1243,28 @@ export function handleChooseAction(target: string, user: User, state: PokeRogueS
 	if (config.randomizeMoves || config.randomizeAbilities) {
 		const generated = genPokemon(1, addedLevel, true, state.floor, false, 0, [finalSpecies], state.currentBiome, config, data);
 		const g = generated[0];
+		
+		let validatedMoves = g.moves;
+		if (!config.randomizeMoves) {
+			const initialMoves = getLevelUpMoves(finalSpecies, addedLevel, config.generation);
+			const allLevelMoves = getAllLevelUpMoves(finalSpecies, addedLevel, config.generation || 9);
+			const validEggMoves = getEggMoves(finalSpecies, config.generation || 9);
+			const legalPool = new Set([...allLevelMoves, ...validEggMoves]);
+
+			validatedMoves = initialMoves;
+			if (savedStarter?.selectedMoves) {
+				validatedMoves = savedStarter.selectedMoves.filter(m => legalPool.has(m));
+				for (const m of initialMoves) {
+					if (validatedMoves.length >= 4) break;
+					if (!validatedMoves.includes(m)) validatedMoves.push(m);
+				}
+			}
+		}
+
 		newMon = {
 			species: g.species, level: g.level, exp: expForLevel(g.level, getExpType(g.species)), expType: getExpType(g.species),
-			moves: g.moves, nature: savedStarter?.selectedNature || savedStarter?.nature || g.nature,
-			ability: savedStarter?.selectedAbility || savedStarter?.ability || g.ability, ...commonProps,
+			moves: validatedMoves, nature: savedStarter?.selectedNature || savedStarter?.nature || g.nature,
+			ability: config.randomizeAbilities ? g.ability : (savedStarter?.selectedAbility || savedStarter?.ability || g.ability), ...commonProps,
 		} as PokemonEntry;
 	} else {
 		const finalExpType = getExpType(finalSpecies);
@@ -1280,14 +1298,22 @@ export function handleChooseAction(target: string, user: User, state: PokeRogueS
 	if (isStarterChoice) {
 		const sid = toID(finalSpecies);
 		if (!userData.starters[sid]) {
+			const dexSp = Dex.species.get(finalSpecies);
+			const baseAbility = dexSp.abilities[0] || '';
+			const baseNature = 'Hardy';
+			const baseTeraType = dexSp.types[0] || 'Normal';
+
 			userData.starters[sid] = {
 				...newMon,
-				unlockedNatures: [newMon.nature!],
-				unlockedAbilities: [newMon.ability!],
-				unlockedTeraTypes: [newMon.teraType!],
-				selectedNature: newMon.nature,
-				selectedAbility: newMon.ability,
-				selectedTeraType: newMon.teraType,
+				ability: baseAbility,
+				nature: baseNature,
+				teraType: baseTeraType,
+				unlockedNatures: [baseNature],
+				unlockedAbilities: [baseAbility],
+				unlockedTeraTypes: [baseTeraType],
+				selectedNature: baseNature,
+				selectedAbility: baseAbility,
+				selectedTeraType: baseTeraType,
 			};
 			saveUserData(user.id);
 		}
