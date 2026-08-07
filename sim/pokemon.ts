@@ -7,6 +7,7 @@
 
 import { State } from './state';
 import { toID } from './dex';
+import { ImpulseMod } from './impulse-mod';
 import type { DynamaxOptions, MoveRequestData, PokemonMoveRequestData, PokemonSwitchRequestData } from './side';
 
 /** A Pokemon's move slot. */
@@ -503,36 +504,7 @@ export class Pokemon {
 		this.hp = 0;
 		this.clearVolatile();
 		
-		// Apply Custom HP Percentage
-		if (this.set.hp !== undefined) {
-			if (this.set.hp <= 0) {
-				this.hp = 0;
-				this.fainted = true;
-			} else {
-				this.hp = Math.max(1, Math.floor(this.maxhp * (this.set.hp / 100)));
-			}
-		} else {
-			this.hp = this.maxhp;
-		}
-
-		// Apply Custom Status Condition
-		if (this.set.status && !this.fainted) { // Only apply status if alive
-			const startingStatus = this.battle.dex.conditions.get(this.set.status);
-			if (startingStatus.exists) {
-				this.status = startingStatus.id;
-				this.statusState = this.battle.initEffectState({ id: startingStatus.id, target: this });
-				
-				// Initialize state variables for specific statuses 
-				// since we bypassed the standard setStatus() Start event
-				if (this.status === 'slp') {
-					// In modern gens, sleep lasts for 1-3 turns, internally represented as 2-4
-					this.statusState.time = this.battle.random(2, 5); 
-				} else if (this.status === 'tox') {
-					// Toxic counter must start at 0
-					this.statusState.stage = 0; 
-				}
-			}
-		}
+		ImpulseMod.applyCustomHPAndStatus(this);
 	}
 
 	toJSON(): AnyObject {
@@ -1431,32 +1403,12 @@ export class Pokemon {
 		this.knownType = true;
 		this.weighthg = species.weighthg;
 
-		// --- CUSTOM BST BOOST START ---
-		// We clone the baseStats object before modifying so we don't corrupt the server's global Dex data
-		let baseStats = this.species.baseStats;
-		const bstBoosts = (this.set as any).bstBoosts;
-		
-		if (bstBoosts) {
-			baseStats = {
-				hp: baseStats.hp, // HP uses the separate [H:] tag, so we leave base HP alone
-				atk: Math.max(1, Math.floor(baseStats.atk * (1 + (bstBoosts.atk / 100)))),
-				def: Math.max(1, Math.floor(baseStats.def * (1 + (bstBoosts.def / 100)))),
-				spa: Math.max(1, Math.floor(baseStats.spa * (1 + (bstBoosts.spa / 100)))),
-				spd: Math.max(1, Math.floor(baseStats.spd * (1 + (bstBoosts.spd / 100)))),
-				spe: Math.max(1, Math.floor(baseStats.spe * (1 + (bstBoosts.spe / 100)))),
-			};
-		}
+		let baseStats = ImpulseMod.applyCustomBSTBoosts(this.species.baseStats, this.set);
 		const stats = this.battle.spreadModify(baseStats, this.set);
-		
-		// --- CUSTOM BST BOOST END ---
 		
 		if (this.species.maxHP) stats.hp = this.species.maxHP;
 
-		// --- CUSTOM HPX MODIFIER START ---
-		if ((this.set as any).hpMultiplier) {
-			stats.hp = Math.floor(stats.hp * (this.set as any).hpMultiplier);
-		}
-		// --- CUSTOM HPX MODIFIER END ---
+		ImpulseMod.applyCustomHPX(stats, this.set);
 		
 		if (!this.maxhp) {
 			this.baseMaxhp = stats.hp;
@@ -1557,11 +1509,7 @@ export class Pokemon {
 
 	updateMaxHp() {
 		let newBaseMaxHp = this.battle.statModify(this.species.baseStats, this.set, 'hp');
-		// --- CUSTOM HPX MODIFIER START ---
-		if ((this.set as any).hpMultiplier) {
-			newBaseMaxHp = Math.floor(newBaseMaxHp * (this.set as any).hpMultiplier);
-		}
-		// --- CUSTOM HPX MODIFIER END ---
+		newBaseMaxHp = ImpulseMod.applyCustomHPXValue(newBaseMaxHp, this.set);
 		if (newBaseMaxHp === this.baseMaxhp) return;
 		this.baseMaxhp = newBaseMaxHp;
 		const newMaxHP = this.volatiles['dynamax'] ? (2 * this.baseMaxhp) : this.baseMaxhp;

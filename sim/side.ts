@@ -25,6 +25,7 @@ import { Pokemon, type EffectState } from './pokemon';
 import { State } from './state';
 import { toID } from './dex';
 import { type Move } from './dex-moves';
+import { ImpulseMod } from './impulse-mod';
 
 /** A single action that can be chosen. Choices will have one Action for each pokemon. */
 export interface ChosenAction {
@@ -1034,21 +1035,8 @@ export class Side {
 		}
 
 		const ruleTable = this.battle.ruleTable;
-		let isBracketed = false;
-		let teamData = data;
-		if (data?.startsWith('[') && data.endsWith(']')) {
-			isBracketed = true;
-			teamData = data.slice(1, -1).trim();
-		}
-		let positions = teamData ?
-			teamData.split(isBracketed || teamData.includes(',') || this.pokemon.length >= 10 ? ',' : '')
-				.map(datum => parseInt(datum) - 1) :
-			[...this.pokemon.keys()]; // autoChoose
 		const pickedTeamSize = this.pickedTeamSize();
-
-		// make sure positions is exactly of length pickedTeamSize
-		// - If too big: the client automatically sends a full list, so we just trim it down to size
-		if (!isBracketed) positions.splice(pickedTeamSize);
+		let positions = ImpulseMod.parseTeamPositions(data || '', this.pokemon.length, pickedTeamSize);
 		// - If too small: we intentionally support only sending leads and having the sim fill in the rest
 		if (positions.length < pickedTeamSize) {
 			for (let i = 0; i < pickedTeamSize; i++) {
@@ -1346,7 +1334,7 @@ export class Side {
 				
 				// Bypass the restriction if we are in a PokéRogue Format Battle.
 				// This Allows Catching in Pokerogue Formats.
-				if (this.battle.format.id.includes('pokerogue')) break;
+				if (ImpulseMod.isPokeRogueBypass(this.battle.format.id)) break;
 				
 				return this.emitChoiceError(`Can't pass: Your ${pokemon.name} must make a move (or switch)`);
 			}
