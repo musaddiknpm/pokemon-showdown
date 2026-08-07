@@ -239,7 +239,12 @@ export const commands: Chat.ChatCommands = {
 					await GuildRepository.updateInviteStatus(guild.id, user.id, 'revoked');
 					throw new Chat.ErrorMessage(`Your invite to '${guild.name}' has expired.`);
 				}
-				await GuildRepository.updateInviteStatus(guild.id, user.id, 'revoked');
+			}
+
+			let hadInvite = false;
+			if (guild.invited.some(i => i.userId === user.id && i.status === 'pending')) {
+				hadInvite = true;
+				await GuildRepository.removeInvite(guild.id, user.id);
 			}
 
 			await GuildRepository.addMember(guild.id, {
@@ -247,8 +252,19 @@ export const commands: Chat.ChatCommands = {
 				points: 0, totalPoints: 0,
 			});
 			updateRoomAuth(guild, user.id, 'Rookie');
-			this.sendReply(`You have successfully joined '${guild.name}'.`);
+			
+			if (hadInvite) {
+				user.send(`|pm|~|~|/uhtmlchange guildinvite-${guild.id},You have successfully joined the guild <b>${guild.name}</b>!`);
+			} else {
+				this.sendReply(`You have successfully joined '${guild.name}'.`);
+			}
+			
 			user.joinRoom(guild.chatroom as RoomID);
+
+			const guildRoom = Rooms.get(guild.chatroom as RoomID);
+			if (guildRoom) {
+				guildRoom.add(`|html|<div class="broadcast-green" style="text-align: center;">${user.name} has joined the guild.</div>`).update();
+			}
 		},
 
 		async leave(target, room, user) {
@@ -267,6 +283,11 @@ export const commands: Chat.ChatCommands = {
 			await GuildRepository.removeMember(guild.id, user.id);
 			await setGuildCooldown(user.id);
 			this.sendReply(`You have left '${guild.name}'. You must wait 12 hours before joining another guild.`);
+
+			const guildRoom = Rooms.get(guild.chatroom as RoomID);
+			if (guildRoom) {
+				guildRoom.add(`|html|<div class="broadcast-red" style="text-align: center;">${user.name} has left the guild.</div>`).update();
+			}
 		},
 
 		async promote(target, room, user) {
@@ -291,6 +312,10 @@ export const commands: Chat.ChatCommands = {
 
 			if (!VALID_ROLES.includes(roleStr)) {
 				throw new Chat.ErrorMessage(`Invalid role '${roleStr}'. Valid roles: ${VALID_ROLES.join(', ')}`);
+			}
+
+			if (roleStr === 'Master') {
+				throw new Chat.ErrorMessage("You cannot promote a user to Master. Use /guild transfer instead.");
 			}
 
 			if (targetMember.role === roleStr) {
@@ -318,6 +343,11 @@ export const commands: Chat.ChatCommands = {
 			const targetUser = Users.get(targetMember.id);
 			if (targetUser) {
 				targetUser.popup(`|html|You have been promoted to <b>${roleStr}</b> in the guild <b>${guild.name}</b> by ${user.name}!`);
+			}
+
+			const guildRoom = Rooms.get(guild.chatroom as RoomID);
+			if (guildRoom) {
+				guildRoom.add(`|html|<div class="broadcast-green" style="text-align: center;">${targetMember.username} has been promoted to ${roleStr}.</div>`).update();
 			}
 		},
 
@@ -515,6 +545,10 @@ export const commands: Chat.ChatCommands = {
 				throw new Chat.ErrorMessage(`User '${rest}' is already a member of '${guild.name}'.`);
 			}
 
+			if (guild.banned.includes(targetId)) {
+				throw new Chat.ErrorMessage(`User '${rest}' is banned from '${guild.name}' and cannot be invited.`);
+			}
+
 			const existingGuild = await GuildRepository.getGuildByMemberId(targetId);
 			if (existingGuild) {
 				throw new Chat.ErrorMessage(`User '${rest}' is already in a guild.`);
@@ -540,7 +574,7 @@ export const commands: Chat.ChatCommands = {
 			this.sendReply(`You have invited '${targetName}' to join '${guild.name}'.`);
 
 			if (targetUser) {
-				targetUser.send(`|pm|~|~|/html You have been invited to join the guild <b>${guild.name}</b> by ${user.name}! <br /><button name="send" value="/guild join ${guild.id}">Click here to join</button> or <button name="send" value="/guild reject ${guild.id}">Reject</button>`);
+				targetUser.send(`|pm|~|~|/uhtml guildinvite-${guild.id},You have been invited to join the guild <b>${guild.name}</b> by ${user.name}! <br /><button name="send" value="/guild join ${guild.id}">Click here to join</button> or <button name="send" value="/guild reject ${guild.id}">Reject</button>`);
 			}
 		},
 
@@ -563,6 +597,11 @@ export const commands: Chat.ChatCommands = {
 
 			await GuildRepository.updateInviteStatus(guild.id, targetId, 'revoked');
 			this.sendReply(`You have revoked the invite for '${rest}' to join '${guild.name}'.`);
+			
+			const targetUser = Users.get(targetId);
+			if (targetUser) {
+				targetUser.send(`|pm|~|~|/uhtmlchange guildinvite-${guild.id},The invite to join <b>${guild.name}</b> was revoked.`);
+			}
 		},
 
 		async reject(target, room, user) {
@@ -578,7 +617,7 @@ export const commands: Chat.ChatCommands = {
 			}
 
 			await GuildRepository.updateInviteStatus(guild.id, user.id, 'rejected');
-			this.sendReply(`You have rejected the invite to join '${guild.name}'.`);
+			user.send(`|pm|~|~|/uhtmlchange guildinvite-${guild.id},You have rejected the invite to join <b>${guild.name}</b>.`);
 		},
 
 		async transfer(target, room, user) {
@@ -623,6 +662,11 @@ export const commands: Chat.ChatCommands = {
 				oldOwnerUser.popup(`|html|Ownership of your guild <b>${guild.name}</b> has been transferred to ${newOwnerMember.username} by ${user.name}.`);
 			} else if (oldOwnerUser && oldOwnerUser.id === user.id) {
 				oldOwnerUser.popup(`|html|You have successfully transferred ownership of your guild <b>${guild.name}</b> to ${newOwnerMember.username}.`);
+			}
+
+			const guildRoom = Rooms.get(guild.chatroom as RoomID);
+			if (guildRoom) {
+				guildRoom.add(`|html|<div class="broadcast-green" style="text-align: center;">Guild ownership has been transferred to ${newOwnerMember.username}.</div>`).update();
 			}
 		},
 
