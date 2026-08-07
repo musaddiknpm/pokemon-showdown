@@ -7,7 +7,7 @@
 
 import { State } from './state';
 import { toID } from './dex';
-import { ImpulseMod } from './impulse-mod';
+import { ImpulseMod } from '../impulse/sim-mod';
 import type { DynamaxOptions, MoveRequestData, PokemonMoveRequestData, PokemonSwitchRequestData } from './side';
 
 /** A Pokemon's move slot. */

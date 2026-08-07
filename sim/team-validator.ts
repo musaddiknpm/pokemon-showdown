@@ -8,7 +8,7 @@
  */
 
 import { Dex, toID } from './dex';
-import { ImpulseMod } from './impulse-mod';
+import { ImpulseMod } from '../impulse/sim-mod';
 import type { MoveSource } from './dex-species';
 import { Utils } from '../lib/utils';
 import { Tags } from '../data/tags';

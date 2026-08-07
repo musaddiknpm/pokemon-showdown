@@ -1,4 +1,4 @@
-import { toID } from './dex';
+import { toID } from '../sim/dex';
 
 export const ImpulseMod = {
 	// teams.ts helpers

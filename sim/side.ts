@@ -25,7 +25,7 @@ import { Pokemon, type EffectState } from './pokemon';
 import { State } from './state';
 import { toID } from './dex';
 import { type Move } from './dex-moves';
-import { ImpulseMod } from './impulse-mod';
+import { ImpulseMod } from '../impulse/sim-mod';
 
 /** A single action that can be chosen. Choices will have one Action for each pokemon. */
 export interface ChosenAction {

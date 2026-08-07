@@ -773,4 +773,4 @@ exports.grouplist = [
 		punishgroup: 'MUTE',
 	},
 ];
-try { require('./impulse-config.js')(exports); } catch (e) {}
+try { require('../impulse/config.js')(exports); } catch (e) {}
