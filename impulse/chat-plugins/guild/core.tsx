@@ -12,10 +12,7 @@ export async function endGuildSeason() {
 
 	const allChatrooms = await GuildRepository.getAllChatrooms();
 	for (const chatroom of allChatrooms) {
-		const room = Rooms.get(chatroom as RoomID);
-		if (room) {
-			room.add(`|html|<div class="broadcast-blue"><b>Guild Season ${seasonNumber} has officially ended!</b><br />Check out the global leaderboards to see the winners! Points have been reset for the new season.</div>`).update();
-		}
+		broadcastToGuild(chatroom, `<b>Guild Season ${seasonNumber} has officially ended!</b><br />Check out the global leaderboards to see the winners! Points have been reset for the new season.`, 'blue');
 	}
 
 	for (const g of topGuilds) {
@@ -100,6 +97,15 @@ function updateRoomAuth(guild: Guild, userId: string, role: string | null) {
 	if (room.saveSettings) room.saveSettings();
 }
 
+function broadcastToGuild(guildOrRoomId: Guild | string, message: string, type: 'green' | 'red' | 'blue') {
+	const roomId = typeof guildOrRoomId === 'string' ? guildOrRoomId : guildOrRoomId.chatroom;
+	if (!roomId) return;
+	const room = Rooms.get(roomId as RoomID);
+	if (room) {
+		room.add(`|html|<div class="broadcast-${type}" style="text-align: center;">${message}</div>`).update();
+	}
+}
+
 async function resolveGuildWithVariadic(user: User, target: string): Promise<{ guild: Guild | null, rest: string, error?: string }> {
 	if (user.can('bypassall') && target.includes(',')) {
 		const firstPart = target.split(',')[0].trim();
@@ -117,10 +123,6 @@ async function resolveGuildWithVariadic(user: User, target: string): Promise<{ g
 
 export const commands: Chat.ChatCommands = {
 	guild: {
-		help(target, room, user) {
-			return this.parse('/help guild');
-		},
-
 		async create(target, room, user) {
 			if (!user.can('bypassall')) throw new Chat.ErrorMessage("Access denied. Only global administrators can create a guild.");
 
@@ -261,10 +263,7 @@ export const commands: Chat.ChatCommands = {
 			
 			user.joinRoom(guild.chatroom as RoomID);
 
-			const guildRoom = Rooms.get(guild.chatroom as RoomID);
-			if (guildRoom) {
-				guildRoom.add(`|html|<div class="broadcast-green" style="text-align: center;">${user.name} has joined the guild.</div>`).update();
-			}
+			broadcastToGuild(guild, `${user.name} has joined the guild.`, 'green');
 		},
 
 		async leave(target, room, user) {
@@ -284,10 +283,7 @@ export const commands: Chat.ChatCommands = {
 			await setGuildCooldown(user.id);
 			this.sendReply(`You have left '${guild.name}'. You must wait 12 hours before joining another guild.`);
 
-			const guildRoom = Rooms.get(guild.chatroom as RoomID);
-			if (guildRoom) {
-				guildRoom.add(`|html|<div class="broadcast-red" style="text-align: center;">${user.name} has left the guild.</div>`).update();
-			}
+			broadcastToGuild(guild, `${user.name} has left the guild.`, 'red');
 		},
 
 		async promote(target, room, user) {
@@ -345,10 +341,7 @@ export const commands: Chat.ChatCommands = {
 				targetUser.popup(`|html|You have been promoted to <b>${roleStr}</b> in the guild <b>${guild.name}</b> by ${user.name}!`);
 			}
 
-			const guildRoom = Rooms.get(guild.chatroom as RoomID);
-			if (guildRoom) {
-				guildRoom.add(`|html|<div class="broadcast-green" style="text-align: center;">${targetMember.username} has been promoted to ${roleStr}.</div>`).update();
-			}
+			broadcastToGuild(guild, `${targetMember.username} has been promoted to ${roleStr}.`, 'green');
 		},
 
 		async demote(target, room, user) {
@@ -404,6 +397,8 @@ export const commands: Chat.ChatCommands = {
 			if (targetUser) {
 				targetUser.popup(`|html|You have been demoted to <b>${roleStr}</b> in the guild <b>${guild.name}</b> by ${user.name}.`);
 			}
+
+			broadcastToGuild(guild, `${targetMember.username} has been demoted to ${roleStr}.`, 'red');
 		},
 
 		async setdesc(target, room, user) {
@@ -664,10 +659,7 @@ export const commands: Chat.ChatCommands = {
 				oldOwnerUser.popup(`|html|You have successfully transferred ownership of your guild <b>${guild.name}</b> to ${newOwnerMember.username}.`);
 			}
 
-			const guildRoom = Rooms.get(guild.chatroom as RoomID);
-			if (guildRoom) {
-				guildRoom.add(`|html|<div class="broadcast-green" style="text-align: center;">Guild ownership has been transferred to ${newOwnerMember.username}.</div>`).update();
-			}
+			broadcastToGuild(guild, `Guild ownership has been transferred to ${newOwnerMember.username}.`, 'green');
 		},
 
 		async memberlimit(target, room, user) {
@@ -680,10 +672,7 @@ export const commands: Chat.ChatCommands = {
 
 			const allChatrooms = await GuildRepository.getAllChatrooms();
 			for (const chatroom of allChatrooms) {
-				const guildRoom = Rooms.get(chatroom as RoomID);
-				if (guildRoom) {
-					guildRoom.add(`|html|<div class="broadcast-green">An administrator has updated the guild member limit to ${limit}!</div>`).update();
-				}
+				broadcastToGuild(chatroom, `An administrator has updated the guild member limit to ${limit}!`, 'green');
 			}
 		},
 
@@ -766,6 +755,8 @@ export const commands: Chat.ChatCommands = {
 			if (targetUser) {
 				targetUser.popup(`|html|You have been kicked from the guild <b>${guild.name}</b> by ${user.name}.`);
 			}
+
+			broadcastToGuild(guild, `${targetMember.username} was kicked from the guild by ${user.name}.`, 'red');
 		},
 
 		async ban(target, room, user) {
@@ -813,6 +804,8 @@ export const commands: Chat.ChatCommands = {
 			if (targetUser) {
 				targetUser.popup(`|html|You have been banned from the guild <b>${guild.name}</b> by ${user.name}.`);
 			}
+
+			broadcastToGuild(guild, `${targetName} was banned from the guild by ${user.name}.`, 'red');
 		},
 
 		async unban(target, room, user) {
@@ -858,27 +851,39 @@ export const commands: Chat.ChatCommands = {
 				if (!guild) return this.parse('/help guild members');
 			}
 
-			let html = `<div class="pad" style="max-height: 400px; overflow-y: scroll;">`;
-			html += `<div style="text-align: center; font-weight: bold; font-size: 14pt;">${guild.name} Roster (${guild.memberCount} / ${guild.memberLimit})</div><hr />`;
+			const sortedMembers = [...guild.members].sort((a, b) => {
+				const roleDiff = ROLE_HIERARCHY[b.role] - ROLE_HIERARCHY[a.role];
+				if (roleDiff !== 0) return roleDiff;
+				return b.points - a.points;
+			});
 
-			const roles = ['Master', 'Champion', 'Elite', 'Veteran', 'Trainer', 'Rookie'];
-
-			for (const role of roles) {
-				const membersInRole = guild.members.filter(m => m.role === role);
-				if (membersInRole.length === 0) continue;
-
-				html += `<b>${role}s (${membersInRole.length})</b><br />`;
-				html += `<ul style="margin-top: 0;">`;
-				for (const m of membersInRole) {
-					const joinedStr = new Date(m.joinedAt).toISOString().split('T')[0];
-					html += `<li><b>${m.username}</b> <i>(Joined: ${joinedStr}, Points: ${m.points})</i></li>`;
-				}
-				html += `</ul>`;
-			}
-
-			html += `</div>`;
-
-			this.sendReplyBox(html);
+			this.sendReplyBox(
+				<div class="pad" style={{ maxHeight: '350px', overflowY: 'auto' }}>
+					<div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '14pt' }}>
+						{guild.name} Roster ({guild.memberCount} / {guild.memberLimit})
+					</div>
+					<hr />
+					<table style={{ width: '100%', textAlign: 'center', borderCollapse: 'collapse', marginTop: '15px' }}>
+						<tr>
+							<th style={{ padding: '4px' }}>Username</th>
+							<th style={{ padding: '4px' }}>Role</th>
+							<th style={{ padding: '4px' }}>Joined Date</th>
+							<th style={{ padding: '4px' }}>Points</th>
+						</tr>
+						{sortedMembers.map(m => {
+							const joinedStr = new Date(m.joinedAt).toISOString().split('T')[0];
+							return (
+								<tr style={{ borderTop: '1px solid #ccc' }}>
+									<td style={{ padding: '4px' }}><b>{m.username}</b></td>
+									<td style={{ padding: '4px' }}>{m.role}</td>
+									<td style={{ padding: '4px' }}>{joinedStr}</td>
+									<td style={{ padding: '4px' }}>{m.points}</td>
+								</tr>
+							);
+						})}
+					</table>
+				</div>
+			);
 		},
 
 		async info(target, room, user) {
@@ -902,30 +907,41 @@ export const commands: Chat.ChatCommands = {
 			const ownerName = owner ? owner.username : guild.ownerId;
 			const createdStr = new Date(guild.createdAt).toISOString().split('T')[0];
 
-			const iconCell = guild.icon ?
-				`<td width="90" valign="top"><img src="${escapeHTML(guild.icon)}" width="80" height="80" /></td><td width="8"></td>` :
-				'';
-
 			const bgUrl = guild.background || 'https://wallpapercave.com/wp/wp8695829.png';
-			const bgStyle = `background: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('${escapeHTML(bgUrl)}') center/cover no-repeat; padding: 8px; border-radius: 4px; color: white; text-shadow: 1px 1px 2px black, -1px -1px 2px black, 1px -1px 2px black, -1px 1px 2px black;`;
+			const bgStyle = {
+				background: `linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('${bgUrl}') center/cover no-repeat`,
+				padding: '8px',
+				borderRadius: '4px',
+				color: 'white',
+				textShadow: '1px 1px 2px black, -1px -1px 2px black, 1px -1px 2px black, -1px 1px 2px black'
+			};
 
-			const html =
-				`<div style="${bgStyle}">` +
-				`<center><b><big><big>${escapeHTML(guild.name)}</big></big></b><br />` +
-				`<span style="font-size: 10pt; color: white;">${escapeHTML(guild.description || 'No description set.')}</span></center>` +
-				`<hr style="border-color: rgba(255, 255, 255, 0.4);" />` +
-				`<table cellpadding="2" cellspacing="0" border="0" width="100%"><tr>` +
-				iconCell +
-				`<td valign="top" style="color: white;">` +
-				`<b>Master:</b> ${escapeHTML(ownerName)}<br />` +
-				`<b>Members:</b> ${guild.memberCount} / ${guild.memberLimit}<br />` +
-				`<b>Points:</b> ${guild.points}<br />` +
-				`<b>Policy:</b> ${guild.joinPolicy === 'open' ? 'Open' : 'Invite-Only'}<br />` +
-				`<b>Founded:</b> ${createdStr}` +
-				`</td></tr></table>` +
-				`</div>`;
-
-			this.sendReplyBox(html);
+			this.sendReplyBox(
+				<div style={bgStyle}>
+					<center>
+						<b><big><big>{guild.name}</big></big></b><br />
+						<span style={{ fontSize: '10pt', color: 'white' }}>{guild.description || 'No description set.'}</span>
+					</center>
+					<hr style={{ borderColor: 'rgba(255, 255, 255, 0.4)' }} />
+					<table cellPadding={2} cellSpacing={0} border={0} width="100%">
+						<tr>
+							{guild.icon ? (
+								<>
+									<td width="90" valign="top"><img src={guild.icon} width={80} height={80} /></td>
+									<td width="8"></td>
+								</>
+							) : null}
+							<td valign="top" style={{ color: 'white' }}>
+								<b>Master:</b> {ownerName}<br />
+								<b>Members:</b> {guild.memberCount} / {guild.memberLimit}<br />
+								<b>Points:</b> {guild.points}<br />
+								<b>Policy:</b> {guild.joinPolicy === 'open' ? 'Open' : 'Invite-Only'}<br />
+								<b>Founded:</b> {createdStr}
+							</td>
+						</tr>
+					</table>
+				</div>
+			);
 		},
 
 		async announce(target, room, user) {
@@ -964,34 +980,47 @@ export const commands: Chat.ChatCommands = {
 
 			const sortedMembers = [...guild.members].sort((a, b) => getLastSeen(b.id) - getLastSeen(a.id));
 
-			let html = `<div class="pad" style="max-height: 400px; overflow-y: scroll;">`;
-			html += `<h2>${guild.name} - Activity Log</h2><hr />`;
-			html += `<table style="width: 100%; text-align: left; border-collapse: collapse;">`;
-			html += `<tr><th>Username</th><th>Role</th><th>Last Active</th></tr>`;
+			this.sendReplyBox(
+				<div class="pad" style={{ maxHeight: '350px', overflowY: 'auto' }}>
+					<div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '14pt' }}>
+						{guild.name} - Activity Log
+					</div>
+					<hr />
+					<table style={{ width: '100%', textAlign: 'center', borderCollapse: 'collapse' }}>
+						<tr>
+							<th style={{ padding: '4px' }}>Username</th>
+							<th style={{ padding: '4px' }}>Role</th>
+							<th style={{ padding: '4px' }}>Last Active</th>
+						</tr>
+						{sortedMembers.map(m => {
+							const ts = getLastSeen(m.id);
+							let dateStr = '';
+							let daysAgo = '';
 
-			for (const m of sortedMembers) {
-				const ts = getLastSeen(m.id);
-				let dateStr: string;
-				let daysAgo: string;
+							if (Users.get(m.id)?.connected) {
+								dateStr = 'Online';
+								daysAgo = 'now';
+							} else if (!ts) {
+								dateStr = 'Never';
+								daysAgo = '—';
+							} else {
+								const dateObj = new Date(ts);
+								dateStr = dateObj.toISOString().split('T')[0];
+								const days = Math.floor((Date.now() - ts) / (1000 * 60 * 60 * 24));
+								daysAgo = days === 0 ? 'Today' : days === 1 ? '1 day ago' : `${days} days ago`;
+							}
 
-				if (Users.get(m.id)?.connected) {
-					dateStr = 'Online';
-					daysAgo = 'now';
-				} else if (!ts) {
-					dateStr = 'Never';
-					daysAgo = '—';
-				} else {
-					const dateObj = new Date(ts);
-					dateStr = dateObj.toISOString().split('T')[0];
-					const days = Math.floor((Date.now() - ts) / (1000 * 60 * 60 * 24));
-					daysAgo = days === 0 ? 'Today' : days === 1 ? '1 day ago' : `${days} days ago`;
-				}
-
-				html += `<tr><td><b>${m.username}</b></td><td>${m.role}</td><td>${dateStr} <i>(${daysAgo})</i></td></tr>`;
-			}
-			html += `</table></div>`;
-
-			this.sendReplyBox(html);
+							return (
+								<tr style={{ borderTop: '1px solid #ccc' }}>
+									<td style={{ padding: '4px' }}><b>{m.username}</b></td>
+									<td style={{ padding: '4px' }}>{m.role}</td>
+									<td style={{ padding: '4px' }}>{dateStr} <i>({daysAgo})</i></td>
+								</tr>
+							);
+						})}
+					</table>
+				</div>
+			);
 		},
 
 		async purge(target, room, user) {
@@ -1051,28 +1080,41 @@ export const commands: Chat.ChatCommands = {
 			const sortedGuilds = await GuildRepository.getTopGuilds(50);
 			if (sortedGuilds.length === 0) throw new Chat.ErrorMessage("There are currently no guilds registered.");
 
-			let html = `<div class="pad" style="max-height: 400px; overflow-y: scroll;">`;
-			html += `<div style="text-align: center; font-weight: bold; font-size: 14pt;">Global Guild Leaderboard</div><hr />`;
-			html += `<table style="width: 100%; border-collapse: collapse; text-align: left;">`;
-			html += `<tr><th style="padding: 4px;">Rank</th><th style="padding: 4px;">Guild Name</th><th style="padding: 4px;">Master</th><th style="padding: 4px;">Members</th><th style="padding: 4px;">Points</th></tr>`;
+			this.sendReplyBox(
+				<div class="pad" style={{ maxHeight: '350px', overflowY: 'auto' }}>
+					<div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '14pt' }}>
+						Global Guild Leaderboard
+					</div>
+					<hr />
+					<table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center' }}>
+						<tr>
+							<th style={{ padding: '4px' }}>Rank</th>
+							<th style={{ padding: '4px' }}>Guild Name</th>
+							<th style={{ padding: '4px' }}>Master</th>
+							<th style={{ padding: '4px' }}>Members</th>
+							<th style={{ padding: '4px' }}>Points</th>
+						</tr>
+						{sortedGuilds.map((g, idx) => {
+							const rank = idx + 1;
+							const ownerId = (g as any).ownerId || (g as any).owner_id;
+							const ownerName = (g as any).ownerName || ownerId;
+							
+							const memberCount = (g as any).memberCount || 0;
+							const memberLimit = (g as any).member_limit || 0;
 
-			let rank = 1;
-			for (const g of sortedGuilds) {
-				const ownerId = (g as any).ownerId || (g as any).owner_id;
-				const ownerName = ownerId; // Simplified since we don't eager load members anymore for ladder
-
-				html += `<tr style="border-top: 1px solid #ccc;">`;
-				html += `<td style="padding: 4px;"><b>#${rank}</b></td>`;
-				html += `<td style="padding: 4px;"><b>${escapeHTML(g.name)}</b></td>`;
-				html += `<td style="padding: 4px;">${escapeHTML(ownerName)}</td>`;
-				html += `<td style="padding: 4px;">${g.memberCount} / ${g.memberLimit}</td>`;
-				html += `<td style="padding: 4px;"><b>${g.points}</b></td>`;
-				html += `</tr>`;
-				rank++;
-			}
-
-			html += `</table></div>`;
-			this.sendReplyBox(html);
+							return (
+								<tr style={{ borderTop: '1px solid #ccc' }}>
+									<td style={{ padding: '4px' }}><b>#{rank}</b></td>
+									<td style={{ padding: '4px' }}><b>{g.name}</b></td>
+									<td style={{ padding: '4px' }}>{ownerName}</td>
+									<td style={{ padding: '4px' }}>{memberCount} / {memberLimit}</td>
+									<td style={{ padding: '4px' }}><b>{g.points}</b></td>
+								</tr>
+							);
+						})}
+					</table>
+				</div>
+			);
 		},
 
 		top(target, room, user) {
@@ -1084,24 +1126,33 @@ export const commands: Chat.ChatCommands = {
 			const sortedMembers = await GuildRepository.getTopMembers(50);
 			if (sortedMembers.length === 0) throw new Chat.ErrorMessage("There are currently no guild members.");
 
-			let html = `<div class="pad" style="max-height: 400px; overflow-y: scroll;">`;
-			html += `<div style="text-align: center; font-weight: bold; font-size: 14pt;">Top Guild Members</div><hr />`;
-			html += `<table style="width: 100%; border-collapse: collapse; text-align: left;">`;
-			html += `<tr><th style="padding: 4px;">Rank</th><th style="padding: 4px;">Username</th><th style="padding: 4px;">Guild</th><th style="padding: 4px;">Total Points</th></tr>`;
-
-			let rank = 1;
-			for (const m of sortedMembers) {
-				html += `<tr style="border-top: 1px solid #ccc;">`;
-				html += `<td style="padding: 4px;"><b>#${rank}</b></td>`;
-				html += `<td style="padding: 4px;"><b>${escapeHTML(m.username)}</b></td>`;
-				html += `<td style="padding: 4px;">${escapeHTML(m.guildName)}</td>`;
-				html += `<td style="padding: 4px;"><b>${m.totalPoints}</b></td>`;
-				html += `</tr>`;
-				rank++;
-			}
-
-			html += `</table></div>`;
-			this.sendReplyBox(html);
+			this.sendReplyBox(
+				<div class="pad" style={{ maxHeight: '350px', overflowY: 'auto' }}>
+					<div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '14pt' }}>
+						Top Guild Members
+					</div>
+					<hr />
+					<table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center' }}>
+						<tr>
+							<th style={{ padding: '4px' }}>Rank</th>
+							<th style={{ padding: '4px' }}>Username</th>
+							<th style={{ padding: '4px' }}>Guild</th>
+							<th style={{ padding: '4px' }}>Total Points</th>
+						</tr>
+						{sortedMembers.map((m, idx) => {
+							const rank = idx + 1;
+							return (
+								<tr style={{ borderTop: '1px solid #ccc' }}>
+									<td style={{ padding: '4px' }}><b>#{rank}</b></td>
+									<td style={{ padding: '4px' }}><b>{m.username}</b></td>
+									<td style={{ padding: '4px' }}>{m.guildName}</td>
+									<td style={{ padding: '4px' }}><b>{m.totalPoints}</b></td>
+								</tr>
+							);
+						})}
+					</table>
+				</div>
+			);
 		},
 
 		async endseason(target, room, user) {
@@ -1110,40 +1161,73 @@ export const commands: Chat.ChatCommands = {
 			await endGuildSeason();
 			this.sendReply(`You have successfully ended the current Guild Season. All points have been reset, and rewards have been distributed.`);
 		},
+
+		help(target, room, user) {
+			if (!this.runBroadcast()) return;
+
+			const commands = [
+				{ cmd: '/guild create', usage: '[name], [owner]', desc: 'Creates a new guild. Optionally assign an owner.', perm: 'Admin' },
+				{ cmd: '/guild delete', usage: '[name]', desc: 'Deletes a guild.', perm: 'Admin' },
+				{ cmd: '/guild join', usage: '[name]', desc: 'Joins an open guild.', perm: 'All' },
+				{ cmd: '/guild leave', usage: '', desc: 'Leaves your guild.', perm: 'Member' },
+				{ cmd: '/guild promote', usage: '[user], [role]', desc: 'Promotes a user in your guild.', perm: 'Master/Champion' },
+				{ cmd: '/guild demote', usage: '[user], [role]', desc: 'Demotes a user in your guild.', perm: 'Master/Champion' },
+				{ cmd: '/guild setdesc', usage: '[description]', desc: 'Sets the description of your guild and its chatroom.', perm: 'Master/Champion' },
+				{ cmd: '/guild seticon', usage: '[url]', desc: 'Sets the guild\'s icon.', perm: 'Master/Champion' },
+				{ cmd: '/guild setbg', usage: '[url]', desc: 'Sets the guild\'s background.', perm: 'Master/Champion' },
+				{ cmd: '/guild visibility', usage: '[public/private]', desc: 'Sets the visibility of your guild and its chatroom.', perm: 'Master/Champion' },
+				{ cmd: '/guild setpolicy', usage: '[open/invite-only]', desc: 'Sets the join policy.', perm: 'Master/Champion' },
+				{ cmd: '/guild invite', usage: '[user]', desc: 'Invites a user to the guild.', perm: 'Master/Champion/Elite' },
+				{ cmd: '/guild revokeinvite', usage: '[user]', desc: 'Revokes a pending invite.', perm: 'Master/Champion/Elite' },
+				{ cmd: '/guild reject', usage: '[guild]', desc: 'Rejects a guild invite.', perm: 'All' },
+				{ cmd: '/guild transfer', usage: '[user]', desc: 'Transfers guild ownership to another member.', perm: 'Master' },
+				{ cmd: '/guild kick', usage: '[user]', desc: 'Kicks a user from the guild.', perm: 'Master/Champion' },
+				{ cmd: '/guild ban', usage: '[user]', desc: 'Bans a user from the guild.', perm: 'Master/Champion' },
+				{ cmd: '/guild unban', usage: '[user]', desc: 'Unbans a user from the guild.', perm: 'Master/Champion' },
+				{ cmd: '/guild members', usage: '[guild (opt)]', desc: 'Views the roster of your (or a specific) guild.', perm: 'All' },
+				{ cmd: '/guild info', usage: '[guild (opt)]', desc: 'Views the profile of your (or a specific) guild.', perm: 'All' },
+				{ cmd: '/guild announce', usage: '[message]', desc: 'Pushes a popup announcement to all online guild members.', perm: 'Master/Champion' },
+				{ cmd: '/guild activity', usage: '', desc: 'Views member activity sorted by last login.', perm: 'Master/Champion/Elite' },
+				{ cmd: '/guild purge', usage: '[days]', desc: 'Kicks members (below Elite) who have been inactive for [days].', perm: 'Master/Champion' },
+				{ cmd: '/guild ladder', usage: '', desc: 'Displays the Global Guild Leaderboard sorted by Points.', perm: 'All' },
+				{ cmd: '/guild topmembers', usage: '', desc: 'Displays the top 50 players on the server sorted by Total Points.', perm: 'All' },
+				{ cmd: '/guild memberlimit', usage: '[number]', desc: 'Sets the global member limit for all guilds.', perm: 'Admin' },
+				{ cmd: '/guild give', usage: '[guild], [amount]', desc: 'Gives points directly to a guild.', perm: 'Admin' },
+				{ cmd: '/guild take', usage: '[guild], [amount]', desc: 'Takes points directly from a guild.', perm: 'Admin' },
+				{ cmd: '/guild endseason', usage: '', desc: 'Manually ends the current Guild Season and resets all points.', perm: 'Admin' },
+			];
+
+			this.sendReplyBox(
+				<div class="pad" style={{ maxHeight: '350px', overflowY: 'auto' }}>
+					<div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '14pt' }}>
+						Guild Commands Help Menu
+					</div>
+					<hr />
+					<table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center' }}>
+						<tr>
+							<th style={{ padding: '4px' }}>Command</th>
+							<th style={{ padding: '4px' }}>Usage</th>
+							<th style={{ padding: '4px' }}>Description</th>
+							<th style={{ padding: '4px' }}>Permission</th>
+						</tr>
+						{commands.map(c => (
+							<tr style={{ borderTop: '1px solid #ccc' }}>
+								<td style={{ padding: '4px' }}><b>{c.cmd}</b></td>
+								<td style={{ padding: '4px' }}>{c.usage}</td>
+								<td style={{ padding: '4px', textAlign: 'left' }}>{c.desc}</td>
+								<td style={{ padding: '4px' }}>{c.perm}</td>
+							</tr>
+						))}
+					</table>
+					<div style={{ marginTop: '10px', fontSize: '10pt', color: '#666', textAlign: 'center' }}>
+						<i>Note: Admins can optionally prefix management commands with the guild name: /guild promote [guild], [user], [role]</i>
+					</div>
+				</div>
+			);
+		},
 	},
 
 	guildhelp: [
-		"/guild create [name], [owner] - (Admin) Creates a new guild. Optionally assign an owner.",
-		"/guild delete [name] - (Admin) Deletes a guild.",
-		"/guild join [name] - Joins an open guild.",
-		"/guild leave - Leaves your guild.",
-		"/guild promote [user], [role] - Promotes a user in your guild.",
-		"/guild demote [user], [role] - Demotes a user in your guild.",
-		"/guild setdesc [description] - Sets the description of your guild and its chatroom.",
-		"/guild seticon [url] - Sets the guild's icon.",
-		"/guild setbg [url] - Sets the guild's background.",
-		"/guild visibility [public/private] - Sets the visibility of your guild and its chatroom.",
-		"/guild setpolicy [open/invite-only] - Sets the join policy.",
-		"/guild invite [user] - Invites a user to the guild.",
-		"/guild revokeinvite [user] - Revokes a pending invite.",
-		"/guild reject [guild] - Rejects a guild invite.",
-		"/guild transfer [user] - Transfers guild ownership to another member.",
-		"/guild kick [user] - Kicks a user from the guild.",
-		"/guild ban [user] - Bans a user from the guild.",
-		"/guild unban [user] - Unbans a user from the guild.",
-		"/guild members - Views the roster of your guild.",
-		"/guild members [guild] - Views the roster of a specific public guild.",
-		"/guild info - Views the profile of your guild.",
-		"/guild info [guild] - Views the profile of a specific public guild.",
-		"/guild announce [message] - Pushes a popup announcement to all online guild members.",
-		"/guild activity - Views member activity sorted by last login.",
-		"/guild purge [days] - Kicks members (below Elite) who have been inactive for [days].",
-		"/guild ladder (or /guild top) - Displays the Global Guild Leaderboard sorted by Points.",
-		"/guild topmembers - Displays the top 50 players on the server sorted by Total Points.",
-		"/guild memberlimit [number] - (Admin) Sets the global member limit for all guilds.",
-		"/guild give [guild], [amount] - (Admin) Gives points directly to a guild.",
-		"/guild take [guild], [amount] - (Admin) Takes points directly from a guild.",
-		"/guild endseason - (Admin) Manually ends the current Guild Season and resets all points.",
-		"Admins can optionally prefix management commands with the guild name: /guild promote [guild], [user], [role]",
+		`|html|<div class="infobox" style="text-align: center; padding: 10px;">Please use <b><button name="send" value="/guild help">/guild help</button></b> to view the fully formatted guild commands menu!</div>`
 	],
 };

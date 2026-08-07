@@ -227,14 +227,21 @@ export const GuildRepository = {
 
 	async getTopGuilds(limit: number) {
 		await initDB();
-		const res = await PG.query('SELECT * FROM guild ORDER BY points DESC LIMIT $1', [limit]);
+		const res = await PG.query(`
+			SELECT g.*, 
+			       (SELECT COUNT(*) FROM guild_member WHERE guild_id = g.id) as "memberCount",
+			       (SELECT username FROM guild_member WHERE guild_id = g.id AND user_id = g.owner_id) as "ownerName"
+			FROM guild g 
+			ORDER BY g.points DESC 
+			LIMIT $1
+		`, [limit]);
 		return res.rows as GuildRow[];
 	},
 
 	async getTopMembers(limit: number) {
 		await initDB();
 		const res = await PG.query(`
-			SELECT gm.id, gm.username, g.name as "guildName", gm.total_points as "totalPoints" 
+			SELECT gm.user_id as id, gm.username, g.name as "guildName", gm.total_points as "totalPoints" 
 			FROM guild_member gm 
 			JOIN guild g ON gm.guild_id = g.id 
 			ORDER BY gm.total_points DESC 
