@@ -1616,7 +1616,7 @@ export function renderSlotsView(user: User, action: 'save' | 'load'): string {
 	buf += `</div>`;
 	buf += renderSlotsTableHeader();
 	for (let i = 1; i <= 3; i++) {
-		buf += renderSlotRow(i, userData.saves?.[i], action);
+		buf += renderSlotRow(i, userData.saveSlots?.[i], action);
 	}
 	buf += `</tbody></table></div>`;
 	buf += `<div style="text-align:center;margin-top:12px;">`;
