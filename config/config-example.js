@@ -15,12 +15,6 @@ exports.port = 8000;
  */
 exports.bindaddress = '0.0.0.0';
 
-exports.serverid = 'impulse';
-exports.servertoken = 'd0tACZb+OWNU';
-
-/* API key required for /game command */
-exports.rawgApiKey = '';
-
 /**
  * wsdeflate - compresses WebSocket messages
  *  Toggles use of the Sec-WebSocket-Extension permessage-deflate extension.
@@ -289,7 +283,7 @@ exports.reportjoinsperiod = 0;
  *   getting more than 160 or so users.
  *  @type {boolean | string[] | string}
  */
-exports.reportbattles = false;
+exports.reportbattles = true;
 
 /**
  * report joins and leaves in battle - shows messages like "<USERNAME> joined" in battle
@@ -314,7 +308,7 @@ exports.nothrottle = false;
 /**
  * Removes all ip-based alt checking.
  */
-exports.noipchecks = true;
+exports.noipchecks = false;
 
 /**
  * controls the behavior of the /battlesearch command
@@ -417,7 +411,7 @@ exports.backdoor = true;
  * the `console` permission in order to use the dev console.
  * Setting this to an empty array ([]) will disable the dev console.
  */
-exports.consoleips = ['127.0.0.1', 'musaddiktemkar', 'princesky'];
+exports.consoleips = ['127.0.0.1'];
 
 /**
  * Whether to watch the config file for changes. If this is enabled,
@@ -618,35 +612,6 @@ exports.grouplist = [
 		tournaments: true,
 	},
 	{
-		symbol: '&',
-		id: "leader",
-		name: "Leader",
-		inherit: '@',
-		jurisdiction: 'u',
-		globalonly: true,
-
-		bypassall: true,
-		lockdown: true,
-		promote: '~u',
-		roomowner: true,
-		roombot: true,
-		roommod: true,
-		roomdriver: true,
-		forcewin: true,
-		declare: true,
-		addhtml: true,
-		rangeban: true,
-		makeroom: true,
-		editroom: true,
-		editprivacy: true,
-		potd: true,
-		disableladder: true,
-		gdeclare: true,
-		gamemanagement: true,
-		exportinputlog: true,
-		tournaments: true,
-	},
-	{
 		symbol: '#',
 		id: "owner",
 		name: "Room Owner",
@@ -808,3 +773,4 @@ exports.grouplist = [
 		punishgroup: 'MUTE',
 	},
 ];
+try { require('./impulse-config.js')(exports); } catch (e) {}
