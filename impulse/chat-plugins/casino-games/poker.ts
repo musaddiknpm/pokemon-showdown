@@ -1,6 +1,7 @@
 import { getBalance, updateBalance, CURRENCY_NAME } from '../economy/economy';
 import { nameColor } from '../customization/custom-color';
 import { activeCasinoGames, CASINO_ROOM, Suit, type Rank, type Card, SUITS, renderHand } from './shared';
+import { RoomGame, RoomGamePlayer } from '../../../server/room-game';
 
 const LOBBY_TIMEOUT = 120 * 1000;
 const TURN_TIMEOUT = 15 * 1000;
@@ -106,610 +107,853 @@ function compareHands(handA: ReturnType<typeof evaluateBest7>, handB: ReturnType
 	return 0;
 }
 
-interface PokerPlayer {
-	id: string;
-	name: string;
-	isAI?: boolean;
-	hand: Card[];
-	status: 'playing' | 'folded' | 'all-in' | 'eliminated';
-	chips: number;
-	roundContribution: number;
-	handContribution: number;
-	hasActed: boolean;
+class PokerPlayer extends RoomGamePlayer<PokerGame> {
+	isAI: boolean;
+	hand: Card[] = [];
+	status: 'playing' | 'folded' | 'all-in' | 'eliminated' = 'playing';
+	chips = 1000;
+	roundContribution = 0;
+	handContribution = 0;
+	hasActed = false;
 	eval?: ReturnType<typeof evaluateBest7>;
 	payoutStr?: string;
+
+	constructor(user: User | string | null, game: PokerGame, num: number, isAI: boolean) {
+		super(user, game, num);
+		this.isAI = isAI;
+	}
 }
 
-interface PokerGame {
-	roomid: string;
+export class PokerGame extends RoomGame<PokerPlayer> {
+	gameid = 'poker' as ID;
 	uid: string;
 	host: string;
 	hostName: string;
 	entryFee: number;
-	isTestMode?: boolean;
-	state: 'lobby' | 'preflop' | 'flop' | 'turn' | 'river' | 'showdown' | 'ended';
-	players: PokerPlayer[];
-	communityCards: Card[];
-	deck: Card[];
-	pot: number;
-	currentBet: number;
-	turnIndex: number;
-	dealerIndex: number;
-	blinds: { small: number, big: number };
-	handsPlayed: number;
-	timer: NodeJS.Timeout | null;
-	displayInit?: boolean;
+	isTestMode: boolean;
+	state: 'lobby' | 'preflop' | 'flop' | 'turn' | 'river' | 'showdown' | 'ended' = 'lobby';
+	communityCards: Card[] = [];
+	deck: Card[] = [];
+	pot = 0;
+	currentBet = 0;
+	turnIndex = 0;
+	dealerIndex = 0;
+	blinds: { small: number, big: number } = { small: 10, big: 20 };
+	handsPlayed = 0;
+	timer: NodeJS.Timeout | null = null;
+	displayInit = false;
 	lastShowdownLog?: string;
-}
+	allowRenames = true;
+	playerCap = 4;
+	checkChat = true;
 
-const activeGames = new Map<string, PokerGame>();
+	constructor(room: Room, host: User, entryFee: number, isTestMode = false) {
+		super(room);
+		this.title = 'Poker';
+		this.uid = `poker-${room.roomid}-${Date.now()}`;
+		this.host = host.id;
+		this.hostName = host.name;
+		this.entryFee = entryFee;
+		this.isTestMode = isTestMode;
 
-async function refundAll(game: PokerGame, message: string) {
-	if (!game.isTestMode) {
-		for (const p of game.players) {
-			if (!p.isAI) await updateBalance(p.id, game.entryFee);
-		}
+		this.timer = setTimeout(() => {
+			if (this.state === 'lobby') {
+				if (this.isTestMode) {
+					const requiredAIs = Math.max(3, 4 - this.players.length);
+					let aiCount = 1;
+					while (this.players.length < 4 && aiCount <= requiredAIs) {
+						this.addPlayer(`AI Bot ${aiCount}`, true);
+						aiCount++;
+					}
+				}
+
+				if (this.players.length >= 2) {
+					this.dealerIndex = Math.floor(Math.random() * this.players.length);
+					this.startNextHand();
+				} else {
+					void this.refundAll('Lobby timed out due to not enough players.');
+					this.destroy();
+				}
+			}
+		}, LOBBY_TIMEOUT);
+
+		activeCasinoGames.set(room.roomid, 'poker');
 	}
-	const room = Rooms.get(game.roomid);
-	if (room) {
-		room.add(
-			`|uhtmlchange|${game.uid}|` +
-			`<div class="casino-board">` +
-			`<div class="casino-header">Poker Tournament Cancelled</div><hr>` +
-			`${message}<br>All players have been refunded their entry fee.` +
-			`</div>`
-		).update();
+
+	makePlayer(user: User | string | null, ...rest: any[]): PokerPlayer {
+		const num = this.players.length ? this.players[this.players.length - 1].num : 1;
+		const isAI = !!rest[0];
+		return new PokerPlayer(user, this, num, isAI);
 	}
-}
 
-function whisperCards(game: PokerGame) {
-	const room = Rooms.get(game.roomid);
-	if (!room) return;
-	for (const p of game.players) {
-		if (p.isAI) continue;
-		const user = Users.get(p.id);
-		if (user && user.connected && p.hand.length > 0) {
-			user.sendTo(room, `|uhtml|${game.uid}-cards|Your Hole Cards: ${renderHand(p.hand)}`);
-		}
+	onRename(user: User, oldUserid: ID, isJoining: boolean, isForceRenamed: boolean) {
+		super.onRename(user, oldUserid, isJoining, isForceRenamed);
+		this.updateRoom();
 	}
-}
 
-function getBoardHtml(game: PokerGame, userId: string | null): string {
-	let html = `<div class="casino-board">`;
-	html += `<div class="casino-header">Texas Hold'em ${game.isTestMode ? "<small>(Test AI Mode)</small>" : ""} <small>(Entry: <b>${game.isTestMode ? 'Free' : game.entryFee + ' ' + CURRENCY_NAME}</b>)</small></div>`;
-	html += `Host: ${nameColor(game.hostName, true)}<hr>`;
+	forfeit(user: User | string) {
+		const id = typeof user === 'string' ? toID(user) : user.id;
+		const player = this.playerTable[id];
+		if (!player) return;
 
-	if (game.state === 'lobby') {
-		html += `<div class="casino-player-list">`;
-		if (game.players.length === 0) {
-			html += `<i>No players yet</i>`;
+		if (this.state === 'lobby') {
+			if (!this.isTestMode) void updateBalance(player.id, this.entryFee);
+			this.removePlayer(player);
+			this.updateRoom();
 		} else {
-			for (const p of game.players) {
-				html += `<div class="casino-player-badge active"><span class="casino-player-name">${nameColor(p.name, true)}</span>Joined</div>`;
+			if (player.status === 'playing' || player.status === 'all-in') {
+				player.status = 'folded';
+				if (this.players[this.turnIndex] === player) {
+					player.hasActed = true;
+					this.advanceTurn();
+				} else {
+					this.updateRoom();
+				}
 			}
 		}
-		html += `</div><hr>`;
-		html += `<div>`;
-		if (game.players.length < 4 && (!userId || !game.players.some(p => p.id === userId))) {
-			html += `<button class="button casino-btn" name="send" value="/poker join">Join Game</button> `;
+	}
+
+	onConnect(user: User) {
+		const html = this.getBoardHtml(user.id);
+		user.sendTo(this.roomid, `|uhtml|${this.uid}|${html}`);
+	}
+
+	onLeave(user: User, oldUserid?: ID) {
+		this.forfeit(user);
+	}
+
+	leaveGame(user: User) {
+		this.forfeit(user);
+	}
+
+	joinGame(user: User) {
+		void this.handleJoin(user);
+	}
+
+	async handleJoin(user: User) {
+		if (this.state !== 'lobby') {
+			user.sendTo(this.roomid, "|error|This game has already started.");
+			return;
 		}
-		if (userId === game.host) {
-			html += `<button class="button casino-btn" name="send" value="/poker deal">Start Tournament (Host)</button> `;
-			html += `<button class="button casino-btn" name="send" value="/poker end">Cancel Game</button>`;
-		}
-		html += `</div>`;
-	} else {
-		html += `<b>Pot:</b> ${game.pot} Chips | <b>Blinds:</b> ${game.blinds.small}/${game.blinds.big}<br><br>`;
-
-		if (game.lastShowdownLog && (game.state === 'showdown' || game.state === 'ended')) {
-			html += `<div style="background: rgba(255,255,255,0.1); border-radius:4px; padding:8px; margin-bottom:8px;"><b>Previous Showdown:</b><br>${game.lastShowdownLog}</div>`;
+		if (this.players.some(p => p.id === user.id)) {
+			user.sendTo(this.roomid, "|error|You are already in this game.");
+			return;
 		}
 
-		const isCompact = game.state === 'showdown' || game.state === 'ended';
+		if (!this.isTestMode) {
+			const bal = await getBalance(user.id);
+			if (bal < this.entryFee) {
+				user.sendTo(this.roomid, `|error|You don't have enough ${CURRENCY_NAME} to play. (Requires ${this.entryFee})`);
+				return;
+			}
+			await updateBalance(user.id, -this.entryFee);
+		}
 
-		html += `<b>Community Cards:</b><br>`;
-		const displayComm = [...game.communityCards];
-		while (displayComm.length < 5 && game.state !== 'ended' && game.state !== 'lobby') displayComm.push(null as any);
-		html += renderHand(displayComm, false, isCompact) + `<hr>`;
+		if (!this.addPlayer(user)) {
+			if (!this.isTestMode) await updateBalance(user.id, this.entryFee);
+			user.sendTo(this.roomid, "|error|You could not join the game (it may be full or you are already in it).");
+			return;
+		}
+		this.updateRoom();
+	}
 
-		if (isCompact) {
-			html += `<div style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom: 8px;">`;
-			for (let i = 0; i < game.players.length; i++) {
-				const p = game.players[i];
+	choose(user: User, text: string) {
+		const actionParts = text.trim().toLowerCase().split(' ');
+		const action = actionParts[0];
 
-				let statusStr = '';
-				if (p.status === 'eliminated') statusStr = '<b>Eliminated</b>';
-				else if (p.status === 'folded') statusStr = '<b>Folded</b>';
-				else if (p.status === 'all-in') statusStr = '<b>All-In</b>';
-				else statusStr = `Chips: <b>${p.chips}</b>`;
+		if (action === 'deal') {
+			const isHost = typeof user === 'string' ? user === this.host : user.id === this.host;
+			if (!isHost) {
+				user.sendTo(this.roomid, "|error|Only the host can start the tournament.");
+				return;
+			}
+			if (this.state !== 'lobby') {
+				user.sendTo(this.roomid, "|error|This game has already started.");
+				return;
+			}
+			if (this.players.length < 2) {
+				user.sendTo(this.roomid, "|error|Cannot start without at least 2 players.");
+				return;
+			}
+			this.startNextHand();
+		} else if (action === 'call') {
+			if (['lobby', 'showdown', 'ended'].includes(this.state)) {
+				user.sendTo(this.roomid, "|error|There is no active poker game waiting for moves.");
+				return;
+			}
+			const currentPlayer = this.players[this.turnIndex];
+			if (!currentPlayer || currentPlayer.id !== user.id) {
+				user.sendTo(this.roomid, "|error|It's not your turn.");
+				return;
+			}
 
-				let pTitle = `<b>${nameColor(p.name, true)}</b>`;
-				if (i === game.dealerIndex) pTitle += ` <b style="color: #FFC107;">(D)</b>`;
-
-				html += `<div style="flex: 1 1 45%; background: rgba(0,0,0,0.1); padding: 4px; border-radius: 4px; border-left: 2px solid ${p.status === 'folded' || p.status === 'eliminated' ? '#888' : '#FFC107'};">`;
-				html += `${pTitle}: ${statusStr}`;
-
-				if (p.payoutStr) html += ` <small>${p.payoutStr}</small>`;
-
-				if (p.status !== 'folded' && p.status !== 'eliminated') {
-					html += ` <div style="display:inline-block; margin-left:4px;">${renderHand(p.hand, false, true)}</div>`;
+			const callAmount = this.currentBet - currentPlayer.roundContribution;
+			if (callAmount > 0) {
+				if (currentPlayer.chips <= callAmount) {
+					user.sendTo(this.roomid, "|error|You must use 'allin' instead.");
+					return;
 				}
-				html += `</div>`;
+				currentPlayer.chips -= callAmount;
+				currentPlayer.roundContribution += callAmount;
+				currentPlayer.handContribution += callAmount;
+				this.pot += callAmount;
+			}
+			currentPlayer.hasActed = true;
+			this.advanceTurn();
+		} else if (action === 'allin') {
+			if (['lobby', 'showdown', 'ended'].includes(this.state)) {
+				user.sendTo(this.roomid, "|error|There is no active poker game waiting for moves.");
+				return;
+			}
+			const currentPlayer = this.players[this.turnIndex];
+			if (!currentPlayer || currentPlayer.id !== user.id) {
+				user.sendTo(this.roomid, "|error|It's not your turn.");
+				return;
+			}
+
+			const totalNeeded = currentPlayer.chips;
+			currentPlayer.chips = 0;
+			currentPlayer.roundContribution += totalNeeded;
+			currentPlayer.handContribution += totalNeeded;
+			this.pot += totalNeeded;
+			currentPlayer.status = 'all-in';
+
+			if (currentPlayer.roundContribution > this.currentBet) {
+				this.currentBet = currentPlayer.roundContribution;
+				for (const pl of this.players) {
+					if (pl !== currentPlayer && pl.status === 'playing') pl.hasActed = false;
+				}
+			}
+			currentPlayer.hasActed = true;
+			this.advanceTurn();
+		} else if (action === 'fold') {
+			if (['lobby', 'showdown', 'ended'].includes(this.state)) {
+				user.sendTo(this.roomid, "|error|There is no active poker game waiting for moves.");
+				return;
+			}
+			const currentPlayer = this.players[this.turnIndex];
+			if (!currentPlayer || currentPlayer.id !== user.id) {
+				user.sendTo(this.roomid, "|error|It's not your turn.");
+				return;
+			}
+			currentPlayer.status = 'folded';
+			currentPlayer.hasActed = true;
+			this.advanceTurn();
+		} else if (action === 'raise') {
+			if (['lobby', 'showdown', 'ended'].includes(this.state)) {
+				user.sendTo(this.roomid, "|error|There is no active poker game waiting for moves.");
+				return;
+			}
+			const currentPlayer = this.players[this.turnIndex];
+			if (!currentPlayer || currentPlayer.id !== user.id) {
+				user.sendTo(this.roomid, "|error|It's not your turn.");
+				return;
+			}
+
+			const raiseAmount = parseInt(actionParts[1]);
+			if (isNaN(raiseAmount) || raiseAmount <= 0) {
+				user.sendTo(this.roomid, "|error|Invalid raise amount.");
+				return;
+			}
+
+			const callAmount = this.currentBet - currentPlayer.roundContribution;
+			const totalNeeded = callAmount + raiseAmount;
+
+			if (currentPlayer.chips <= totalNeeded) {
+				user.sendTo(this.roomid, "|error|You don't have enough chips. Use 'allin' instead.");
+				return;
+			}
+
+			currentPlayer.chips -= totalNeeded;
+			currentPlayer.roundContribution += totalNeeded;
+			currentPlayer.handContribution += totalNeeded;
+			this.pot += totalNeeded;
+			this.currentBet += raiseAmount;
+
+			for (const pl of this.players) {
+				if (pl !== currentPlayer && pl.status === 'playing') pl.hasActed = false;
+			}
+
+			currentPlayer.hasActed = true;
+			this.advanceTurn();
+		}
+	}
+
+	async refundAll(message: string) {
+		if (!this.isTestMode) {
+			for (const p of this.players) {
+				if (!p.isAI) await updateBalance(p.id, this.entryFee);
+			}
+		}
+		const room = this.room;
+		if (room) {
+			room.add(
+				`|uhtmlchange|${this.uid}|` +
+				`<div class="casino-board">` +
+				`<div class="casino-header">Poker Tournament Cancelled</div><hr>` +
+				`${message}<br>All players have been refunded their entry fee.` +
+				`</div>`
+			).update();
+		}
+	}
+
+	whisperCards() {
+		const room = this.room;
+		if (!room) return;
+		for (const p of this.players) {
+			if (p.isAI) continue;
+			const user = Users.get(p.id);
+			if (user && user.connected && p.hand.length > 0) {
+				user.sendTo(room, `|uhtml|${this.uid}-cards|Your Hole Cards: ${renderHand(p.hand)}`);
+			}
+		}
+	}
+
+	getBoardHtml(userId: string | null): string {
+		let html = `<div class="casino-board">`;
+		html += `<div class="casino-header">Texas Hold'em ${this.isTestMode ? "<small>(Test AI Mode)</small>" : ""} <small>(Entry: <b>${this.isTestMode ? 'Free' : `${this.entryFee} ${CURRENCY_NAME}`}</b>)</small></div>`;
+		html += `Host: ${nameColor(this.hostName, true)}<hr>`;
+
+		if (this.state === 'lobby') {
+			html += `<div class="casino-player-list">`;
+			if (this.players.length === 0) {
+				html += `<i>No players yet</i>`;
+			} else {
+				for (const p of this.players) {
+					html += `<div class="casino-player-badge active"><span class="casino-player-name">${nameColor(p.name, true)}</span>Joined</div>`;
+				}
+			}
+			html += `</div><hr>`;
+			html += `<div>`;
+			if (this.players.length < 4 && (!userId || !this.players.some(p => p.id === userId))) {
+				html += `<button class="button casino-btn" name="send" value="/joingame">Join Game</button> `;
+			}
+			if (userId === this.host) {
+				html += `<button class="button casino-btn" name="send" value="/choose deal">Start Tournament (Host)</button> `;
+				html += `<button class="button casino-btn" name="send" value="/poker end">Cancel Game</button>`;
 			}
 			html += `</div>`;
-
-			if (game.state === 'ended') {
-				const winner = game.players.find(p => p.status !== 'eliminated');
-				if (winner) {
-					let winHtml = '';
-					if (!game.isTestMode && !winner.isAI) {
-						const totalCoins = game.players.length * game.entryFee;
-						winHtml = `<b>${nameColor(winner.name, true)}</b> has won the Poker tournament and won <b>${totalCoins}</b> ${CURRENCY_NAME}!`;
-					} else {
-						winHtml = `<b>${nameColor(winner.name, true)}</b> has won the Poker tournament!`;
-					}
-					html += `<div style="text-align: center; font-size: 1.1em; color: #FFC107;">${winHtml}</div>`;
-				}
-			}
 		} else {
-			html += `<div class="casino-player-list">`;
-			for (let i = 0; i < game.players.length; i++) {
-				const p = game.players[i];
-				const isTurn = (game.state === 'preflop' || game.state === 'flop' || game.state === 'turn' || game.state === 'river') && game.turnIndex === i;
+			html += `<b>Pot:</b> ${this.pot} Chips | <b>Blinds:</b> ${this.blinds.small}/${this.blinds.big}<br><br>`;
 
-				let badgeClass = 'active';
-				if (p.status === 'eliminated') badgeClass = 'eliminated';
-				else if (p.status === 'folded') badgeClass = 'folded';
-				else if (p.status === 'all-in') badgeClass = 'all-in';
+			if (this.lastShowdownLog && (this.state === 'showdown' || this.state === 'ended')) {
+				html += `<div style="background: rgba(255,255,255,0.1); border-radius:4px; padding:8px; margin-bottom:8px;"><b>Previous Showdown:</b><br>${this.lastShowdownLog}</div>`;
+			}
 
-				if (isTurn) badgeClass = 'all-in';
+			const isCompact = this.state === 'showdown' || this.state === 'ended';
 
-				html += `<div class="casino-player-badge ${badgeClass}">`;
+			html += `<b>Community Cards:</b><br>`;
+			const displayComm = [...this.communityCards];
+			while (displayComm.length < 5 && this.state !== 'ended' && this.state !== 'lobby') displayComm.push(null as any);
+			html += renderHand(displayComm, false, isCompact) + `<hr>`;
 
-				let pTitle = `<span class="casino-player-name">${nameColor(p.name, true)}`;
-				if (i === game.dealerIndex) pTitle += ` <b style="color: #FFC107;">(D)</b>`;
-				pTitle += `</span>`;
+			if (isCompact) {
+				html += `<div style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom: 8px;">`;
+				for (let i = 0; i < this.players.length; i++) {
+					const p = this.players[i];
 
-				html += pTitle;
+					let statusStr = '';
+					if (p.status === 'eliminated') statusStr = '<b>Eliminated</b>';
+					else if (p.status === 'folded') statusStr = '<b>Folded</b>';
+					else if (p.status === 'all-in') statusStr = '<b>All-In</b>';
+					else statusStr = `Chips: <b>${p.chips}</b>`;
 
-				if (p.status === 'eliminated') html += `<b>Eliminated</b>`;
-				else if (p.status === 'folded') html += `<b>Folded</b>`;
-				else if (p.status === 'all-in') html += `<b>All-In</b> (In: ${p.handContribution})`;
-				else html += `Chips: <b>${p.chips}</b> (In: ${p.handContribution})`;
+					let pTitle = `<b>${nameColor(p.name, true)}</b>`;
+					if (i === this.dealerIndex) pTitle += ` <b style="color: #FFC107;">(D)</b>`;
 
-				if (p.payoutStr) html += `<br>${p.payoutStr}`;
+					html += `<div style="flex: 1 1 45%; background: rgba(0,0,0,0.1); padding: 4px; border-radius: 4px; border-left: 2px solid ${p.status === 'folded' || p.status === 'eliminated' ? '#888' : '#FFC107'};">`;
+					html += `${pTitle}: ${statusStr}`;
 
-				if (p.status === 'playing' || p.status === 'all-in') {
-					html += `<div style="margin-top:4px;"><i>Cards hidden</i></div>`;
-				}
+					if (p.payoutStr) html += ` <small>${p.payoutStr}</small>`;
 
-				if (isTurn && !p.isAI && userId === p.id) {
-					const callAmount = game.currentBet - p.roundContribution;
-					html += `<div style="margin-top: 6px; text-align: center;">`;
-
-					if (callAmount > 0) {
-						if (p.chips <= callAmount) {
-							html += `<button class="button casino-btn" name="send" value="/poker allin">All-In (${p.chips})</button>`;
-						} else {
-							html += `<button class="button casino-btn" name="send" value="/poker call">Call (${callAmount})</button> `;
-							const minRaise = game.blinds.big;
-							html += `<button class="button casino-btn" name="send" value="/poker raise ${minRaise}">Raise (+${minRaise})</button> `;
-							html += `<button class="button casino-btn" name="send" value="/poker raise ${game.pot}">Pot (+${game.pot})</button> `;
-							html += `<button class="button casino-btn" name="send" value="/poker allin">All-In</button>`;
-						}
-					} else {
-						html += `<button class="button casino-btn" name="send" value="/poker call">Check</button> `;
-						const minRaise = game.blinds.big;
-						html += `<button class="button casino-btn" name="send" value="/poker raise ${minRaise}">Bet (+${minRaise})</button> `;
-						html += `<button class="button casino-btn" name="send" value="/poker raise ${game.pot}">Pot (+${game.pot})</button> `;
-						html += `<button class="button casino-btn" name="send" value="/poker allin">All-In</button>`;
+					if (p.status !== 'folded' && p.status !== 'eliminated') {
+						html += ` <div style="display:inline-block; margin-left:4px;">${renderHand(p.hand, false, true)}</div>`;
 					}
-					html += ` <button class="button casino-btn" name="send" value="/poker fold">Fold</button>`;
-					html += `<div style="margin-top: 4px;"><small style="color:#FFC107;">You have 15 seconds to act.</small></div>`;
 					html += `</div>`;
 				}
+				html += `</div>`;
 
+				if (this.state === 'ended') {
+					const winner = this.players.find(p => p.status !== 'eliminated');
+					if (winner) {
+						let winHtml = '';
+						if (!this.isTestMode && !winner.isAI) {
+							const totalCoins = this.players.length * this.entryFee;
+							winHtml = `<b>${nameColor(winner.name, true)}</b> has won the Poker tournament and won <b>${totalCoins}</b> ${CURRENCY_NAME}!`;
+						} else {
+							winHtml = `<b>${nameColor(winner.name, true)}</b> has won the Poker tournament!`;
+						}
+						html += `<div style="text-align: center; font-size: 1.1em; color: #FFC107;">${winHtml}</div>`;
+					}
+				}
+			} else {
+				html += `<div class="casino-player-list">`;
+				for (let i = 0; i < this.players.length; i++) {
+					const p = this.players[i];
+					const isTurn = (this.state === 'preflop' || this.state === 'flop' || this.state === 'turn' || this.state === 'river') && this.turnIndex === i;
+
+					let badgeClass = 'active';
+					if (p.status === 'eliminated') badgeClass = 'eliminated';
+					else if (p.status === 'folded') badgeClass = 'folded';
+					else if (p.status === 'all-in') badgeClass = 'all-in';
+
+					if (isTurn) badgeClass = 'all-in';
+
+					html += `<div class="casino-player-badge ${badgeClass}">`;
+
+					let pTitle = `<span class="casino-player-name">${nameColor(p.name, true)}`;
+					if (i === this.dealerIndex) pTitle += ` <b style="color: #FFC107;">(D)</b>`;
+					pTitle += `</span>`;
+
+					html += pTitle;
+
+					if (p.status === 'eliminated') html += `<b>Eliminated</b>`;
+					else if (p.status === 'folded') html += `<b>Folded</b>`;
+					else if (p.status === 'all-in') html += `<b>All-In</b> (In: ${p.handContribution})`;
+					else html += `Chips: <b>${p.chips}</b> (In: ${p.handContribution})`;
+
+					if (p.payoutStr) html += `<br>${p.payoutStr}`;
+
+					if (p.status === 'playing' || p.status === 'all-in') {
+						html += `<div style="margin-top:4px;"><i>Cards hidden</i></div>`;
+					}
+
+					if (isTurn && !p.isAI && userId === p.id) {
+						const callAmount = this.currentBet - p.roundContribution;
+						html += `<div style="margin-top: 6px; text-align: center;">`;
+
+						if (callAmount > 0) {
+							if (p.chips <= callAmount) {
+								html += `<button class="button casino-btn" name="send" value="/choose allin">All-In (${p.chips})</button>`;
+							} else {
+								html += `<button class="button casino-btn" name="send" value="/choose call">Call (${callAmount})</button> `;
+								const minRaise = this.blinds.big;
+								html += `<button class="button casino-btn" name="send" value="/choose raise ${minRaise}">Raise (+${minRaise})</button> `;
+								html += `<button class="button casino-btn" name="send" value="/choose raise ${this.pot}">Pot (+${this.pot})</button> `;
+								html += `<button class="button casino-btn" name="send" value="/choose allin">All-In</button>`;
+							}
+						} else {
+							html += `<button class="button casino-btn" name="send" value="/choose call">Check</button> `;
+							const minRaise = this.blinds.big;
+							html += `<button class="button casino-btn" name="send" value="/choose raise ${minRaise}">Bet (+${minRaise})</button> `;
+							html += `<button class="button casino-btn" name="send" value="/choose raise ${this.pot}">Pot (+${this.pot})</button> `;
+							html += `<button class="button casino-btn" name="send" value="/choose allin">All-In</button>`;
+						}
+						html += ` <button class="button casino-btn" name="send" value="/choose fold">Fold</button>`;
+						html += `<div style="margin-top: 4px;"><small style="color:#FFC107;">You have 15 seconds to act.</small></div>`;
+						html += `</div>`;
+					}
+
+					html += `</div>`;
+				}
 				html += `</div>`;
 			}
-			html += `</div>`;
 		}
-	}
-	html += `</div>`;
-	return html;
-}
-
-function updateRoom(game: PokerGame) {
-	const room = Rooms.get(game.roomid);
-	if (!room) return;
-
-	if (game.state === 'ended') {
-		const html = getBoardHtml(game, null);
-		room.add(`|uhtmlchange|${game.uid}|${html}`).update();
-		return;
+		html += `</div>`;
+		return html;
 	}
 
-	const boardHtml = getBoardHtml(game, null);
+	updateRoom() {
+		const room = this.room;
+		if (!room) return;
 
-	if (room.log && room.log.log) {
-		const originalStart = `|uhtml|${game.uid}|`;
-		for (let i = 0; i < room.log.log.length; i++) {
-			if (room.log.log[i].startsWith(originalStart)) {
-				room.log.log[i] = `${originalStart}${boardHtml}`;
-				break;
+		if (this.state === 'ended') {
+			const html = this.getBoardHtml(null);
+			room.add(`|uhtmlchange|${this.uid}|${html}`).update();
+			return;
+		}
+
+		const boardHtml = this.getBoardHtml(null);
+
+		if (room.log?.log) {
+			const originalStart = `|uhtml|${this.uid}|`;
+			for (let i = 0; i < room.log.log.length; i++) {
+				if (room.log.log[i].startsWith(originalStart)) {
+					room.log.log[i] = `${originalStart}${boardHtml}`;
+					break;
+				}
+			}
+		}
+
+		if (!this.displayInit) {
+			room.add(`|uhtml|${this.uid}|${boardHtml}`).update();
+			this.displayInit = true;
+		} else {
+			for (const id in room.users) {
+				const u = room.users[id];
+				u.sendTo(room, `|uhtmlchange|${this.uid}|${this.getBoardHtml(u.id)}`);
 			}
 		}
 	}
 
-	if (!game.displayInit) {
-		room.add(`|uhtml|${game.uid}|${boardHtml}`).update();
-		game.displayInit = true;
-	} else {
-		for (const id in room.users) {
-			const u = room.users[id];
-			u.sendTo(room, `|uhtmlchange|${game.uid}|${getBoardHtml(game, u.id)}`);
-		}
-	}
-}
+	aiMakeMove(aiPlayer: PokerPlayer) {
+		if (['ended', 'showdown', 'lobby'].includes(this.state)) return;
+		if (this.players[this.turnIndex] !== aiPlayer) return;
 
-function aiMakeMove(game: PokerGame, aiPlayer: PokerPlayer) {
-	if (['ended', 'showdown', 'lobby'].includes(game.state)) return;
-	if (game.players[game.turnIndex] !== aiPlayer) return;
+		const callAmount = this.currentBet - aiPlayer.roundContribution;
+		const rand = Math.random();
+		let action = 'call';
 
-	const callAmount = game.currentBet - aiPlayer.roundContribution;
-	const rand = Math.random();
-	let action = 'call';
-
-	if (callAmount > 0) {
-		if (rand < 0.15) action = 'fold';
-		else if (rand < 0.85) action = 'call';
-		else action = 'raise';
-	} else {
-		if (rand < 0.8) action = 'check';
-		else action = 'raise';
-	}
-
-	if (action === 'fold') {
-		aiPlayer.status = 'folded';
-		aiPlayer.hasActed = true;
-	} else if (action === 'call' || action === 'check') {
 		if (callAmount > 0) {
-			if (aiPlayer.chips <= callAmount) {
-				const totalNeeded = aiPlayer.chips;
+			if (rand < 0.15) action = 'fold';
+			else if (rand < 0.85) action = 'call';
+			else action = 'raise';
+		} else {
+			if (rand < 0.8) action = 'check';
+			else action = 'raise';
+		}
+
+		if (action === 'fold') {
+			aiPlayer.status = 'folded';
+			aiPlayer.hasActed = true;
+		} else if (action === 'call' || action === 'check') {
+			if (callAmount > 0) {
+				if (aiPlayer.chips <= callAmount) {
+					const totalNeeded = aiPlayer.chips;
+					aiPlayer.chips = 0;
+					aiPlayer.roundContribution += totalNeeded;
+					aiPlayer.handContribution += totalNeeded;
+					this.pot += totalNeeded;
+					aiPlayer.status = 'all-in';
+					if (aiPlayer.roundContribution > this.currentBet) {
+						this.currentBet = aiPlayer.roundContribution;
+						for (const pl of this.players) {
+							if (pl !== aiPlayer && pl.status === 'playing') pl.hasActed = false;
+						}
+					}
+				} else {
+					aiPlayer.chips -= callAmount;
+					aiPlayer.roundContribution += callAmount;
+					aiPlayer.handContribution += callAmount;
+					this.pot += callAmount;
+				}
+			}
+			aiPlayer.hasActed = true;
+		} else if (action === 'raise') {
+			const minRaise = this.blinds.big;
+			const totalNeeded = callAmount + minRaise;
+
+			if (aiPlayer.chips <= totalNeeded) {
+				const totalNeededAllin = aiPlayer.chips;
 				aiPlayer.chips = 0;
-				aiPlayer.roundContribution += totalNeeded;
-				aiPlayer.handContribution += totalNeeded;
-				game.pot += totalNeeded;
+				aiPlayer.roundContribution += totalNeededAllin;
+				aiPlayer.handContribution += totalNeededAllin;
+				this.pot += totalNeededAllin;
 				aiPlayer.status = 'all-in';
-				if (aiPlayer.roundContribution > game.currentBet) {
-					game.currentBet = aiPlayer.roundContribution;
-					for (const pl of game.players) {
+				if (aiPlayer.roundContribution > this.currentBet) {
+					this.currentBet = aiPlayer.roundContribution;
+					for (const pl of this.players) {
 						if (pl !== aiPlayer && pl.status === 'playing') pl.hasActed = false;
 					}
 				}
 			} else {
-				aiPlayer.chips -= callAmount;
-				aiPlayer.roundContribution += callAmount;
-				aiPlayer.handContribution += callAmount;
-				game.pot += callAmount;
-			}
-		}
-		aiPlayer.hasActed = true;
-	} else if (action === 'raise') {
-		const minRaise = game.blinds.big;
-		const totalNeeded = callAmount + minRaise;
-
-		if (aiPlayer.chips <= totalNeeded) {
-			const totalNeededAllin = aiPlayer.chips;
-			aiPlayer.chips = 0;
-			aiPlayer.roundContribution += totalNeededAllin;
-			aiPlayer.handContribution += totalNeededAllin;
-			game.pot += totalNeededAllin;
-			aiPlayer.status = 'all-in';
-			if (aiPlayer.roundContribution > game.currentBet) {
-				game.currentBet = aiPlayer.roundContribution;
-				for (const pl of game.players) {
+				aiPlayer.chips -= totalNeeded;
+				aiPlayer.roundContribution += totalNeeded;
+				aiPlayer.handContribution += totalNeeded;
+				this.pot += totalNeeded;
+				this.currentBet += minRaise;
+				for (const pl of this.players) {
 					if (pl !== aiPlayer && pl.status === 'playing') pl.hasActed = false;
 				}
 			}
+			aiPlayer.hasActed = true;
+		}
+
+		this.advanceTurn();
+	}
+
+	triggerNextTurn() {
+		const currentPlayer = this.players[this.turnIndex];
+		if (currentPlayer && currentPlayer.status === 'playing' && currentPlayer.isAI) {
+			this.updateRoom();
+			setTimeout(() => this.aiMakeMove(currentPlayer), 2000);
 		} else {
-			aiPlayer.chips -= totalNeeded;
-			aiPlayer.roundContribution += totalNeeded;
-			aiPlayer.handContribution += totalNeeded;
-			game.pot += totalNeeded;
-			game.currentBet += minRaise;
-			for (const pl of game.players) {
-				if (pl !== aiPlayer && pl.status === 'playing') pl.hasActed = false;
+			this.setTurnTimer();
+			this.updateRoom();
+		}
+	}
+
+	startNextHand() {
+		if (this.timer) clearTimeout(this.timer);
+
+		for (const p of this.players) {
+			if (p.chips === 0 && p.status !== 'eliminated') {
+				p.status = 'eliminated';
 			}
 		}
-		aiPlayer.hasActed = true;
-	}
 
-	advanceTurn(game);
-}
+		const active = this.players.filter(p => p.status !== 'eliminated');
+		if (active.length === 1) {
+			const winner = active[0];
+			this.state = 'ended';
 
-function triggerNextTurn(game: PokerGame) {
-	const currentPlayer = game.players[game.turnIndex];
-	if (currentPlayer && currentPlayer.status === 'playing' && currentPlayer.isAI) {
-		updateRoom(game);
-		setTimeout(() => aiMakeMove(game, currentPlayer), 2000);
-	} else {
-		setTurnTimer(game);
-		updateRoom(game);
-	}
-}
-
-function startNextHand(game: PokerGame) {
-	if (game.timer) clearTimeout(game.timer);
-
-	for (const p of game.players) {
-		if (p.chips === 0 && p.status !== 'eliminated') {
-			p.status = 'eliminated';
-		}
-	}
-
-	const active = game.players.filter(p => p.status !== 'eliminated');
-	if (active.length === 1) {
-		const winner = active[0];
-		game.state = 'ended';
-
-		if (!game.isTestMode && !winner.isAI) {
-			const totalCoins = game.players.length * game.entryFee;
-			void updateBalance(winner.id, totalCoins);
-			winner.payoutStr = `<span style="color:green;font-weight:bold">Tournament Winner! (${totalCoins} ${CURRENCY_NAME})</span>`;
-		} else {
-			winner.payoutStr = `<span style="color:green;font-weight:bold">Tournament Winner! (Test Mode)</span>`;
-		}
-
-		updateRoom(game);
-		activeGames.delete(game.roomid);
-		activeCasinoGames.delete(game.roomid);
-		return;
-	} else if (active.length === 0) {
-		game.state = 'ended';
-		updateRoom(game);
-		activeGames.delete(game.roomid);
-		activeCasinoGames.delete(game.roomid);
-		return;
-	}
-
-	game.handsPlayed++;
-	if (game.handsPlayed > 1 && game.handsPlayed % 5 === 0) {
-		game.blinds.small *= 2;
-		game.blinds.big *= 2;
-	}
-
-	game.deck = createDeck();
-	game.communityCards = [];
-	game.pot = 0;
-	game.currentBet = 0;
-	game.lastShowdownLog = undefined;
-
-	for (const p of game.players) {
-		p.hand = [];
-		p.roundContribution = 0;
-		p.handContribution = 0;
-		p.hasActed = false;
-		p.eval = undefined;
-		p.payoutStr = undefined;
-		if (p.status !== 'eliminated') p.status = 'playing';
-	}
-
-	do {
-		game.dealerIndex = (game.dealerIndex + 1) % game.players.length;
-	} while (game.players[game.dealerIndex].status === 'eliminated');
-
-	let sbIndex = game.dealerIndex;
-	let bbIndex = game.dealerIndex;
-
-	if (active.length > 2) {
-		do { sbIndex = (sbIndex + 1) % game.players.length; } while (game.players[sbIndex].status === 'eliminated');
-		bbIndex = sbIndex;
-		do { bbIndex = (bbIndex + 1) % game.players.length; } while (game.players[bbIndex].status === 'eliminated');
-	} else {
-		sbIndex = game.dealerIndex;
-		bbIndex = (sbIndex + 1) % game.players.length;
-		while (game.players[bbIndex].status === 'eliminated') {
-			bbIndex = (bbIndex + 1) % game.players.length;
-		}
-	}
-
-	const sbAmount = Math.min(game.blinds.small, game.players[sbIndex].chips);
-	game.players[sbIndex].chips -= sbAmount;
-	game.players[sbIndex].roundContribution = sbAmount;
-	game.players[sbIndex].handContribution = sbAmount;
-	game.pot += sbAmount;
-	if (game.players[sbIndex].chips === 0) game.players[sbIndex].status = 'all-in';
-
-	const bbAmount = Math.min(game.blinds.big, game.players[bbIndex].chips);
-	game.players[bbIndex].chips -= bbAmount;
-	game.players[bbIndex].roundContribution = bbAmount;
-	game.players[bbIndex].handContribution = bbAmount;
-	game.pot += bbAmount;
-	if (game.players[bbIndex].chips === 0) game.players[bbIndex].status = 'all-in';
-
-	game.currentBet = game.blinds.big;
-
-	for (const p of game.players) {
-		if (p.status !== 'eliminated') {
-			p.hand.push(game.deck.pop()!, game.deck.pop()!);
-		}
-	}
-	whisperCards(game);
-
-	game.state = 'preflop';
-
-	game.turnIndex = bbIndex;
-	do {
-		game.turnIndex = (game.turnIndex + 1) % game.players.length;
-	} while (game.players[game.turnIndex].status === 'eliminated');
-
-	const ableToAct = game.players.filter(p => p.status === 'playing' && p.chips > 0);
-	if (ableToAct.length <= 1 && ableToAct.every(p => p.roundContribution >= game.currentBet)) {
-		setTimeout(() => nextPhase(game), 2000);
-		updateRoom(game);
-		return;
-	}
-
-	triggerNextTurn(game);
-}
-
-function setTurnTimer(game: PokerGame) {
-	if (game.timer) clearTimeout(game.timer);
-	game.timer = setTimeout(() => {
-		const p = game.players[game.turnIndex];
-		if (p && p.status === 'playing') {
-			const callAmount = game.currentBet - p.roundContribution;
-			if (callAmount === 0) {
-				p.hasActed = true;
+			if (!this.isTestMode && !winner.isAI) {
+				const totalCoins = this.players.length * this.entryFee;
+				void updateBalance(winner.id, totalCoins);
+				winner.payoutStr = `<span style="color:green;font-weight:bold">Tournament Winner! (${totalCoins} ${CURRENCY_NAME})</span>`;
 			} else {
-				p.status = 'folded';
-				p.hasActed = true;
+				winner.payoutStr = `<span style="color:green;font-weight:bold">Tournament Winner! (Test Mode)</span>`;
 			}
-			void advanceTurn(game);
+
+			this.updateRoom();
+			this.destroy();
+			return;
+		} else if (active.length === 0) {
+			this.state = 'ended';
+			this.updateRoom();
+			this.destroy();
+			return;
 		}
-	}, TURN_TIMEOUT);
-}
 
-function advanceTurn(game: PokerGame) {
-	const nonFolded = game.players.filter(p => p.status !== 'folded' && p.status !== 'eliminated');
+		this.handsPlayed++;
+		if (this.handsPlayed > 1 && this.handsPlayed % 5 === 0) {
+			this.blinds.small *= 2;
+			this.blinds.big *= 2;
+		}
 
-	if (nonFolded.length === 1) {
-		const winner = nonFolded[0];
-		winner.chips += game.pot;
-		game.state = 'showdown';
-		winner.payoutStr = `<span style="color:green">Won ${game.pot} (Others folded)</span>`;
-		game.lastShowdownLog = `${nameColor(winner.name, true)} won ${game.pot} chips (Others folded)`;
-		updateRoom(game);
-		setTimeout(() => startNextHand(game), 5000);
-		return;
+		this.deck = createDeck();
+		this.communityCards = [];
+		this.pot = 0;
+		this.currentBet = 0;
+		this.lastShowdownLog = undefined;
+
+		for (const p of this.players) {
+			p.hand = [];
+			p.roundContribution = 0;
+			p.handContribution = 0;
+			p.hasActed = false;
+			p.eval = undefined;
+			p.payoutStr = undefined;
+			if (p.status !== 'eliminated') p.status = 'playing';
+		}
+
+		do {
+			this.dealerIndex = (this.dealerIndex + 1) % this.players.length;
+		} while (this.players[this.dealerIndex].status === 'eliminated');
+
+		let sbIndex = this.dealerIndex;
+		let bbIndex = this.dealerIndex;
+
+		if (active.length > 2) {
+			do { sbIndex = (sbIndex + 1) % this.players.length; } while (this.players[sbIndex].status === 'eliminated');
+			bbIndex = sbIndex;
+			do { bbIndex = (bbIndex + 1) % this.players.length; } while (this.players[bbIndex].status === 'eliminated');
+		} else {
+			sbIndex = this.dealerIndex;
+			bbIndex = (sbIndex + 1) % this.players.length;
+			while (this.players[bbIndex].status === 'eliminated') {
+				bbIndex = (bbIndex + 1) % this.players.length;
+			}
+		}
+
+		const sbAmount = Math.min(this.blinds.small, this.players[sbIndex].chips);
+		this.players[sbIndex].chips -= sbAmount;
+		this.players[sbIndex].roundContribution = sbAmount;
+		this.players[sbIndex].handContribution = sbAmount;
+		this.pot += sbAmount;
+		if (this.players[sbIndex].chips === 0) this.players[sbIndex].status = 'all-in';
+
+		const bbAmount = Math.min(this.blinds.big, this.players[bbIndex].chips);
+		this.players[bbIndex].chips -= bbAmount;
+		this.players[bbIndex].roundContribution = bbAmount;
+		this.players[bbIndex].handContribution = bbAmount;
+		this.pot += bbAmount;
+		if (this.players[bbIndex].chips === 0) this.players[bbIndex].status = 'all-in';
+
+		this.currentBet = this.blinds.big;
+
+		for (const p of this.players) {
+			if (p.status !== 'eliminated') {
+				p.hand.push(this.deck.pop()!, this.deck.pop()!);
+			}
+		}
+		this.whisperCards();
+
+		this.state = 'preflop';
+
+		this.turnIndex = bbIndex;
+		do {
+			this.turnIndex = (this.turnIndex + 1) % this.players.length;
+		} while (this.players[this.turnIndex].status === 'eliminated');
+
+		const ableToAct = this.players.filter(p => p.status === 'playing' && p.chips > 0);
+		if (ableToAct.length <= 1 && ableToAct.every(p => p.roundContribution >= this.currentBet)) {
+			setTimeout(() => this.nextPhase(), 2000);
+			this.updateRoom();
+			return;
+		}
+
+		this.triggerNextTurn();
 	}
 
-	const ableToAct = game.players.filter(p => p.status === 'playing' && p.chips > 0);
-	const roundOver = ableToAct.every(p => p.hasActed && p.roundContribution === game.currentBet);
-
-	if (roundOver || ableToAct.length === 0) {
-		nextPhase(game);
-		return;
-	}
-
-	do {
-		game.turnIndex = (game.turnIndex + 1) % game.players.length;
-	} while (game.players[game.turnIndex].status !== 'playing' || game.players[game.turnIndex].chips === 0);
-
-	triggerNextTurn(game);
-}
-
-function nextPhase(game: PokerGame) {
-	if (game.state === 'preflop') {
-		game.state = 'flop';
-		game.communityCards.push(game.deck.pop()!, game.deck.pop()!, game.deck.pop()!);
-	} else if (game.state === 'flop') {
-		game.state = 'turn';
-		game.communityCards.push(game.deck.pop()!);
-	} else if (game.state === 'turn') {
-		game.state = 'river';
-		game.communityCards.push(game.deck.pop()!);
-	} else if (game.state === 'river') {
-		doShowdown(game);
-		return;
-	}
-
-	game.currentBet = 0;
-	for (const p of game.players) {
-		p.roundContribution = 0;
-		if (p.status === 'playing' && p.chips > 0) p.hasActed = false;
-	}
-
-	const ableToAct = game.players.filter(p => p.status === 'playing' && p.chips > 0);
-	if (ableToAct.length <= 1) {
-		setTimeout(() => nextPhase(game), 2000);
-		updateRoom(game);
-		return;
-	}
-
-	game.turnIndex = game.dealerIndex;
-	do {
-		game.turnIndex = (game.turnIndex + 1) % game.players.length;
-	} while (game.players[game.turnIndex].status !== 'playing' || game.players[game.turnIndex].chips === 0);
-
-	triggerNextTurn(game);
-}
-
-function buildPots(players: PokerPlayer[]) {
-	const pots = [];
-	const pList = players.filter(p => p.handContribution > 0).sort((a, b) => a.handContribution - b.handContribution);
-
-	let previousContribution = 0;
-	for (let i = 0; i < pList.length; i++) {
-		const p = pList[i];
-		const amount = p.handContribution - previousContribution;
-		if (amount > 0) {
-			let potSize = 0;
-			const eligiblePlayers = [];
-			for (let j = i; j < pList.length; j++) {
-				potSize += amount;
-				if (pList[j].status !== 'folded' && pList[j].status !== 'eliminated') {
-					eligiblePlayers.push(pList[j]);
+	setTurnTimer() {
+		if (this.timer) clearTimeout(this.timer);
+		this.timer = setTimeout(() => {
+			const p = this.players[this.turnIndex];
+			if (p && p.status === 'playing') {
+				const callAmount = this.currentBet - p.roundContribution;
+				if (callAmount === 0) {
+					p.hasActed = true;
+				} else {
+					p.status = 'folded';
+					p.hasActed = true;
 				}
+				void this.advanceTurn();
 			}
-			pots.push({ size: potSize, eligible: eligiblePlayers });
-			previousContribution = p.handContribution;
-		}
+		}, TURN_TIMEOUT);
 	}
-	return pots;
-}
 
-function doShowdown(game: PokerGame) {
-	game.state = 'showdown';
-	if (game.timer) clearTimeout(game.timer);
+	advanceTurn() {
+		const nonFolded = this.players.filter(p => p.status !== 'folded' && p.status !== 'eliminated');
 
-	const pots = buildPots(game.players);
-	const displayLines = [];
+		if (nonFolded.length === 1) {
+			const winner = nonFolded[0];
+			winner.chips += this.pot;
+			this.state = 'showdown';
+			winner.payoutStr = `<span style="color:green">Won ${this.pot} (Others folded)</span>`;
+			this.lastShowdownLog = `${nameColor(winner.name, true)} won ${this.pot} chips (Others folded)`;
+			this.updateRoom();
+			setTimeout(() => this.startNextHand(), 5000);
+			return;
+		}
 
-	for (let i = 0; i < pots.length; i++) {
-		const pot = pots[i];
-		if (pot.eligible.length === 0) continue;
+		const ableToAct = this.players.filter(p => p.status === 'playing' && p.chips > 0);
+		const roundOver = ableToAct.every(p => p.hasActed && p.roundContribution === this.currentBet);
 
-		let bestHand: any = null;
-		let winners: PokerPlayer[] = [];
+		if (roundOver || ableToAct.length === 0) {
+			this.nextPhase();
+			return;
+		}
 
-		for (const p of pot.eligible) {
-			if (!p.eval) p.eval = evaluateBest7([...p.hand, ...game.communityCards]);
-			if (!bestHand) {
-				bestHand = p.eval;
-				winners = [p];
-			} else {
-				const cmp = compareHands(p.eval, bestHand);
-				if (cmp > 0) {
+		do {
+			this.turnIndex = (this.turnIndex + 1) % this.players.length;
+		} while (this.players[this.turnIndex].status !== 'playing' || this.players[this.turnIndex].chips === 0);
+
+		this.triggerNextTurn();
+	}
+
+	nextPhase() {
+		if (this.state === 'preflop') {
+			this.state = 'flop';
+			this.communityCards.push(this.deck.pop()!, this.deck.pop()!, this.deck.pop()!);
+		} else if (this.state === 'flop') {
+			this.state = 'turn';
+			this.communityCards.push(this.deck.pop()!);
+		} else if (this.state === 'turn') {
+			this.state = 'river';
+			this.communityCards.push(this.deck.pop()!);
+		} else if (this.state === 'river') {
+			this.doShowdown();
+			return;
+		}
+
+		this.currentBet = 0;
+		for (const p of this.players) {
+			p.roundContribution = 0;
+			if (p.status === 'playing' && p.chips > 0) p.hasActed = false;
+		}
+
+		const ableToAct = this.players.filter(p => p.status === 'playing' && p.chips > 0);
+		if (ableToAct.length <= 1) {
+			setTimeout(() => this.nextPhase(), 2000);
+			this.updateRoom();
+			return;
+		}
+
+		this.turnIndex = this.dealerIndex;
+		do {
+			this.turnIndex = (this.turnIndex + 1) % this.players.length;
+		} while (this.players[this.turnIndex].status !== 'playing' || this.players[this.turnIndex].chips === 0);
+
+		this.triggerNextTurn();
+	}
+
+	buildPots() {
+		const pots = [];
+		const pList = this.players.filter(p => p.handContribution > 0).sort((a, b) => a.handContribution - b.handContribution);
+
+		let previousContribution = 0;
+		for (let i = 0; i < pList.length; i++) {
+			const p = pList[i];
+			const amount = p.handContribution - previousContribution;
+			if (amount > 0) {
+				let potSize = 0;
+				const eligiblePlayers = [];
+				for (let j = i; j < pList.length; j++) {
+					potSize += amount;
+					if (pList[j].status !== 'folded' && pList[j].status !== 'eliminated') {
+						eligiblePlayers.push(pList[j]);
+					}
+				}
+				pots.push({ size: potSize, eligible: eligiblePlayers });
+				previousContribution = p.handContribution;
+			}
+		}
+		return pots;
+	}
+
+	doShowdown() {
+		this.state = 'showdown';
+		if (this.timer) clearTimeout(this.timer);
+
+		const pots = this.buildPots();
+		const displayLines = [];
+
+		for (let i = 0; i < pots.length; i++) {
+			const pot = pots[i];
+			if (pot.eligible.length === 0) continue;
+
+			let bestHand: any = null;
+			let winners: PokerPlayer[] = [];
+
+			for (const p of pot.eligible) {
+				if (!p.eval) p.eval = evaluateBest7([...p.hand, ...this.communityCards]);
+				if (!bestHand) {
 					bestHand = p.eval;
 					winners = [p];
-				} else if (cmp === 0) {
-					winners.push(p);
+				} else {
+					const cmp = compareHands(p.eval, bestHand);
+					if (cmp > 0) {
+						bestHand = p.eval;
+						winners = [p];
+					} else if (cmp === 0) {
+						winners.push(p);
+					}
 				}
 			}
+
+			if (winners.length > 0) {
+				const split = Math.floor(pot.size / winners.length);
+				for (const w of winners) {
+					w.chips += split;
+					w.payoutStr = `<span style="color:green">Won ${split} (${bestHand.name})</span>`;
+				}
+				const winNames = winners.map(w => nameColor(w.name, true)).join(', ');
+				displayLines.push(`Pot ${i + 1} (${pot.size} chips): Won by ${winNames} (${bestHand.name})`);
+			}
 		}
 
-		if (winners.length > 0) {
-			const split = Math.floor(pot.size / winners.length);
-			for (const w of winners) {
-				w.chips += split;
-				w.payoutStr = `<span style="color:green">Won ${split} (${bestHand.name})</span>`;
-			}
-			const winNames = winners.map(w => nameColor(w.name, true)).join(', ');
-			displayLines.push(`Pot ${i + 1} (${pot.size} chips): Won by ${winNames} (${bestHand.name})`);
-		}
+		this.lastShowdownLog = displayLines.join('<br>');
+		this.updateRoom();
+
+		setTimeout(() => this.startNextHand(), 8000);
 	}
 
-	game.lastShowdownLog = displayLines.join('<br>');
-	updateRoom(game);
-
-	setTimeout(() => startNextHand(game), 8000);
+	destroy() {
+		if (this.timer) {
+			clearTimeout(this.timer);
+			this.timer = null;
+		}
+		activeCasinoGames.delete(this.roomid);
+		super.destroy();
+	}
 }
 
 export const commands: Chat.ChatCommands = {
 	poker: {
-		async start(target, room, user) {
+		start(target, room, user) {
 			if (!room || room.battle || room.roomid !== CASINO_ROOM) throw new Chat.ErrorMessage("This command can only be used in the Casino room.");
+			if (room.game) throw new Chat.ErrorMessage(`A ${room.game.title} game is already running in this room.`);
 			if (activeCasinoGames.has(room.roomid)) throw new Chat.ErrorMessage(`A ${activeCasinoGames.get(room.roomid)} game is already running in this room.`);
 
 			const parts = target.trim().split(' ');
@@ -725,73 +969,15 @@ export const commands: Chat.ChatCommands = {
 				}
 			}
 
-			const uid = `poker-${room.roomid}-${Date.now()}`;
-			const game: PokerGame = {
-				roomid: room.roomid,
-				uid,
-				host: user.id,
-				hostName: user.name,
-				entryFee,
-				isTestMode,
-				state: 'lobby',
-				players: [],
-				communityCards: [],
-				deck: [],
-				pot: 0,
-				currentBet: 0,
-				turnIndex: 0,
-				dealerIndex: 0,
-				blinds: { small: 10, big: 20 },
-				handsPlayed: 0,
-				timer: null,
-			};
-
-			game.timer = setTimeout(() => {
-				if (activeGames.has(room.roomid)) {
-					const g = activeGames.get(room.roomid)!;
-					if (g.state === 'lobby') {
-						if (g.isTestMode) {
-							const requiredAIs = Math.max(3, 4 - g.players.length);
-							let aiCount = 1;
-							while (g.players.length < 4 && aiCount <= requiredAIs) {
-								g.players.push({
-									id: `ai${aiCount}`,
-									name: `AI Bot ${aiCount}`,
-									isAI: true,
-									hand: [],
-									status: 'playing',
-									chips: 1000,
-									roundContribution: 0,
-									handContribution: 0,
-									hasActed: false,
-								});
-								aiCount++;
-							}
-						}
-
-						if (g.players.length >= 2) {
-							g.dealerIndex = Math.floor(Math.random() * g.players.length);
-							startNextHand(g);
-						} else {
-							void refundAll(g, 'Lobby timed out due to not enough players.');
-							activeGames.delete(room.roomid);
-							activeCasinoGames.delete(room.roomid);
-						}
-					}
-				}
-			}, LOBBY_TIMEOUT);
-
-			activeGames.set(room.roomid, game);
-			activeCasinoGames.set(room.roomid, 'poker');
-			updateRoom(game);
+			const game = new PokerGame(room, user, entryFee, isTestMode);
+			game.updateRoom();
 		},
 
 		async join(target, room, user) {
 			if (!room || room.battle || room.roomid !== CASINO_ROOM) throw new Chat.ErrorMessage("This command can only be used in the Casino room.");
-			const game = activeGames.get(room.roomid);
+			const game = room.getGame(PokerGame);
 			if (!game) throw new Chat.ErrorMessage("No active poker game in this room.");
 			if (game.state !== 'lobby') throw new Chat.ErrorMessage("This game has already started.");
-			if (game.players.length >= 4) throw new Chat.ErrorMessage("The game is full (max 4 players).");
 			if (game.players.some(p => p.id === user.id)) throw new Chat.ErrorMessage("You are already in this game.");
 
 			if (!game.isTestMode) {
@@ -802,191 +988,34 @@ export const commands: Chat.ChatCommands = {
 				await updateBalance(user.id, -game.entryFee);
 			}
 
-			game.players.push({
-				id: user.id,
-				name: user.name,
-				isAI: false,
-				hand: [],
-				status: 'playing',
-				chips: 1000,
-				roundContribution: 0,
-				handContribution: 0,
-				hasActed: false,
-			});
-
-			updateRoom(game);
-		},
-
-		async deal(target, room, user) {
-			if (!room || room.battle || room.roomid !== CASINO_ROOM) throw new Chat.ErrorMessage("This command can only be used in the Casino room.");
-			const game = activeGames.get(room.roomid);
-			if (!game) throw new Chat.ErrorMessage("No active poker game in this room.");
-			if (game.state !== 'lobby') throw new Chat.ErrorMessage("This game has already started.");
-
-			const isHost = typeof user === 'string' ? user === game.host : user.id === game.host;
-			if (!isHost) throw new Chat.ErrorMessage("Only the host can start dealing.");
-
-			if (game.timer) clearTimeout(game.timer);
-			if (game.isTestMode) {
-				const requiredAIs = Math.max(3, 4 - game.players.length); // Ensure there's enough action
-				let aiCount = 1;
-				while (game.players.length < 4 && aiCount <= requiredAIs) {
-					game.players.push({
-						id: `ai${aiCount}`,
-						name: `AI Bot ${aiCount}`,
-						isAI: true,
-						hand: [],
-						status: 'playing',
-						chips: 1000,
-						roundContribution: 0,
-						handContribution: 0,
-						hasActed: false,
-					});
-					aiCount++;
-				}
+			if (!game.addPlayer(user)) {
+				if (!game.isTestMode) await updateBalance(user.id, game.entryFee);
+				throw new Chat.ErrorMessage("You could not join the game (it may be full or you are already in it).");
 			}
-
-			if (game.players.length < 2) {
-				// Restart the timer if we failed to start
-				game.timer = setTimeout(() => {
-					if (activeGames.has(room.roomid)) {
-						const g = activeGames.get(room.roomid)!;
-						if (g.state === 'lobby') {
-							void refundAll(g, 'Lobby timed out due to not enough players.');
-							activeGames.delete(room.roomid);
-							activeCasinoGames.delete(room.roomid);
-						}
-					}
-				}, LOBBY_TIMEOUT);
-				throw new Chat.ErrorMessage("Need at least 2 players to start.");
-			}
-
-			game.dealerIndex = Math.floor(Math.random() * game.players.length);
-			startNextHand(game);
-		},
-
-		async call(target, room, user) {
-			if (!room || room.battle || room.roomid !== CASINO_ROOM) throw new Chat.ErrorMessage("This command can only be used in the Casino room.");
-			const game = activeGames.get(room.roomid);
-			if (!game || ['lobby', 'showdown', 'ended'].includes(game.state)) throw new Chat.ErrorMessage("There is no active poker game waiting for moves.");
-
-			const p = game.players[game.turnIndex];
-			if (!p || p.id !== user.id) throw new Chat.ErrorMessage("It's not your turn.");
-
-			const callAmount = game.currentBet - p.roundContribution;
-			if (callAmount > 0) {
-				if (p.chips <= callAmount) {
-					return this.parse('/poker allin');
-				}
-				p.chips -= callAmount;
-				p.roundContribution += callAmount;
-				p.handContribution += callAmount;
-				game.pot += callAmount;
-			}
-
-			p.hasActed = true;
-			advanceTurn(game);
-		},
-
-		async allin(target, room, user) {
-			if (!room || room.battle || room.roomid !== CASINO_ROOM) throw new Chat.ErrorMessage("This command can only be used in the Casino room.");
-			const game = activeGames.get(room.roomid);
-			if (!game || ['lobby', 'showdown', 'ended'].includes(game.state)) throw new Chat.ErrorMessage("There is no active poker game waiting for moves.");
-
-			const p = game.players[game.turnIndex];
-			if (!p || p.id !== user.id) throw new Chat.ErrorMessage("It's not your turn.");
-
-			const totalNeeded = p.chips;
-			if (totalNeeded === 0) throw new Chat.ErrorMessage("You have no chips left.");
-
-			p.chips = 0;
-			p.roundContribution += totalNeeded;
-			p.handContribution += totalNeeded;
-			game.pot += totalNeeded;
-			p.status = 'all-in';
-			p.hasActed = true;
-
-			if (p.roundContribution > game.currentBet) {
-				game.currentBet = p.roundContribution;
-				for (const pl of game.players) {
-					if (pl !== p && pl.status === 'playing') pl.hasActed = false;
-				}
-			}
-
-			advanceTurn(game);
-		},
-
-		async fold(target, room, user) {
-			if (!room || room.battle || room.roomid !== CASINO_ROOM) throw new Chat.ErrorMessage("This command can only be used in the Casino room.");
-			const game = activeGames.get(room.roomid);
-			if (!game || ['lobby', 'showdown', 'ended'].includes(game.state)) throw new Chat.ErrorMessage("There is no active poker game waiting for moves.");
-
-			const p = game.players[game.turnIndex];
-			if (!p || p.id !== user.id) throw new Chat.ErrorMessage("It's not your turn.");
-
-			p.status = 'folded';
-			p.hasActed = true;
-			advanceTurn(game);
-		},
-
-		async raise(target, room, user) {
-			if (!room || room.battle || room.roomid !== CASINO_ROOM) throw new Chat.ErrorMessage("This command can only be used in the Casino room.");
-			const game = activeGames.get(room.roomid);
-			if (!game || ['lobby', 'showdown', 'ended'].includes(game.state)) throw new Chat.ErrorMessage("There is no active poker game waiting for moves.");
-
-			const p = game.players[game.turnIndex];
-			if (!p || p.id !== user.id) throw new Chat.ErrorMessage("It's not your turn.");
-
-			const raiseAmount = parseInt(target);
-			if (isNaN(raiseAmount) || raiseAmount < game.blinds.big) throw new Chat.ErrorMessage(`Usage: /poker raise [amount]. Amount must be at least the big blind (${game.blinds.big}).`);
-
-			const callAmount = game.currentBet - p.roundContribution;
-			const totalNeeded = callAmount + raiseAmount;
-
-			if (p.chips <= totalNeeded) throw new Chat.ErrorMessage(`You don't have enough chips. Use /poker allin instead.`);
-
-			p.chips -= totalNeeded;
-			p.roundContribution += totalNeeded;
-			p.handContribution += totalNeeded;
-			game.pot += totalNeeded;
-			game.currentBet += raiseAmount;
-
-			p.hasActed = true;
-			for (const pl of game.players) {
-				if (pl !== p && pl.status === 'playing') pl.hasActed = false;
-			}
-
-			advanceTurn(game);
+			game.updateRoom();
 		},
 
 		async end(target, room, user) {
 			if (!room || room.battle || room.roomid !== CASINO_ROOM) throw new Chat.ErrorMessage("This command can only be used in the Casino room.");
-			const game = activeGames.get(room.roomid);
+			const game = room.getGame(PokerGame);
 			if (!game) throw new Chat.ErrorMessage("No active poker game in this room.");
 
 			const canEnd = user.id === game.host || user.can('roommod', null, room);
 			if (!canEnd) throw new Chat.ErrorMessage("Only the host or a room moderator can cancel the game.");
 			if (game.state !== 'lobby') throw new Chat.ErrorMessage("The game is already in progress and cannot be cancelled.");
 
-			if (game.timer) clearTimeout(game.timer);
-			activeGames.delete(room.roomid);
-			activeCasinoGames.delete(room.roomid);
-			await refundAll(game, `Cancelled by ${user.name}.`);
+			await game.refundAll(`Cancelled by ${user.name}.`);
+			game.destroy();
 		},
 
 		help() {
 			this.runBroadcast();
 			this.sendReplyBox(
-				`<center><b>Poker Tournament Commands</b></center><hr>` +
-				`<b>/poker start [entryFee]</b>: Start a Texas Hold'em Sit & Go Tournament.<br>` +
-				`<b>/poker start ai</b>: Start a free test mode tournament against AI bots.<br>` +
-				`<b>/poker join</b>: Join the current game.<br>` +
-				`<b>/poker deal</b>: Deal the cards and start the tournament (Host only).<br>` +
-				`<b>/poker call</b>: Match the current bet or check.<br>` +
-				`<b>/poker raise [amount]</b>: Increase the bet by [amount] above the current bet.<br>` +
-				`<b>/poker allin</b>: Go all-in with all your remaining chips.<br>` +
-				`<b>/poker fold</b>: Fold your hand.<br>` +
-				`<b>/poker end</b>: Cancel the game (Host only).`
+				`<center><b>Poker Commands</b></center><hr>` +
+				`<b>/poker start [entryFee]</b>: Start a Poker tournament with the given entry fee.<hr>` +
+				`<b>/poker start ai</b>: Start a Poker tournament in AI testing mode.<hr>` +
+				`<b>/poker end</b>: Cancel the tournament (Host/Moderator only).<hr>` +
+				`<i>Note: All other actions (joining, dealing, folding, raising) are performed using the interactive buttons on the game board!</i>`
 			);
 		},
 
