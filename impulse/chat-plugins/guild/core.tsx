@@ -122,6 +122,7 @@ async function resolveGuildWithVariadic(user: User, target: string): Promise<{ g
 }
 
 export const commands: Chat.ChatCommands = {
+	guilds: 'guild',
 	guild: {
 		async create(target, room, user) {
 			if (!user.can('bypassall')) throw new Chat.ErrorMessage("Access denied. Only global administrators can create a guild.");
@@ -1200,7 +1201,7 @@ export const commands: Chat.ChatCommands = {
 			this.sendReplyBox(
 				<div class="pad" style={{ maxHeight: '350px', overflowY: 'auto' }}>
 					<div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '14pt' }}>
-						Guild Commands Help Menu
+						Guild Commands
 					</div>
 					<hr />
 					<table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center' }}>
