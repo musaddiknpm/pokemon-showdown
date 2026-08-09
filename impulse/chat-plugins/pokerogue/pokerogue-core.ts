@@ -1,19 +1,16 @@
 import { Utils } from '../../../lib';
 import { escapeHTML } from '../../../lib/utils';
 import { type PokemonEntry, type PokeRogueState, type StatusCondition, type GameMode, type ModeConfig, type BiomePool, type PokeRogueView, type EggData, type StatTable } from './types';
-import { EGG_POOLS, getStarterCost, type EggTier } from './starter-data';
+import { EGG_POOLS, getStarterCost, type EggTier } from './data/starter-data';
 import { MODE_CONFIGS, MODE_REGISTRY } from './config';
-import { CATCH_RATES } from './pokemon-basic-data';
+import { CATCH_RATES } from './data/pokemon-data';
 import { SHOP_ITEMS, genItem, generateDraftOptions, getRewardMoney, getItemPrice, getRerollCost } from './items';
-import {
-	getState, setState, getUserData, saveUserData, globalStats, saveGlobalStats, recordRunStats, incrementAccountStat,
-} from './database';
-import {
-	pickStarterOptions, expForLevel, applyExpAndLevelUp, getLevelUpEvo,
-	getLevelUpMoves, getMovesLearnedBetween, calcKillExp, getExpType, getExpYield, botLevel,
-	packTeam, genPokemon, processLevelUpEvolutions, getItemEvolution, getMegaEvolution,
-	getEggMoves, getAllLevelUpMoves, getLevelScaling, rollTeraTypeForSpecies,
-} from './pokemon';
+import { getState, setState, getUserData, saveUserData, globalStats, saveGlobalStats, recordRunStats, incrementAccountStat, } from './database';
+import { pickStarterOptions, expForLevel, applyExpAndLevelUp, getLevelUpEvo,
+		  getLevelUpMoves, getMovesLearnedBetween, calcKillExp, getExpType, getExpYield, botLevel,
+		  packTeam, genPokemon, processLevelUpEvolutions, getItemEvolution, getMegaEvolution,
+		  getEggMoves, getAllLevelUpMoves, getLevelScaling, rollTeraTypeForSpecies,
+		 } from './pokemon';
 import { activeMatches, startBattle, destroyBotUser, parseBattleState } from './battle';
 import { renderGamePage, refreshGamePage } from './render';
 import { devCommands } from './dev-tools';

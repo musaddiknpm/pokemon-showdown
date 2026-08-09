@@ -1,7 +1,7 @@
 import { escapeHTML } from '../../../lib/utils';
 import { nameColor } from '../customization/custom-color';
 import { type PokemonEntry, type PokeRogueState, type StatID, type StatTable } from './types';
-import { getStarterCost } from './starter-data';
+import { getStarterCost } from './data/starter-data';
 import { MODE_CONFIGS, MODE_REGISTRY } from './config';
 import { SHOP_ITEMS, getRerollCost, getItemPrice, type ShopItem } from './items';
 import { globalStats, getUserData } from './database';

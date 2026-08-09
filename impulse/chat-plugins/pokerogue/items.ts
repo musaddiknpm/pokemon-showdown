@@ -1,5 +1,5 @@
 import { SHOP_DB } from './shopdb';
-import { TMS_DB } from './tms-db';
+import { TMS_DB } from './data/tms-data';
 import { type PokemonEntry, type PokeRogueState, type ModeConfig } from './types';
 import { canLearnTM } from './pokemon';
 
