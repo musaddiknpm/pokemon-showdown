@@ -5,13 +5,13 @@ import { EGG_POOLS, getStarterCost, type EggTier } from './data/starter-data';
 import { MODE_CONFIGS, MODE_REGISTRY } from './config';
 import { CATCH_RATES } from './data/pokemon-data';
 import { SHOP_ITEMS, genItem, generateDraftOptions, getRewardMoney, getItemPrice, getRerollCost } from './items';
-import { getState, setState, getUserData, saveUserData, globalStats, saveGlobalStats, recordRunStats, incrementAccountStat, } from './database';
+import { getState, setState, getUserData, saveUserData, globalStats, saveGlobalStats, recordRunStats, incrementAccountStat } from './database';
 import { pickStarterOptions, expForLevel, applyExpAndLevelUp, getLevelUpEvo,
-		  getLevelUpMoves, getMovesLearnedBetween, calcKillExp, getExpType, getExpYield, botLevel,
-		  packTeam, genPokemon, processLevelUpEvolutions, getItemEvolution, getMegaEvolution,
-		  getEggMoves, getAllLevelUpMoves, getLevelScaling, rollTeraTypeForSpecies,
-		 } from './pokemon';
-import { activeMatches, startBattle, destroyBotUser, parseBattleState } from './battle';
+	getLevelUpMoves, getMovesLearnedBetween, calcKillExp, getExpType, getExpYield, botLevel,
+	packTeam, genPokemon, processLevelUpEvolutions, getItemEvolution, getMegaEvolution,
+	getEggMoves, getAllLevelUpMoves, getLevelScaling, rollTeraTypeForSpecies,
+} from './pokemon';
+import { PokeRogueBattleResolver } from './battle';
 import { renderGamePage, refreshGamePage } from './render';
 import { devCommands } from './dev-tools';
 
@@ -380,7 +380,7 @@ export function syncBattleOutcome(
 	logLines: string[],
 	state: PokeRogueState,
 ): { consumedItems: string[] } {
-	const parsed = parseBattleState(logLines, state.team);
+	const parsed = PokeRogueBattleResolver.parseBattleState(logLines, state.team);
 
 	for (const [idxStr, hp] of Object.entries(parsed.p1TeamHp)) {
 		const idx = Number(idxStr);
@@ -1240,7 +1240,7 @@ export function handleChooseAction(target: string, user: User, state: PokeRogueS
 	if (config.randomizeMoves || config.randomizeAbilities) {
 		const generated = genPokemon(1, addedLevel, true, state.floor, false, 0, [finalSpecies], state.currentBiome, config, data);
 		const g = generated[0];
-		
+
 		let validatedMoves = g.moves;
 		if (!config.randomizeMoves) {
 			const initialMoves = getLevelUpMoves(finalSpecies, addedLevel, config.generation);
@@ -1341,7 +1341,7 @@ export function handleChooseAction(target: string, user: User, state: PokeRogueS
 }
 
 export function handleCatchAction(target: string, room: AnyObject, user: User, state: PokeRogueState, ctx: CommandContext): void {
-	const catchMatch = activeMatches.get(room.roomid);
+	const catchMatch = PokeRogueBattleResolver.activeMatches.get(room.roomid);
 	if (!catchMatch || catchMatch.userId !== user.id) {
 		ctx.errorReply("You can only catch Pokémon in your own battle.");
 		return;
@@ -1378,7 +1378,7 @@ export function handleCatchAction(target: string, room: AnyObject, user: User, s
 	state.lastThrowTime = now;
 
 	const log = room.log?.log || [];
-	const parsed = parseBattleState(log, state.team);
+	const parsed = PokeRogueBattleResolver.parseBattleState(log, state.team);
 	const p1Fainted = parsed.p1ActiveFainted;
 	const p2State = parsed.p2Active;
 
@@ -1613,7 +1613,7 @@ export function handleCatchAction(target: string, room: AnyObject, user: User, s
 		state.caughtPokemon = caught;
 		setState(user.id, state);
 
-		const match = activeMatches.get(room.roomid);
+		const match = PokeRogueBattleResolver.activeMatches.get(room.roomid);
 		if (match) {
 			const botUser = Users.get(match.botUserId);
 			if (botUser) {
@@ -1621,7 +1621,7 @@ export function handleCatchAction(target: string, room: AnyObject, user: User, s
 			}
 		}
 	} else {
-		const catchMatch = activeMatches.get(room.roomid);
+		const catchMatch = PokeRogueBattleResolver.activeMatches.get(room.roomid);
 		const passChoice = catchMatch?.isDoubles ? 'pass, pass' : 'pass';
 		void room.battle.stream.write(`>p1 ${passChoice}`);
 

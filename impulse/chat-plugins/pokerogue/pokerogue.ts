@@ -13,7 +13,7 @@ import {
 	packTeam, genPokemon, processLevelUpEvolutions, getItemEvolution, getMegaEvolution,
 	getEggMoves, getAllLevelUpMoves, getLevelScaling, rollTeraTypeForSpecies,
 } from './pokemon';
-import { activeMatches, startBattle, destroyBotUser, parseBattleState } from './battle';
+import { PokeRogueBattleResolver } from './battle';
 import { renderGamePage, refreshGamePage } from './render';
 import { devCommands } from './dev-tools';
 export * from './pokerogue-core';
@@ -221,11 +221,11 @@ export const commands: Chat.ChatCommands = {
 			await loadUser(user.id);
 			const s = getState(user.id);
 			if (s?.battleRoomId) {
-				const match = activeMatches.get(s.battleRoomId as RoomID);
+				const match = PokeRogueBattleResolver.activeMatches.get(s.battleRoomId as RoomID);
 				if (match) {
 					const bot = Users.get(match.botUserId);
-					if (bot) destroyBotUser(bot);
-					activeMatches.delete(s.battleRoomId as RoomID);
+					if (bot) PokeRogueBattleResolver.destroyBotUser(bot);
+					PokeRogueBattleResolver.activeMatches.delete(s.battleRoomId as RoomID);
 				}
 				Rooms.get(s.battleRoomId)?.battle?.forfeit(user);
 			}
@@ -975,7 +975,7 @@ export const commands: Chat.ChatCommands = {
 				}
 			}
 
-			if (startBattle(user, state)) {
+			if (new PokeRogueBattleResolver(user, state).start()) {
 				state.view = 'main';
 				setState(user.id, state);
 				refreshGamePage(user);
@@ -1035,12 +1035,12 @@ export const pages: Chat.PageTable = {
 
 export const handlers: Chat.Handlers = {
 	onBattleEnd(battle, winner, players) {
-		const match = activeMatches.get(battle.roomid);
+		const match = PokeRogueBattleResolver.activeMatches.get(battle.roomid);
 		if (!match) return;
 
-		activeMatches.delete(battle.roomid);
+		PokeRogueBattleResolver.activeMatches.delete(battle.roomid);
 		const botUser = Users.get(match.botUserId);
-		if (botUser) destroyBotUser(botUser);
+		if (botUser) PokeRogueBattleResolver.destroyBotUser(botUser);
 
 		const state = getState(match.userId);
 		if (!state) return;

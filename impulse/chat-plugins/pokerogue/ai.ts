@@ -127,8 +127,8 @@ export class PokeRogueAI {
 	gen: number;
 	config: ModeConfig;
 	room: AnyObject | null;
-	turn: number = 0;
-	floor: number = 1;
+	turn = 0;
+	floor = 1;
 	recentMoveHistory: Map<number, Map<string, number>>;
 
 	constructor(roomid: string, gen: number, config: ModeConfig) {
