@@ -94,7 +94,7 @@ export function getShopItemIcon(icon: string, size = 20): string {
 	return `<img src="${escapeHTML(url)}" width="${size}" height="${size}" class="pr-shop-icon">`;
 }
 
-export const SPRITE_BASE = 'https://raw.githubusercontent.com/PrinceSky-Git/pokemon-showdown/master/impulse/chat-plugins/pokerogue/sprites/';
+export const SPRITE_BASE = 'https://raw.githubusercontent.com/Alliance-Sky/impulse-server/refs/heads/master/impulse/chat-plugins/pokerogue/sprites/';
 
 export const SHOP_ICON_MAP: Record<string, string> = {
 	'Lure': 'lure.png',
@@ -313,9 +313,9 @@ export function renderGachaView(user: User): string {
 	buf += `</div>`;
 
 	const banners = [
-		{ id: 'generic', name: 'Generic Banner', img: 'https://raw.githubusercontent.com/PrinceSky-Git/pokemon-showdown/refs/heads/master/impulse/chat-plugins/pokerogue/sprites/banners/generic-banner.png' },
-		{ id: 'shiny', name: 'Shiny Banner', img: 'https://raw.githubusercontent.com/PrinceSky-Git/pokemon-showdown/refs/heads/master/impulse/chat-plugins/pokerogue/sprites/banners/shiny-banner.jpg' },
-		{ id: 'eggmove', name: 'Egg Move Banner', img: 'https://raw.githubusercontent.com/PrinceSky-Git/pokemon-showdown/refs/heads/master/impulse/chat-plugins/pokerogue/sprites/banners/egg-move-banner.jpg' },
+		{ id: 'generic', name: 'Generic Banner', img: 'https://raw.githubusercontent.com/Alliance-Sky/impulse-server/refs/heads/master/impulse/chat-plugins/pokerogue/sprites/banners/generic-banner.png' },
+		{ id: 'shiny', name: 'Shiny Banner', img: 'https://raw.githubusercontent.com/Alliance-Sky/impulse-server/refs/heads/master/impulse/chat-plugins/pokerogue/sprites/banners/shiny-banner.jpg' },
+		{ id: 'eggmove', name: 'Egg Move Banner', img: 'https://raw.githubusercontent.com/Alliance-Sky/impulse-server/refs/heads/master/impulse/chat-plugins/pokerogue/sprites/banners/egg-move-banner.jpg' },
 	];
 
 	buf += `<div style="max-height: 1000px; overflow-y: scroll; padding: 10px; margin-bottom: 20px;">`;
@@ -347,7 +347,7 @@ export function renderIncubatorView(user: User): string {
 	buf += `<table style="width:100%;border-collapse:collapse;table-layout:fixed;"><tbody>`;
 
 	const COLS = 6;
-	const EGG_SPRITE_BASE = 'https://raw.githubusercontent.com/PrinceSky-Git/pokemon-showdown/master/impulse/chat-plugins/pokerogue/sprites/eggs/';
+	const EGG_SPRITE_BASE = 'https://raw.githubusercontent.com/Alliance-Sky/impulse-server/refs/heads/master/impulse/chat-plugins/pokerogue/sprites/eggs/';
 
 	for (let i = 0; i < eggs.length; i += COLS) {
 		buf += `<tr>`;
