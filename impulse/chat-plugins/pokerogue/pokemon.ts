@@ -926,7 +926,8 @@ function resolveTrainerTeam(
 	forcedTrainer: string,
 	trainerKey: string,
 	config: ModeConfig,
-	data: ModeData
+	data: ModeData,
+	state?: PokeRogueState
 ): { forcedTeam: (string | TrainerMon)[] | undefined, actualQuantity: number, isTrainerBattle: boolean, trainerName: string | undefined, isTrainerDoubles: boolean } {
 	const trainerData = data.trainers?.[trainerKey]?.[forcedTrainer];
 	if (!config.hasTrainers || !trainerData) {
@@ -965,7 +966,7 @@ function resolveTrainerTeam(
 					const pick: TrainerMon = typeof rawPick === 'string' ? { species: rawPick } : { ...rawPick };
 					if (trainerData.exactSpecies !== undefined && pick.exactSpecies === undefined) pick.exactSpecies = trainerData.exactSpecies;
 					forcedTeam.push(pick);
-					if (memoryKey && state) {
+					if (memoryKey && state && state.trainerMemories) {
 						state.trainerMemories[memoryKey] = state.trainerMemories[memoryKey] || [];
 						state.trainerMemories[memoryKey].push(pick.species);
 					}
@@ -988,7 +989,8 @@ export function genAIPokemon(
 	config?: ModeConfig,
 	data?: ModeData,
 	shinyCharms = 0,
-	abilityCharms = 0
+	abilityCharms = 0,
+	state?: PokeRogueState
 ): { team: AIPokemonSet[], isTrainer: boolean, trainerName?: string, isDoubles?: boolean } {
 	const scale = getLevelScaling(floor, config);
 	const activeBossInterval = config?.bossInterval || 10;
@@ -999,7 +1001,7 @@ export function genAIPokemon(
 
 	const lookupKey = trainerKey || floor.toString();
 	let { forcedTeam, actualQuantity, isTrainerBattle, trainerName, isTrainerDoubles } = forcedTrainer && config && data ?
-		resolveTrainerTeam(floor, forcedTrainer, lookupKey, config, data) :
+		resolveTrainerTeam(floor, forcedTrainer, lookupKey, config, data, state) :
 		{ forcedTeam: undefined, actualQuantity: quantity, isTrainerBattle: false, trainerName: undefined, isTrainerDoubles: false };
 
 	if (!actualQuantity) actualQuantity = quantity;

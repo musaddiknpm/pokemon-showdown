@@ -141,7 +141,7 @@ export const commands: Chat.ChatCommands = {
 			setState(user.id, newState);
 			recordRunStats(user.id, finalMode, 1, []);
 
-			if (newState.view !== 'welcome') repairEmptyPendingChoice(newState, user.id);
+			repairEmptyPendingChoice(newState, user.id);
 			return this.parse('/pokerogue start');
 		},
 

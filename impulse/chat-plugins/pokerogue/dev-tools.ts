@@ -1,6 +1,6 @@
 import { Utils } from '../../../lib';
 import { loadUser, getState, setState, deleteState, getUserData, saveUserData, globalStats, saveGlobalStats, userCache, saveAllData, incrementAccountStat } from './database';
-import { getLevelUpEvo, getExpType, getLevelUpMoves, expForLevel, getEggMoves } from './pokemon';
+import { getLevelUpEvo, getExpType, getLevelUpMoves, expForLevel, getEggMoves, rollTeraTypeForSpecies } from './pokemon';
 import { type PokeRogueState, type PokemonEntry, type GameMode } from './types';
 import { nameColor } from '../customization/custom-color';
 import { refreshGamePage } from './render';

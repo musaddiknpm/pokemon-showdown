@@ -1105,7 +1105,7 @@ export function handleDraftAction(target: string, user: User, state: PokeRogueSt
 		state.pendingDraftPick = true;
 		state.purchasedItem = itemKey;
 		state.pendingItemName = item.name;
-		state.pendingItemIsEvo = item.type === 'evolveItem' || itemKey === 'metalcoat';
+		state.pendingItemIsEvo = item.type === 'evolveItem';
 		state.pendingItemIsMega = item.type === 'megaStone';
 		state.pendingItemIsGmax = item.type === 'gmaxMushroom';
 		state.view = 'main';
@@ -1153,7 +1153,7 @@ export function handleBuyShopAction(target: string, user: User, state: PokeRogue
 	state.purchasedItem = itemKey;
 	if (item.type === 'item' || item.type === 'evolveItem' || item.type === 'megaStone' || item.type === 'gmaxMushroom') {
 		state.pendingItemName = item.name;
-		state.pendingItemIsEvo = item.type === 'evolveItem' || itemKey === 'metalcoat';
+		state.pendingItemIsEvo = item.type === 'evolveItem';
 		state.pendingItemIsMega = item.type === 'megaStone';
 		state.pendingItemIsGmax = item.type === 'gmaxMushroom';
 	} else if (item.type === 'healHP' || item.type === 'revive' || item.type === 'cureStatus' || item.type === 'vitamin' || item.type === 'tm' || item.type === 'mint' || item.type === 'rareCandy' || item.type === 'xItem') {

@@ -106,9 +106,9 @@ const EVO_ITEMS_DATA: [string, string, string][] = [
 	['thunderstone', "Thunder Stone", DESC_STONE], ['leafstone', "Leaf Stone", DESC_STONE],
 	['moonstone', "Moon Stone", DESC_STONE], ['sunstone', "Sun Stone", DESC_STONE],
 	['shinystone', "Shiny Stone", DESC_STONE], ['duskstone', "Dusk Stone", DESC_STONE],
-	['dawnstone', "Dawn Stone", DESC_STONE], ['icestone', "Ice Stone", DESC_STONE],
-	['ovalstone', "Oval Stone", DESC_STONE],
+	['dawnstone', "Dawn Stone", DESC_STONE], ['icestone', "Ice Stone", DESC_STONE], ['ovalstone', "Oval Stone", DESC_STONE],
 	['kingsrock', "King's Rock", "A rock that may make a Pokémon flinch. Evolves certain Pokémon."],
+	['metalcoat', "Metal Coat", "A special metallic film that can make certain species of Pokémon evolve."],
 	['dragonscale', "Dragon Scale", "A very tough and inflexible scale. Evolves certain Pokémon."],
 	['upgrade', "Up-Grade", "A transparent device filled with all sorts of data. Evolves certain Pokémon."],
 	['dubiousdisc', "Dubious Disc", "A transparent device overflowing with dubious data. Evolves certain Pokémon."],
@@ -149,26 +149,6 @@ for (const [id, name, desc] of EVO_ITEMS_DATA) {
 	};
 }
 
-const STACKABLE_ITEMS_DATA: [string, string, string][] = [
-	['silkscarf', "Silk Scarf", "Normal"], ['blackbelt', "Black Belt", "Fighting"],
-	['sharpbeak', "Sharp Beak", "Flying"], ['poisonbarb', "Poison Barb", "Poison"],
-	['softsand', "Soft Sand", "Ground"], ['hardstone', "Hard Stone", "Rock"],
-	['silverpowder', "Silver Powder", "Bug"], ['spelltag', "Spell Tag", "Ghost"],
-	['metalcoat', "Metal Coat", "Steel"], ['charcoal', "Charcoal", "Fire"],
-	['mysticwater', "Mystic Water", "Water"], ['miracleseed', "Miracle Seed", "Grass"],
-	['magnet', "Magnet", "Electric"], ['twistedspoon', "Twisted Spoon", "Psychic"],
-	['nevermeltice', "Never-Melt Ice", "Ice"], ['dragonfang', "Dragon Fang", "Dragon"],
-	['blackglasses', "Black Glasses", "Dark"], ['fairyfeather', "Fairy Feather", "Fairy"],
-];
-
-const generatedStackableItems: Record<string, ShopItem> = {};
-for (const [id, name, type] of STACKABLE_ITEMS_DATA) {
-	generatedStackableItems[id] = {
-		name, icon: name, type: "item", category: "Held Items",
-		desc: `Boosts the power of ${type}-type moves by 20%.`,
-		moneyMultiplier: 3.0, tier: "Ultra", weight: 4, minWeight: 4, maxWeight: 4,
-	};
-}
 
 const HELD_ITEMS_DATA: [string, string, ItemRarityTier, number, number, string][] = [
 	['sitrusberry', 'Sitrus Berry', 'Common', 4, 1.0, 'Restores 1/4 max HP when at 1/2 max HP or less. Single use.'],
@@ -215,7 +195,6 @@ export const SHOP_DB: Record<string, ShopItem> = {
 	...generatedMints,
 	...generatedVitamins,
 	...generatedEvoItems,
-	...generatedStackableItems,
 	...generatedHeldItems,
 	...generatedXItems,
 

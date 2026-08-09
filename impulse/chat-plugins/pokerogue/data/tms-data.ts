@@ -1,4 +1,4 @@
-import { type ShopItem, type ItemRarityTier } from './items';
+import { type ShopItem, type ItemRarityTier } from '../items';
 
 const TM_CONFIGS = {
 	Common: { mult: 0.5, weight: 40 },
