@@ -1,5 +1,6 @@
 import { Elimination } from './generator-elimination';
 import { RoundRobin } from './generator-round-robin';
+import { rewardTournamentWinners } from '../../impulse/tour-rewards';
 import { Utils } from '../../lib';
 import { PRNG } from '../../sim/prng';
 import type { BestOfGame } from '../room-battle-bestof';
@@ -1168,13 +1169,16 @@ export class Tournament extends Rooms.RoomGame<TournamentPlayer> {
 		this.room.update();
 	}
 	onTournamentEnd() {
+		const rawResults = this.generator.getResults() as TournamentPlayer[][];
 		const update = {
-			results: (this.generator.getResults() as TournamentPlayer[][]).map(usersToNames),
+			results: rawResults.map(usersToNames),
 			format: this.name,
 			generator: this.generator.name,
 			bracketData: this.getBracketData(),
 		};
+
 		this.room.add(`|tournament|end|${JSON.stringify(update)}`);
+		rewardTournamentWinners(rawResults, this.players.length, this.room);
 		const settings = this.room.settings.tournaments;
 		if (settings?.recentToursLength) {
 			if (!settings.recentTours) settings.recentTours = [];
