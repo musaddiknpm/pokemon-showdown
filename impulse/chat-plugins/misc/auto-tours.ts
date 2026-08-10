@@ -118,11 +118,13 @@ const AutotourManager = {
 		const type = Utils.randomElement(config.types);
 		const modifier = (type === 'elimination' && Math.random() < 0.2) ? '2' : undefined;
 
-		const mockContext: Partial<Chat.CommandContext> = {
+		const mockContext: any = {
 			sendReply: (m: string) => room.add(m).update(),
 			errorReply: (m: string) => room.add(`|error|${m}`).update(),
 			user: { id: 'autotour', name: 'Autotour' } as User,
 			room,
+			modlog: () => {},
+			parse: () => {},
 		};
 
 		try {
