@@ -43,7 +43,8 @@ const SymbolManager = {
 			},
 		});
 
-		await initDB();
+		const connected = await initDB();
+		if (!connected) return;
 		const rows = await getCustomizationTable().select({}, ['user_id', 'symbol']);
 		symbolData = {};
 		for (const row of rows) {
@@ -88,7 +89,7 @@ const SymbolManager = {
 	},
 } as const;
 
-void SymbolManager.init().catch(err => Monitor.crashlog(err, 'Custom symbol JSON init failed'));
+void SymbolManager.init().catch(err => Monitor.warn(`Custom symbol JSON init failed: ${(err as Error).message}`));
 
 export const commands: Chat.ChatCommands = {
 	cs: 'symbol',

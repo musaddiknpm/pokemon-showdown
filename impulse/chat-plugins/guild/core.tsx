@@ -46,7 +46,7 @@ global.GuildSeasonTimer = setInterval(() => {
 		if (Date.now() >= seasonData.nextResetAt) {
 			await endGuildSeason();
 		}
-	})().catch(err => Monitor.crashlog(err, 'Guild Season Timer crashed'));
+	})().catch(err => Monitor.warn(`Guild Season Timer warning: ${(err as Error).message}`));
 }, 1000 * 60 * 60);
 
 function formatCooldown(expiration: number) {

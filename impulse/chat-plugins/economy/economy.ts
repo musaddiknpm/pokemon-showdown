@@ -67,7 +67,7 @@ export async function getLastClaim(userid: string): Promise<number> {
 	return row ? Number(row.last_claim) : 0;
 }
 
-void initEconomy().catch(err => Monitor.crashlog(err, 'Economy PG init failed'));
+void initEconomy().catch(err => Monitor.warn(`Economy PG init failed: ${(err as Error).message}`));
 
 export const commands: Chat.ChatCommands = {
 	bal: 'balance',

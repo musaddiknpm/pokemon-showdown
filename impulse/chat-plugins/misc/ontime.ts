@@ -23,7 +23,8 @@ const getOntimeTable = () => PG.getTable<OntimeRow>('ontime', 'user_id');
 let ontimeData: Record<string, OntimeEntry> = {};
 
 async function initOntime() {
-	await initMiscDB();
+	const ok = await initMiscDB();
+	if (!ok) return;
 	const rows = await getOntimeTable().select();
 	ontimeData = {};
 	for (const row of rows) {
@@ -34,7 +35,7 @@ async function initOntime() {
 	}
 }
 
-void initOntime().catch(err => Monitor.crashlog(err, 'Ontime PG init failed'));
+void initOntime().catch(err => Monitor.warn(`Ontime PG init failed: ${(err as Error).message}`));
 
 const pendingOntimeUpdates = new Map<string, number>();
 let ontimeBatchTimer: NodeJS.Timeout | null = null;

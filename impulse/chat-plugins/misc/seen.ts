@@ -31,7 +31,8 @@ export const getLastSeen = (userid: string): number => {
 };
 
 async function initSeen() {
-	await initMiscDB();
+	const ok = await initMiscDB();
+	if (!ok) return;
 	const rows = await getSeenTable().select();
 	seenData = {};
 	for (const row of rows) {
@@ -39,7 +40,7 @@ async function initSeen() {
 	}
 }
 
-void initSeen().catch(err => Monitor.crashlog(err, 'Seen PG init failed'));
+void initSeen().catch(err => Monitor.warn(`Seen PG init failed: ${(err as Error).message}`));
 
 const pendingSeenUpdates = new Map<string, { username: string, lastSeen: number }>();
 let seenBatchTimer: NodeJS.Timeout | null = null;

@@ -54,7 +54,8 @@ function buildRegex() {
 
 const EmoteManager = {
 	async init() {
-		await initMiscDB();
+		const ok = await initMiscDB();
+		if (!ok) return;
 
 		const emotesRows = await getEmoteTable().select();
 		emoteCache = {};
@@ -142,7 +143,7 @@ const EmoteManager = {
 };
 
 EmoteManager.init().catch(err => {
-	Monitor.crashlog(err, 'Emoticons PG init failed');
+	Monitor.warn(`Emoticons PG init failed: ${(err as Error).message}`);
 });
 
 export const parseMessage = (msg: string) => msg.startsWith('/html') ? msg.slice(5).replace(/&#x2f;/g, '/') : EmoteManager.parseMarkdown(msg);

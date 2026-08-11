@@ -36,7 +36,8 @@ let posts: Record<string, NewsPost> = {};
 const blocked = new Set<string>();
 
 async function initNews() {
-	await initMiscDB();
+	const ok = await initMiscDB();
+	if (!ok) return;
 	const postsRows = await getNewsTable().select();
 	posts = {};
 	for (const row of postsRows) {
@@ -147,7 +148,7 @@ const NewsManager = {
 
 void initNews()
 	.then(() => NewsManager.init())
-	.catch(err => Monitor.crashlog(err, 'News PG init failed'));
+	.catch(err => Monitor.warn(`News PG init failed: ${(err as Error).message}`));
 
 export const loginfilter: Chat.LoginFilter = user => {
 	NewsManager.onConnect(user);

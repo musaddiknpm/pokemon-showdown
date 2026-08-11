@@ -429,14 +429,22 @@ export class PGDatabaseManager {
 	private readonly tables = new Map<string, PGTable<Record<string, any>>>();
 
 	constructor(options?: PGOptions) {
+		const configHost = process.env.PGHOST || (global.Config as any)?.postgres?.host || (global.Config as any)?.pghost;
+		const configUser = process.env.PGUSER || (global.Config as any)?.postgres?.user || (global.Config as any)?.pguser;
+		const configDatabase = process.env.PGDATABASE || (global.Config as any)?.postgres?.database || (global.Config as any)?.pgdatabase;
+		const configPassword = process.env.PGPASSWORD || (global.Config as any)?.postgres?.password || (global.Config as any)?.pgpassword;
+		const configPort = process.env.PGPORT ? parseInt(process.env.PGPORT, 10) : ((global.Config as any)?.postgres?.port || 5432);
+
 		const baseConfig: PoolConfig = process.env.DATABASE_URL ?
 			{ connectionString: process.env.DATABASE_URL } :
+			(global.Config as any)?.postgres?.connectionString ?
+			{ connectionString: (global.Config as any).postgres.connectionString } :
 			{
-				host: process.env.PGHOST ?? 'YOUR_DB_HOST',
-				port: process.env.PGPORT ? parseInt(process.env.PGPORT, 10) : 5432,
-				user: process.env.PGUSER ?? 'YOUR_DB_USER',
-				database: process.env.PGDATABASE ?? 'YOUR_DB_NAME',
-				password: process.env.PGPASSWORD ?? 'YOUR_DB_PASSWORD',
+				host: configHost ?? '/var/run/postgresql',
+				port: configPort,
+				user: configUser ?? 'ubuntu',
+				database: configDatabase ?? 'impulse-server',
+				password: configPassword ?? undefined,
 			};
 
 		this.pool = new Pool({
@@ -455,6 +463,33 @@ export class PGDatabaseManager {
 	async checkConnection(): Promise<boolean> {
 		await this.pool.query('SELECT 1');
 		return true;
+	}
+
+	async safeInit(moduleName: string, initQuery: string): Promise<boolean> {
+		let attempts = 0;
+		while (attempts < 2) {
+			try {
+				await this.checkConnection();
+				break;
+			} catch (err) {
+				attempts++;
+				if (attempts >= 2) {
+					const msg = `[${moduleName}] PostgreSQL database connection unavailable (${(err as Error).message}).`;
+					(global as any).Monitor ? (global as any).Monitor.warn(msg) : console.warn(msg);
+					return false;
+				}
+				await new Promise(resolve => setTimeout(resolve, 1000));
+			}
+		}
+		if (!initQuery) return true;
+		try {
+			await this.query(initQuery);
+			return true;
+		} catch (err) {
+			const msg = `[${moduleName}] Failed to initialize PostgreSQL tables: ${(err as Error).message}`;
+			(global as any).Monitor ? (global as any).Monitor.warn(msg) : console.warn(msg);
+			return false;
+		}
 	}
 
 	getTable<T extends Record<string, any>>(name: string, primaryKey = 'id'): PGTable<T> {

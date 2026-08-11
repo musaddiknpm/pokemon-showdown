@@ -17,7 +17,8 @@ const ColorManager = {
 				.join('\n'),
 		});
 
-		await initDB();
+		const connected = await initDB();
+		if (!connected) return;
 		const rows = await getCustomizationTable().select({}, ['user_id', 'color']);
 		customColors = {};
 		for (const row of rows) {
@@ -84,7 +85,7 @@ const ColorManager = {
 	},
 } as const;
 
-void ColorManager.init().catch(err => Monitor.crashlog(err, 'Custom color JSON init failed'));
+void ColorManager.init().catch(err => Monitor.warn(`Custom color JSON init failed: ${(err as Error).message}`));
 
 export const hashColor = (name: string): string => {
 	const id = toID(name);

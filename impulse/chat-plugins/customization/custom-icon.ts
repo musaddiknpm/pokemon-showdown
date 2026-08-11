@@ -60,7 +60,8 @@ export const IconManager = {
 				.join('\n'),
 		});
 
-		await initDB();
+		const connected = await initDB();
+		if (!connected) return;
 		const rows = await getCustomizationTable().select({}, [
 			'user_id', 'icon_url', 'icon_size', 'icon_direction', 'icon_color1', 'icon_color2',
 		]);
@@ -214,4 +215,4 @@ export const commands: Chat.ChatCommands = {
 	iconhelp: 'icon help',
 };
 
-void IconManager.init().catch(err => Monitor.crashlog(err, 'Custom icon JSON init failed'));
+void IconManager.init().catch(err => Monitor.warn(`Custom icon JSON init failed: ${(err as Error).message}`));

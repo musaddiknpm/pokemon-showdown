@@ -72,25 +72,11 @@ export const destroy = () => {
 	// No longer need listenerClient for single process
 };
 
-let initPromise: Promise<void> | null = null;
-const listenerClient: import('pg').PoolClient | null = null;
+let initPromise: Promise<boolean> | null = null;
 
-export const initDB = async (): Promise<void> => {
+export const initGuildDB = async (): Promise<boolean> => {
 	if (!initPromise) {
-		initPromise = (async () => {
-			let attempts = 0;
-			while (attempts < 5) {
-				try {
-					await PG.checkConnection();
-					break;
-				} catch (err) {
-					attempts++;
-					if (attempts >= 5) throw err;
-					await new Promise(resolve => setTimeout(resolve, 5000));
-				}
-			}
-
-			await PG.query(`
+		initPromise = PG.safeInit('Guild', `
 				CREATE TABLE IF NOT EXISTS guild (
 					id TEXT PRIMARY KEY,
 					owner_id TEXT NOT NULL,
@@ -147,9 +133,6 @@ export const initDB = async (): Promise<void> => {
 					global_member_limit INTEGER DEFAULT 10
 				);
 			`);
-
-			// Removed LISTEN/NOTIFY as it's unnecessary for single process
-		})();
 	}
 	return initPromise;
 };
@@ -207,7 +190,7 @@ async function reconstructGuild(guildRow: GuildRow): Promise<Guild> {
 
 export const GuildRepository = {
 	async getGuildById(guildId: string): Promise<Guild | null> {
-		await initDB();
+		await initGuildDB();
 		if (guildCache.has(guildId)) return guildCache.get(guildId)!;
 
 		const row = await getGuildTable().findById(guildId);
@@ -219,14 +202,14 @@ export const GuildRepository = {
 	},
 
 	async getGuildByMemberId(userId: string): Promise<Guild | null> {
-		await initDB();
+		await initGuildDB();
 		const rows = await getMemberTable().select({ user_id: userId }, ['guild_id'], { limit: 1 });
 		if (rows.length === 0) return null;
 		return this.getGuildById(rows[0].guild_id);
 	},
 
 	async getTopGuilds(limit: number) {
-		await initDB();
+		await initGuildDB();
 		const res = await PG.query(`
 			SELECT g.*, 
 			       (SELECT COUNT(*) FROM guild_member WHERE guild_id = g.id) as "memberCount",
@@ -239,7 +222,7 @@ export const GuildRepository = {
 	},
 
 	async getTopMembers(limit: number) {
-		await initDB();
+		await initGuildDB();
 		const res = await PG.query(`
 			SELECT gm.user_id as id, gm.username, g.name as "guildName", gm.total_points as "totalPoints" 
 			FROM guild_member gm 
@@ -251,19 +234,19 @@ export const GuildRepository = {
 	},
 
 	async getAllChatrooms(): Promise<string[]> {
-		await initDB();
+		await initGuildDB();
 		const res = await PG.query('SELECT chatroom FROM guild');
 		return res.rows.map(r => r.chatroom);
 	},
 
 	async guildExists(guildId: string): Promise<boolean> {
 		if (guildCache.has(guildId)) return true;
-		await initDB();
+		await initGuildDB();
 		return await getGuildTable().exists({ id: guildId });
 	},
 
 	async createGuild(guildInput: Omit<Guild, 'members' | 'invited' | 'banned' | 'memberCount'>, owner: GuildMember): Promise<void> {
-		await initDB();
+		await initGuildDB();
 		await getGuildTable().insert({
 			id: guildInput.id,
 			owner_id: guildInput.ownerId,
@@ -283,13 +266,13 @@ export const GuildRepository = {
 	},
 
 	async deleteGuild(guildId: string): Promise<void> {
-		await initDB();
+		await initGuildDB();
 		await getGuildTable().deleteById(guildId);
 		await invalidateCache(guildId);
 	},
 
 	async updateGuildSettings(guildId: string, settings: Partial<Guild>): Promise<void> {
-		await initDB();
+		await initGuildDB();
 
 		const mapping: Record<string, string> = {
 			ownerId: 'owner_id', name: 'name', chatroom: 'chatroom', description: 'description',
@@ -322,7 +305,7 @@ export const GuildRepository = {
 	},
 
 	async addMember(guildId: string, member: GuildMember): Promise<void> {
-		await initDB();
+		await initGuildDB();
 		await getMemberTable().insert({
 			guild_id: guildId,
 			user_id: member.id,
@@ -337,7 +320,7 @@ export const GuildRepository = {
 	},
 
 	async removeMember(guildId: string, userId: string): Promise<void> {
-		await initDB();
+		await initGuildDB();
 		await getMemberTable().delete({ guild_id: guildId, user_id: userId });
 		await getGuildTable().updateById(guildId, { updated_at: Date.now() });
 		await invalidateCache(guildId);
@@ -345,14 +328,14 @@ export const GuildRepository = {
 
 	async removeMembers(guildId: string, userIds: string[]): Promise<void> {
 		if (userIds.length === 0) return;
-		await initDB();
+		await initGuildDB();
 		await getMemberTable().delete({ guild_id: guildId, user_id: userIds });
 		await getGuildTable().updateById(guildId, { updated_at: Date.now() });
 		await invalidateCache(guildId);
 	},
 
 	async updateMemberRole(guildId: string, userId: string, role: string): Promise<void> {
-		await initDB();
+		await initGuildDB();
 		await getMemberTable().update({ role }, { guild_id: guildId, user_id: userId });
 		await getGuildTable().updateById(guildId, { updated_at: Date.now() });
 		await invalidateCache(guildId);
@@ -399,7 +382,7 @@ export const GuildRepository = {
 	},
 
 	async createInvite(guildId: string, invite: InvitedMember): Promise<void> {
-		await initDB();
+		await initGuildDB();
 		await getInviteTable().upsert({
 			guild_id: guildId,
 			user_id: invite.userId,
@@ -413,21 +396,21 @@ export const GuildRepository = {
 	},
 
 	async updateInviteStatus(guildId: string, userId: string, status: string): Promise<void> {
-		await initDB();
+		await initGuildDB();
 		await getInviteTable().update({ status }, { guild_id: guildId, user_id: userId });
 		await getGuildTable().updateById(guildId, { updated_at: Date.now() });
 		await invalidateCache(guildId);
 	},
 
 	async removeInvite(guildId: string, userId: string): Promise<void> {
-		await initDB();
+		await initGuildDB();
 		await getInviteTable().delete({ guild_id: guildId, user_id: userId });
 		await getGuildTable().updateById(guildId, { updated_at: Date.now() });
 		await invalidateCache(guildId);
 	},
 
 	async banUser(guildId: string, userId: string): Promise<void> {
-		await initDB();
+		await initGuildDB();
 		// Kept raw SQL: ON CONFLICT DO NOTHING behavior is not supported by PGTable.upsert()
 		await PG.query(`
 			INSERT INTO guild_ban (guild_id, user_id) VALUES ($1, $2)
@@ -438,7 +421,7 @@ export const GuildRepository = {
 	},
 
 	async unbanUser(guildId: string, userId: string): Promise<void> {
-		await initDB();
+		await initGuildDB();
 		await getBanTable().delete({ guild_id: guildId, user_id: userId });
 		await getGuildTable().updateById(guildId, { updated_at: Date.now() });
 		await invalidateCache(guildId);
@@ -446,14 +429,14 @@ export const GuildRepository = {
 };
 
 export async function setGuildCooldown(userId: string): Promise<void> {
-	await initDB();
+	await initGuildDB();
 	const expiration = Date.now() + 12 * 60 * 60 * 1000;
 	await getCooldownTable().upsert({ userid: userId, expiration }, ['userid']);
 }
 
 export async function setGuildCooldowns(userIds: string[]): Promise<void> {
 	if (userIds.length === 0) return;
-	await initDB();
+	await initGuildDB();
 	const expiration = Date.now() + 12 * 60 * 60 * 1000;
 
 	const placeholders = [];
@@ -472,7 +455,7 @@ export async function setGuildCooldowns(userIds: string[]): Promise<void> {
 }
 
 export async function getGuildCooldown(userId: string): Promise<number | null> {
-	await initDB();
+	await initGuildDB();
 	const row = await getCooldownTable().findById(userId);
 	if (!row) return null;
 
@@ -485,7 +468,7 @@ export async function getGuildCooldown(userId: string): Promise<number | null> {
 }
 
 export async function getSeasonInfo(): Promise<SeasonInfo> {
-	await initDB();
+	await initGuildDB();
 	const row = await getSeasonTable().findById(1);
 	if (row) {
 		return {
@@ -506,7 +489,7 @@ export async function getSeasonInfo(): Promise<SeasonInfo> {
 }
 
 export async function saveSeasonInfo(data: SeasonInfo): Promise<void> {
-	await initDB();
+	await initGuildDB();
 	await getSeasonTable().upsert({
 		id: 1,
 		season: data.season,
@@ -520,7 +503,7 @@ let globalMemberLimitCache: number | null = null;
 export async function getGlobalMemberLimit(): Promise<number> {
 	if (globalMemberLimitCache !== null) return globalMemberLimitCache;
 
-	await initDB();
+	await initGuildDB();
 	const row = await getSettingsTable().findById(1);
 	if (row) {
 		globalMemberLimitCache = Number(row.global_member_limit);
@@ -543,4 +526,4 @@ export async function setGlobalMemberLimit(limit: number): Promise<void> {
 	guildCache.clear();
 }
 // Init DB immediately so that promises are resolved early
-initDB().catch(() => {});
+initGuildDB().catch(() => {});

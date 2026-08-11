@@ -49,7 +49,8 @@ let globalScheduler: NodeJS.Timeout | null = null;
 
 const AutotourManager = {
 	async init() {
-		await initMiscDB();
+		const ok = await initMiscDB();
+		if (!ok) return;
 		const rows = await getTourTable().select();
 		tourConfigs = {};
 
@@ -143,7 +144,7 @@ const AutotourManager = {
 };
 
 void AutotourManager.init().catch(err => {
-	Monitor.crashlog(err, 'Autotours PG init failed');
+	Monitor.warn(`Autotours PG init failed: ${(err as Error).message}`);
 });
 
 export const commands: Chat.ChatCommands = {

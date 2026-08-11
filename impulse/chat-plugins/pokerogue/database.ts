@@ -1,23 +1,11 @@
 import { PG } from '../../pg';
 import { type PokeRogueState, type UserSaveData, type GlobalStatEntry, type GameMode } from './types';
 
-let initPromise: Promise<void> | null = null;
+let initPromise: Promise<boolean> | null = null;
 
-export const initDB = async (): Promise<void> => {
+export const initDB = async (): Promise<boolean> => {
 	if (!initPromise) {
-		initPromise = (async () => {
-			let attempts = 0;
-			while (attempts < 5) {
-				try {
-					await PG.checkConnection();
-					break;
-				} catch (err) {
-					attempts++;
-					if (attempts >= 5) throw err;
-					await new Promise(resolve => setTimeout(resolve, 5000));
-				}
-			}
-			await PG.query(`
+		initPromise = PG.safeInit('PokeRogue', `
 				CREATE TABLE IF NOT EXISTS pokerogue_user_profiles (
 					userid TEXT PRIMARY KEY,
 					"displayName" TEXT NOT NULL,
@@ -79,7 +67,6 @@ export const initDB = async (): Promise<void> => {
 					data TEXT NOT NULL
 				);
 			`);
-		})();
 	}
 	return initPromise;
 };

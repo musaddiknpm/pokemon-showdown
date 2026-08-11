@@ -1,22 +1,10 @@
 import { PG } from '../../pg';
 
-let initPromise: Promise<void> | null = null;
+let initPromise: Promise<boolean> | null = null;
 
-export const initMiscDB = async (): Promise<void> => {
+export const initMiscDB = async (): Promise<boolean> => {
 	if (!initPromise) {
-		initPromise = (async () => {
-			let attempts = 0;
-			while (attempts < 5) {
-				try {
-					await PG.checkConnection();
-					break;
-				} catch (err) {
-					attempts++;
-					if (attempts >= 5) throw err;
-					await new Promise(resolve => setTimeout(resolve, 5000));
-				}
-			}
-			await PG.query(`
+		initPromise = PG.safeInit('Misc', `
 				CREATE TABLE IF NOT EXISTS seen_users (
 					user_id TEXT PRIMARY KEY,
 					username TEXT NOT NULL,
@@ -69,7 +57,6 @@ export const initMiscDB = async (): Promise<void> => {
 					timestamp BIGINT NOT NULL
 				);
 			`);
-		})();
 	}
 	return initPromise;
 };

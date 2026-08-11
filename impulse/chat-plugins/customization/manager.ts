@@ -21,42 +21,38 @@ export interface UserCustomizationRow {
 
 export const getCustomizationTable = () => PG.getTable<UserCustomizationRow>('user_customization', 'user_id');
 
-let initPromise: Promise<void> | null = null;
-export const initDB = async (): Promise<void> => {
+let initPromise: Promise<boolean> | null = null;
+let isDBAvailable = false;
+
+export const isDBConnected = (): boolean => isDBAvailable;
+
+export const initDB = async (): Promise<boolean> => {
 	if (!initPromise) {
-		initPromise = (async () => {
-			let attempts = 0;
-			while (attempts < 5) {
-				try {
-					await PG.checkConnection();
-					break;
-				} catch (err) {
-					attempts++;
-					if (attempts >= 5) throw err;
-					await new Promise(resolve => setTimeout(resolve, 5000));
-				}
-			}
-			await PG.query(`
-				CREATE TABLE IF NOT EXISTS user_customization (
-					user_id TEXT PRIMARY KEY,
-					color TEXT,
-					icon_url TEXT,
-					icon_size INTEGER,
-					icon_direction TEXT,
-					icon_color1 TEXT,
-					icon_color2 TEXT,
-					symbol TEXT,
-					symbol_color TEXT,
-					updated_at BIGINT NOT NULL
-				);
-			`);
-			await PG.query(`
-				ALTER TABLE user_customization 
-				ADD COLUMN IF NOT EXISTS icon_direction TEXT,
-				ADD COLUMN IF NOT EXISTS icon_color1 TEXT,
-				ADD COLUMN IF NOT EXISTS icon_color2 TEXT;
-			`);
-		})();
+		initPromise = PG.safeInit('Customization', `
+					CREATE TABLE IF NOT EXISTS user_customization (
+						user_id TEXT PRIMARY KEY,
+						color TEXT,
+						icon_url TEXT,
+						icon_size INTEGER,
+						icon_direction TEXT,
+						icon_color1 TEXT,
+						icon_color2 TEXT,
+						symbol TEXT,
+						symbol_color TEXT,
+						updated_at BIGINT NOT NULL
+					);
+				`).then(async success => {
+					if (success) {
+						await PG.query(`
+							ALTER TABLE user_customization 
+							ADD COLUMN IF NOT EXISTS icon_direction TEXT,
+							ADD COLUMN IF NOT EXISTS icon_color1 TEXT,
+							ADD COLUMN IF NOT EXISTS icon_color2 TEXT;
+						`).catch(() => {});
+					}
+					isDBAvailable = success;
+					return success;
+				});
 	}
 	return initPromise;
 };
