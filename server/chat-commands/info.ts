@@ -103,7 +103,7 @@ export const commands: Chat.ChatCommands = {
 	alts: 'whois',
 	whoare: 'whois',
 	altsnorecurse: 'whois',
-	profile: 'whois',
+	/* profile: 'whois', */
 	whois(target, room, user, connection, cmd) {
 		if (room?.roomid === 'staff' && !this.runBroadcast()) return;
 		const targetUser = this.getUserOrSelf(target, { exactName: user.tempGroup === ' ' });
