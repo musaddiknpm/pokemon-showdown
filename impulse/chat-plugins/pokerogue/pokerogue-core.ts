@@ -119,9 +119,10 @@ export function processLevelUp(
 
 	if (!mon.moves) mon.moves = getLevelUpMoves(mon.species, oldLevel, genNumber);
 
-	const newMoves = getMovesLearnedBetween(oldSpecies, oldLevel, mon.level, false, genNumber);
+	const randomizeMoves = MODE_CONFIGS[state.gameMode]?.randomizeMoves;
+	const newMoves = getMovesLearnedBetween(oldSpecies, oldLevel, mon.level, false, genNumber, randomizeMoves);
 	if (evolved) {
-		const evoMoves = getMovesLearnedBetween(mon.species, oldLevel, mon.level, true, genNumber);
+		const evoMoves = getMovesLearnedBetween(mon.species, oldLevel, mon.level, true, genNumber, randomizeMoves);
 		for (const m of evoMoves) if (!newMoves.includes(m)) newMoves.push(m);
 	}
 
@@ -752,7 +753,7 @@ export const ActionResolvers: Record<string, (state: PokeRogueState, user: User,
 		const dexSpecies = Dex.species.get(toID(mon.species));
 
 		if (itemKey === 'memorymushroom') {
-			const allMoves = getMovesLearnedBetween(mon.species, 1, mon.level, false, MODE_CONFIGS[state.gameMode]?.generation || 9);
+			const allMoves = getMovesLearnedBetween(mon.species, 1, mon.level, false, MODE_CONFIGS[state.gameMode]?.generation || 9, MODE_CONFIGS[state.gameMode]?.randomizeMoves);
 			if (allMoves.length === 0) {
 				ctx.errorReply("This Pokémon has no moves to remember.");
 				return false;
@@ -804,7 +805,8 @@ export const ActionResolvers: Record<string, (state: PokeRogueState, user: User,
 			state.notification = `<b>${dexSpecies.name}</b> ${actionName} into <b>${evoName}</b>!`;
 
 			const genNumber = MODE_CONFIGS[state.gameMode]?.generation || 9;
-			const evoMoves = getMovesLearnedBetween(evoTarget, mon.level, mon.level, true, genNumber);
+			const randomizeMoves = MODE_CONFIGS[state.gameMode]?.randomizeMoves;
+			const evoMoves = getMovesLearnedBetween(evoTarget, mon.level, mon.level, true, genNumber, randomizeMoves);
 
 			state.pendingMoves = state.pendingMoves ?? [];
 			for (const move of evoMoves) {

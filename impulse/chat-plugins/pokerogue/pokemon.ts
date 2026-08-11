@@ -410,7 +410,7 @@ export function getEggMoves(speciesId: string, genNumber = 9): string[] {
 	return eggMoves;
 }
 
-export function getMovesLearnedBetween(speciesId: string, oldLevel: number, newLevel: number, isEvolution = false, genNumber = 9): string[] {
+export function getMovesLearnedBetween(speciesId: string, oldLevel: number, newLevel: number, isEvolution = false, genNumber = 9, randomizeMoves = false): string[] {
 	const id = toID(speciesId);
 	const sp = Dex.species.get(id);
 	const learnsetData = Dex.species.getLearnsetData(id);
@@ -432,7 +432,18 @@ export function getMovesLearnedBetween(speciesId: string, oldLevel: number, newL
 			}
 		}
 	}
-	return Array.from(new Set(learned));
+	let uniqueLearned = Array.from(new Set(learned));
+
+	if (randomizeMoves) {
+		const allMoves = Dex.moves.all().filter(m => !m.isNonstandard && !m.isZ && !m.isMax && m.id !== 'struggle');
+		const randomMoves = new Set<string>();
+		while (randomMoves.size < uniqueLearned.length) {
+			randomMoves.add(Utils.randomElement(allMoves).id);
+		}
+		uniqueLearned = Array.from(randomMoves);
+	}
+
+	return uniqueLearned;
 }
 
 function collectViableMoves(speciesId: string, chosenLevel: number, genNumber: number, floor: number): string[] {
