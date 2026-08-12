@@ -56,10 +56,18 @@
   word-wrap: break-word !important;
 }
 
+.impulse-table-header th:not(:last-child) {
+  border-right: 1px solid #aaaaaa !important;
+}
+
 .dark .impulse-table-header th {
   color: #cccccc !important;
   background: #2a2a2a !important;
   border-bottom-color: #888888 !important;
+}
+
+.dark .impulse-table-header th:not(:last-child) {
+  border-right-color: #888888 !important;
 }
 
 .impulse-table-row td {
@@ -71,10 +79,18 @@
   word-wrap: break-word !important;
 }
 
+.impulse-table-row td:not(:last-child) {
+  border-right: 1px solid #dddddd !important;
+}
+
 .dark .impulse-table-row td {
   background-color: #1e1e1e !important;
   border-bottom-color: #444444 !important;
   color: #bbbbbb !important;
+}
+
+.dark .impulse-table-row td:not(:last-child) {
+  border-right-color: #444444 !important;
 }
 
 .impulse-table-row:hover td {
