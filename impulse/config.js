@@ -1,5 +1,6 @@
 module.exports = function(Config) {
 	Config.serverid = 'impulse';
+	Config.serverName = 'Impulse';
 	Config.servertoken = 'd0tACZb+OWNU';
 	Config.rawgApiKey = '';
 	Config.reportbattles = false;
