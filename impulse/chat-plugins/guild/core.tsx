@@ -2,7 +2,7 @@ import { escapeHTML } from '../../../lib/utils';
 import { GuildRepository, getGuildCooldown, setGuildCooldown, setGuildCooldowns, getSeasonInfo, saveSeasonInfo, getGlobalMemberLimit, setGlobalMemberLimit } from './database';
 import { getLastSeen } from '../misc/seen';
 import type { Guild, GuildMember } from './types';
-
+import { Table } from '../../impulse-utils';
 export async function endGuildSeason() {
 	const topGuilds = await GuildRepository.getTopGuilds(3);
 	const topMembers = await GuildRepository.getTopMembers(3);
@@ -858,33 +858,14 @@ export const commands: Chat.ChatCommands = {
 				return b.points - a.points;
 			});
 
-			this.sendReplyBox(
-				<div class="pad" style={{ maxHeight: '350px', overflowY: 'auto' }}>
-					<div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '14pt' }}>
-						{guild.name} Roster ({guild.memberCount} / {guild.memberLimit})
-					</div>
-					<hr />
-					<table style={{ width: '100%', textAlign: 'center', borderCollapse: 'collapse', marginTop: '15px' }}>
-						<tr>
-							<th style={{ padding: '4px' }}>Username</th>
-							<th style={{ padding: '4px' }}>Role</th>
-							<th style={{ padding: '4px' }}>Joined Date</th>
-							<th style={{ padding: '4px' }}>Points</th>
-						</tr>
-						{sortedMembers.map(m => {
-							const joinedStr = new Date(m.joinedAt).toISOString().split('T')[0];
-							return (
-								<tr style={{ borderTop: '1px solid #ccc' }}>
-									<td style={{ padding: '4px' }}><b>{m.username}</b></td>
-									<td style={{ padding: '4px' }}>{m.role}</td>
-									<td style={{ padding: '4px' }}>{joinedStr}</td>
-									<td style={{ padding: '4px' }}>{m.points}</td>
-								</tr>
-							);
-						})}
-					</table>
-				</div>
-			);
+			const headerRow = ['Username', 'Role', 'Joined Date', 'Points'];
+			const dataRows = sortedMembers.map(m => [
+				`<b>${m.username}</b>`,
+				m.role,
+				new Date(m.joinedAt).toISOString().split('T')[0],
+				m.points.toString()
+			]);
+			this.sendReply(`|html|${Table(`${guild.name} Roster (${guild.memberCount} / ${guild.memberLimit})`, headerRow, dataRows)}`);
 		},
 
 		async info(target, room, user) {
@@ -909,40 +890,23 @@ export const commands: Chat.ChatCommands = {
 			const createdStr = new Date(guild.createdAt).toISOString().split('T')[0];
 
 			const bgUrl = guild.background || 'https://wallpapercave.com/wp/wp8695829.png';
-			const bgStyle = {
-				background: `linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('${bgUrl}') center/cover no-repeat`,
-				padding: '8px',
-				borderRadius: '4px',
-				color: 'white',
-				textShadow: '1px 1px 2px black, -1px -1px 2px black, 1px -1px 2px black, -1px 1px 2px black'
-			};
+			let html = `<div style="background: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('${bgUrl}') center/cover no-repeat; padding: 8px; border-radius: 4px; color: white; text-shadow: 1px 1px 2px black, -1px -1px 2px black, 1px -1px 2px black, -1px 1px 2px black;">`;
+			html += `<center><b><big><big>${escapeHTML(guild.name)}</big></big></b><br />`;
+			html += `<span style="font-size: 10pt; color: white;">${escapeHTML(guild.description || 'No description set.')}</span></center>`;
+			html += `<hr style="border-color: rgba(255, 255, 255, 0.4);" />`;
+			html += `<table cellpadding="2" cellspacing="0" border="0" width="100%"><tr>`;
+			if (guild.icon) {
+				html += `<td width="90" valign="top"><img src="${escapeHTML(guild.icon)}" width="80" height="80" /></td><td width="8"></td>`;
+			}
+			html += `<td valign="top" style="color: white;">`;
+			html += `<b>Master:</b> ${escapeHTML(ownerName)}<br />`;
+			html += `<b>Members:</b> ${guild.memberCount} / ${guild.memberLimit}<br />`;
+			html += `<b>Points:</b> ${guild.points}<br />`;
+			html += `<b>Policy:</b> ${guild.joinPolicy === 'open' ? 'Open' : 'Invite-Only'}<br />`;
+			html += `<b>Founded:</b> ${createdStr}`;
+			html += `</td></tr></table></div>`;
 
-			this.sendReplyBox(
-				<div style={bgStyle}>
-					<center>
-						<b><big><big>{guild.name}</big></big></b><br />
-						<span style={{ fontSize: '10pt', color: 'white' }}>{guild.description || 'No description set.'}</span>
-					</center>
-					<hr style={{ borderColor: 'rgba(255, 255, 255, 0.4)' }} />
-					<table cellPadding={2} cellSpacing={0} border={0} width="100%">
-						<tr>
-							{guild.icon ? (
-								<>
-									<td width="90" valign="top"><img src={guild.icon} width={80} height={80} /></td>
-									<td width="8"></td>
-								</>
-							) : null}
-							<td valign="top" style={{ color: 'white' }}>
-								<b>Master:</b> {ownerName}<br />
-								<b>Members:</b> {guild.memberCount} / {guild.memberLimit}<br />
-								<b>Points:</b> {guild.points}<br />
-								<b>Policy:</b> {guild.joinPolicy === 'open' ? 'Open' : 'Invite-Only'}<br />
-								<b>Founded:</b> {createdStr}
-							</td>
-						</tr>
-					</table>
-				</div>
-			);
+			this.sendReply(`|html|${html}`);
 		},
 
 		async announce(target, room, user) {
@@ -1081,41 +1045,22 @@ export const commands: Chat.ChatCommands = {
 			const sortedGuilds = await GuildRepository.getTopGuilds(50);
 			if (sortedGuilds.length === 0) throw new Chat.ErrorMessage("There are currently no guilds registered.");
 
-			this.sendReplyBox(
-				<div class="pad" style={{ maxHeight: '350px', overflowY: 'auto' }}>
-					<div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '14pt' }}>
-						Global Guild Leaderboard
-					</div>
-					<hr />
-					<table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center' }}>
-						<tr>
-							<th style={{ padding: '4px' }}>Rank</th>
-							<th style={{ padding: '4px' }}>Guild Name</th>
-							<th style={{ padding: '4px' }}>Master</th>
-							<th style={{ padding: '4px' }}>Members</th>
-							<th style={{ padding: '4px' }}>Points</th>
-						</tr>
-						{sortedGuilds.map((g, idx) => {
-							const rank = idx + 1;
-							const ownerId = (g as any).ownerId || (g as any).owner_id;
-							const ownerName = (g as any).ownerName || ownerId;
-							
-							const memberCount = (g as any).memberCount || 0;
-							const memberLimit = (g as any).member_limit || 0;
-
-							return (
-								<tr style={{ borderTop: '1px solid #ccc' }}>
-									<td style={{ padding: '4px' }}><b>#{rank}</b></td>
-									<td style={{ padding: '4px' }}><b>{g.name}</b></td>
-									<td style={{ padding: '4px' }}>{ownerName}</td>
-									<td style={{ padding: '4px' }}>{memberCount} / {memberLimit}</td>
-									<td style={{ padding: '4px' }}><b>{g.points}</b></td>
-								</tr>
-							);
-						})}
-					</table>
-				</div>
-			);
+			const headerRow = ['Rank', 'Guild Name', 'Master', 'Members', 'Points'];
+			const dataRows = sortedGuilds.map((g, idx) => {
+				const rank = idx + 1;
+				const ownerId = (g as any).ownerId || (g as any).owner_id;
+				const ownerName = (g as any).ownerName || ownerId;
+				const memberCount = (g as any).memberCount || 0;
+				const memberLimit = (g as any).member_limit || 0;
+				return [
+					`<b>#${rank}</b>`,
+					`<b>${g.name}</b>`,
+					ownerName,
+					`${memberCount} / ${memberLimit}`,
+					`<b>${g.points}</b>`
+				];
+			});
+			this.sendReply(`|html|${Table('Global Guild Leaderboard', headerRow, dataRows)}`);
 		},
 
 		top(target, room, user) {
@@ -1127,33 +1072,14 @@ export const commands: Chat.ChatCommands = {
 			const sortedMembers = await GuildRepository.getTopMembers(50);
 			if (sortedMembers.length === 0) throw new Chat.ErrorMessage("There are currently no guild members.");
 
-			this.sendReplyBox(
-				<div class="pad" style={{ maxHeight: '350px', overflowY: 'auto' }}>
-					<div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '14pt' }}>
-						Top Guild Members
-					</div>
-					<hr />
-					<table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center' }}>
-						<tr>
-							<th style={{ padding: '4px' }}>Rank</th>
-							<th style={{ padding: '4px' }}>Username</th>
-							<th style={{ padding: '4px' }}>Guild</th>
-							<th style={{ padding: '4px' }}>Total Points</th>
-						</tr>
-						{sortedMembers.map((m, idx) => {
-							const rank = idx + 1;
-							return (
-								<tr style={{ borderTop: '1px solid #ccc' }}>
-									<td style={{ padding: '4px' }}><b>#{rank}</b></td>
-									<td style={{ padding: '4px' }}><b>{m.username}</b></td>
-									<td style={{ padding: '4px' }}>{m.guildName}</td>
-									<td style={{ padding: '4px' }}><b>{m.totalPoints}</b></td>
-								</tr>
-							);
-						})}
-					</table>
-				</div>
-			);
+			const headerRow = ['Rank', 'Username', 'Guild', 'Total Points'];
+			const dataRows = sortedMembers.map((m, idx) => [
+				`<b>#${idx + 1}</b>`,
+				`<b>${m.username}</b>`,
+				m.guildName,
+				`<b>${m.totalPoints}</b>`
+			]);
+			this.sendReply(`|html|${Table('Top Guild Members', headerRow, dataRows)}`);
 		},
 
 		async endseason(target, room, user) {
