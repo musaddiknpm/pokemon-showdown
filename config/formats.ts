@@ -784,6 +784,7 @@ export const Formats: import('../sim/dex-formats').FormatList = [
 		mod: 'gen9mnmlimitedsupply',
 		ruleset: ['[Gen 9] Random Battle', 'Terastal Clause'],
 		team: 'randomMnMLS',
+		desc: 'A Mix and Mega-based Random Battle made by the Pet Mods community.',
 		onBegin() {
 			this.add(`raw|<div class='broadcast-green'><b>Make sure to check out the <a href="https://docs.google.com/spreadsheets/d/1OS3D5qEMS3peHS2XwIM61AVxw7fktgU_bCWHwsW00Ow/" target="_blank">spreadsheet</a> for all the mons and items, and use \`/mnm pokemon @ item\` to find their stats!</b></div>`);
 			this.add(`raw|Welcome to Mix and Mega: Limited Supply!`);
@@ -3176,8 +3177,8 @@ export const Formats: import('../sim/dex-formats').FormatList = [
 			'Necrozma-Dawn-Wings', 'Necrozma-Dusk-Mane', 'Palkia', 'Palkia-Origin', 'Rayquaza', 'Raging Bolt', 'Regigigas', 'Reshiram', 'Solgaleo', 'Slaking', 'Terapagos',
 			'Zacian', 'Zacian-Crowned', 'Zamazenta', 'Zamazenta-Crowned', 'Zekrom', 'Anger Point', 'Arena Trap', 'Comatose', 'Commander', 'Contrary', 'Costar', 'Dancer',
 			'Fur Coat', 'Gorilla Tactics', 'Huge Power', 'Ice Scales', 'Illusion', 'Imposter', 'Innards Out', 'Orichalcum Pulse', 'Moody', 'Neutralizing Gas', 'Parental Bond',
-			'Prankster', 'Pure Power', 'Serene Grace', 'Shadow Tag', 'Simple', 'Soul-Heart', 'Stamina', 'Steam Engine', 'Water Bubble', 'Wonder Guard', 'King\'s Rock',
-			'Razor Fang', 'Beat Up',
+			'Prankster', 'Pure Power', 'Serene Grace', 'Shadow Tag', 'Simple', 'Soul-Heart', 'Speed Boost', 'Stamina', 'Steam Engine', 'Water Bubble', 'Wonder Guard',
+			'King\'s Rock', 'Razor Fang', 'Beat Up',
 		],
 	},
 	{
