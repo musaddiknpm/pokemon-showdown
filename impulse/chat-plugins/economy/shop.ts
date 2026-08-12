@@ -91,7 +91,7 @@ export const commands: Chat.ChatCommands = {
 				`<button class="button" name="send" value="/shop buy ${name}">${item.cost} ${CURRENCY_NAME}</button>`,
 			]);
 
-			const html = Table("Global Shop", ["Item", "Description", "Cost"], dataRows);
+			const html = Table("" + Config.serverName + " Shop", ["Item", "Description", "Cost"], dataRows);
 			this.sendReply(`|raw|${html}`);
 		},
 
