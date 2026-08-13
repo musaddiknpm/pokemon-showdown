@@ -92,7 +92,7 @@ export const commands: Chat.ChatCommands = {
 			]);
 
 			const html = Table("" + Config.serverName + " Shop", ["Item", "Description", "Cost"], dataRows);
-			this.sendReply(`|raw|${html}`);
+			this.sendReply(`|html|${html}`);
 		},
 
 		async buy(target, room, user) {

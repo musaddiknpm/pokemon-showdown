@@ -1,3 +1,4 @@
+import { Utils } from '../../../lib';
 type MultiZoneEntry = string | [string, string][];
 
 // Countries with multiple timezones — each entry is [label, IANA timezone]
@@ -1012,7 +1013,7 @@ export const commands: Chat.ChatCommands = {
 				}
 			}).filter(Boolean).join('');
 			return this.sendReplyBox(
-				`<b>Current Times in ${toTitleCase(query)}:</b><br>` +
+				`<b>Current Times in ${Utils.escapeHTML(toTitleCase(query))}:</b><br>` +
 				`<table style="border-collapse:collapse;margin-top:4px">${rows}</table>`
 			);
 		}
@@ -1020,14 +1021,14 @@ export const commands: Chat.ChatCommands = {
 		// Abbreviation / timezone shorthand (EST, PST, etc.)
 		if (ABBREV_TIMEZONES[lookupKey]) {
 			const tz = ABBREV_TIMEZONES[lookupKey];
-			return this.sendReplyBox(`<b>Current Time (${query.toUpperCase()}):</b> ${formatForTimezone(now, tz)}`);
+			return this.sendReplyBox(`<b>Current Time (${Utils.escapeHTML(query.toUpperCase())}):</b> ${formatForTimezone(now, tz)}`);
 		}
 
 		// Single-timezone country or city lookup
 		if (SINGLE_TIMEZONES[lookupKey]) {
 			const tz = SINGLE_TIMEZONES[lookupKey];
 			try {
-				return this.sendReplyBox(`<b>Current Time in ${toTitleCase(query)}:</b> ${formatForTimezone(now, tz)}`);
+				return this.sendReplyBox(`<b>Current Time in ${Utils.escapeHTML(toTitleCase(query))}:</b> ${formatForTimezone(now, tz)}`);
 			} catch (e) {
 				throw new Chat.ErrorMessage(`Error formatting time for "${query}".`);
 			}
@@ -1035,7 +1036,7 @@ export const commands: Chat.ChatCommands = {
 
 		if (query.includes('/')) {
 			try {
-				return this.sendReplyBox(`<b>Current Time (${query}):</b> ${formatForTimezone(now, query)}`);
+				return this.sendReplyBox(`<b>Current Time (${Utils.escapeHTML(query)}):</b> ${formatForTimezone(now, query)}`);
 			} catch (e) {
 			}
 		}

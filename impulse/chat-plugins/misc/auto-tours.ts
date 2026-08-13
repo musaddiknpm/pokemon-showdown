@@ -29,6 +29,15 @@ interface AutoTourRow {
 	last_tour_time: number | string;
 }
 
+interface MockCommandContext {
+	sendReply: (m: string) => void;
+	errorReply: (m: string) => void;
+	user: User;
+	room: Room;
+	modlog: () => void;
+	parse: () => void;
+}
+
 const getTourTable = () => PG.getTable<AutoTourRow>('auto_tours', 'room_id');
 
 const ALL_TOUR_TYPES = ['elimination', 'roundrobin'];
@@ -119,7 +128,7 @@ const AutotourManager = {
 		const type = Utils.randomElement(config.types);
 		const modifier = (type === 'elimination' && Math.random() < 0.2) ? '2' : undefined;
 
-		const mockContext: any = {
+		const mockContext: MockCommandContext = {
 			sendReply: (m: string) => room.add(m).update(),
 			errorReply: (m: string) => room.add(`|error|${m}`).update(),
 			user: { id: 'autotour', name: 'Autotour' } as User,
@@ -129,10 +138,10 @@ const AutotourManager = {
 		};
 
 		try {
-			const tour = Tournaments.createTournament(room, format, type, config.playerCap || undefined, false, modifier, undefined, mockContext);
+			const tour = Tournaments.createTournament(room, format, type, config.playerCap || undefined, false, modifier, undefined, mockContext as unknown as Chat.CommandContext);
 			if (tour) {
-				if (config.autostart > 0) tour.setAutoStartTimeout(config.autostart * 60 * 1000, mockContext);
-				if (config.autodq > 0) tour.setAutoDisqualifyTimeout(config.autodq * 60 * 1000, mockContext);
+				if (config.autostart > 0) tour.setAutoStartTimeout(config.autostart * 60 * 1000, mockContext as unknown as Chat.CommandContext);
+				if (config.autodq > 0) tour.setAutoDisqualifyTimeout(config.autodq * 60 * 1000, mockContext as unknown as Chat.CommandContext);
 				config.lastTourTime = Date.now();
 				void this.saveConfig(roomid);
 			}

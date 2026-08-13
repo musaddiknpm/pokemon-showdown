@@ -71,7 +71,7 @@ export class BaccaratGame extends RoomGame<BaccaratPlayer> {
 		activeCasinoGames.set(room.roomid, 'baccarat');
 	}
 
-	makePlayer(user: User | string | null, ...rest: any[]): BaccaratPlayer {
+	makePlayer(user: User | string | null, ...rest: unknown[]): BaccaratPlayer {
 		const choice = rest[0] as Choice;
 		const num = this.players.length ? this.players[this.players.length - 1].num : 1;
 		return new BaccaratPlayer(user, this, num, choice);
@@ -171,7 +171,7 @@ export class BaccaratGame extends RoomGame<BaccaratPlayer> {
 				`|uhtmlchange|${this.uid}|` +
 				`<div class="casino-board">` +
 				`<div class="casino-header">Baccarat Game Cancelled</div><hr>` +
-				`${message}<br>All players have been refunded.` +
+				`${Utils.escapeHTML(message)}<br>All players have been refunded.` +
 				`</div>`
 			).update();
 		}

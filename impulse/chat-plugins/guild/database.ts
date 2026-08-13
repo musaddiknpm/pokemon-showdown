@@ -1,5 +1,5 @@
 import { PG } from '../../pg';
-import type { Guild, GuildMember, InvitedMember, SeasonInfo } from './types';
+import type { Guild, GuildMember, InvitedMember, SeasonInfo, Visibility, JoinPolicy } from './types';
 
 interface GuildRow {
 	id: string;
@@ -15,6 +15,11 @@ interface GuildRow {
 	member_limit: number;
 	created_at: number | string;
 	updated_at: number | string;
+}
+
+export interface TopGuildRow extends GuildRow {
+	memberCount: string | number;
+	ownerName: string;
 }
 
 interface GuildMemberRow {
@@ -175,8 +180,8 @@ async function reconstructGuild(guildRow: GuildRow): Promise<Guild> {
 		description: guildRow.description || '',
 		icon: guildRow.icon,
 		background: guildRow.background,
-		visibility: guildRow.visibility as any,
-		joinPolicy: guildRow.join_policy as any,
+		visibility: guildRow.visibility as Visibility,
+		joinPolicy: guildRow.join_policy as JoinPolicy,
 		points: guildRow.points,
 		memberLimit: guildRow.member_limit,
 		memberCount: members.length,
@@ -218,7 +223,7 @@ export const GuildRepository = {
 			ORDER BY g.points DESC 
 			LIMIT $1
 		`, [limit]);
-		return res.rows as GuildRow[];
+		return res.rows as TopGuildRow[];
 	},
 
 	async getTopMembers(limit: number) {
@@ -274,7 +279,7 @@ export const GuildRepository = {
 	async updateGuildSettings(guildId: string, settings: Partial<Guild>): Promise<void> {
 		await initGuildDB();
 
-		const mapping: Record<string, string> = {
+		const mapping: Partial<Record<keyof Guild, keyof GuildRow>> = {
 			ownerId: 'owner_id', name: 'name', chatroom: 'chatroom', description: 'description',
 			icon: 'icon', background: 'background', visibility: 'visibility', joinPolicy: 'join_policy',
 			points: 'points', memberLimit: 'member_limit', updatedAt: 'updated_at',
@@ -284,12 +289,12 @@ export const GuildRepository = {
 		let hasUpdates = false;
 
 		for (const [key, val] of Object.entries(settings)) {
-			if (mapping[key]) {
+			if (mapping[key as keyof Guild]) {
 				let dbVal = val;
 				if (typeof val === 'boolean') dbVal = val ? 1 : 0;
 				if (val instanceof Date) dbVal = val.getTime();
 
-				(updateData as any)[mapping[key]] = dbVal;
+				updateData[mapping[key as keyof Guild] as keyof GuildRow] = dbVal as never;
 				hasUpdates = true;
 			}
 		}
@@ -366,7 +371,7 @@ export const GuildRepository = {
 		if (res.rows.length) {
 			const guild = guildCache.get(guildId);
 			if (guild) {
-				const member = guild.members.find((m: any) => m.id === userId);
+				const member = guild.members.find((m: GuildMember) => m.id === userId);
 				if (member) {
 					member.points = res.rows[0].points;
 					member.totalPoints = res.rows[0].total_points;

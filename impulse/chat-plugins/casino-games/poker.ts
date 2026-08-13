@@ -1,6 +1,7 @@
 import { getBalance, updateBalance, CURRENCY_NAME } from '../economy/economy';
 import { nameColor } from '../customization/custom-color';
 import { activeCasinoGames, CASINO_ROOM, Suit, type Rank, type Card, SUITS, renderHand } from './shared';
+import { Utils } from '../../../lib';
 import { RoomGame, RoomGamePlayer } from '../../../server/room-game';
 
 const LOBBY_TIMEOUT = 120 * 1000;
@@ -180,7 +181,7 @@ export class PokerGame extends RoomGame<PokerPlayer> {
 		activeCasinoGames.set(room.roomid, 'poker');
 	}
 
-	makePlayer(user: User | string | null, ...rest: any[]): PokerPlayer {
+	makePlayer(user: User | string | null, ...rest: unknown[]): PokerPlayer {
 		const num = this.players.length ? this.players[this.players.length - 1].num : 1;
 		const isAI = !!rest[0];
 		return new PokerPlayer(user, this, num, isAI);
@@ -391,7 +392,7 @@ export class PokerGame extends RoomGame<PokerPlayer> {
 				`|uhtmlchange|${this.uid}|` +
 				`<div class="casino-board">` +
 				`<div class="casino-header">Poker Tournament Cancelled</div><hr>` +
-				`${message}<br>All players have been refunded their entry fee.` +
+				`${Utils.escapeHTML(message)}<br>All players have been refunded their entry fee.` +
 				`</div>`
 			).update();
 		}
@@ -903,7 +904,7 @@ export class PokerGame extends RoomGame<PokerPlayer> {
 			const pot = pots[i];
 			if (pot.eligible.length === 0) continue;
 
-			let bestHand: any = null;
+			let bestHand: ReturnType<typeof evaluateBest7> | null = null;
 			let winners: PokerPlayer[] = [];
 
 			for (const p of pot.eligible) {

@@ -23,7 +23,7 @@ async function getCached(cacheId: string) {
 	return null;
 }
 
-async function saveCache(cacheId: string, data: any) {
+async function saveCache<T>(cacheId: string, data: T) {
 	await initMiscDB();
 	await getCacheTable().upsert({
 		id: cacheId,
@@ -31,11 +31,29 @@ async function saveCache(cacheId: string, data: any) {
 		timestamp: Date.now(),
 	}, ['id']);
 }
+interface AniListMedia {
+	title: { romaji?: string; english?: string };
+	externalLinks?: { url: string; site: string; type: string }[];
+	coverImage?: { large: string };
+	bannerImage?: string;
+	description?: string;
+	averageScore?: number;
+	status?: string;
+	genres?: string[];
+	isAdult?: boolean;
+	format?: string;
+	episodes?: number;
+	chapters?: number;
+	season?: string;
+	seasonYear?: number;
+	studios?: { nodes: { name: string }[] };
+}
+
 async function fetchAniList(query: string, type: 'ANIME' | 'MANGA') {
 	const cacheId = `${type.toLowerCase()}:${query.toLowerCase()}`;
 
 	const cached = await getCached(cacheId);
-	if (cached) return cached;
+	if (cached) return cached as AniListMedia;
 
 	const graphqlQuery = `
 	query ($search: String, $type: MediaType) {
@@ -96,7 +114,7 @@ async function fetchAniList(query: string, type: 'ANIME' | 'MANGA') {
 			return null;
 		}
 
-		const data = json.data?.Page?.media?.[0];
+		const data: AniListMedia = json.data?.Page?.media?.[0];
 		if (!data) return null;
 
 		if (data) await saveCache(cacheId, data);
@@ -107,14 +125,14 @@ async function fetchAniList(query: string, type: 'ANIME' | 'MANGA') {
 	}
 }
 
-function generateDisplay(data: any, type: string) {
+function generateDisplay(data: AniListMedia, type: string) {
 	const title = data.title.english || data.title.romaji || 'Unknown Title';
 
 	const bgUrl = data.bannerImage || data.coverImage?.large || 'https://wallpapercave.com/wp/wp8695829.png';
-	const bgStyle = `background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url('${escapeHTML(bgUrl)}') center/cover no-repeat; padding: 8px; border-radius: 4px; color: white; text-shadow: 1px 1px 2px black, -1px -1px 2px black, 1px -1px 2px black, -1px 1px 2px black;`;
+	const bgStyle = `background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url('${Utils.escapeHTML(bgUrl)}') center/cover no-repeat; padding: 8px; border-radius: 4px; color: white; text-shadow: 1px 1px 2px black, -1px -1px 2px black, 1px -1px 2px black, -1px 1px 2px black;`;
 
 	const iconCell = data.coverImage?.large ?
-		`<td width="100" valign="top"><img src="${escapeHTML(data.coverImage.large)}" width="90" height="130" style="border-radius: 4px;" /></td><td width="8"></td>` :
+		`<td width="100" valign="top"><img src="${Utils.escapeHTML(data.coverImage.large)}" width="90" height="130" style="border-radius: 4px;" /></td><td width="8"></td>` :
 		'';
 
 	const scoreStr = data.averageScore ? `${data.averageScore}/100` : 'N/A';
@@ -136,12 +154,12 @@ function generateDisplay(data: any, type: string) {
 	let linksHtml = '';
 
 	const streamingLinks = (data.externalLinks || [])
-		.filter((link: any) => link.type === 'STREAMING')
+		.filter(link => link.type === 'STREAMING')
 		.slice(0, 3);
 
 	if (streamingLinks.length) {
 		const label = type === 'anime' ? 'Watch' : 'Read';
-		const streamHtml = streamingLinks.map((link: any) => `<a href="${escapeHTML(link.url)}" style="color: #6ee7b7;" target="_blank">${escapeHTML(link.site)}</a>`).join(', ');
+		const streamHtml = streamingLinks.map(link => `<a href="${Utils.escapeHTML(link.url)}" style="color: #6ee7b7;" target="_blank">${Utils.escapeHTML(link.site)}</a>`).join(', ');
 		linksHtml += `<b>${label}:</b> ${streamHtml}<br />`;
 	}
 
@@ -151,13 +169,13 @@ function generateDisplay(data: any, type: string) {
 	// Strip all other HTML tags (like <i>, <b>, etc. that might be malformed)
 	desc = Utils.stripHTML(desc);
 	// Escape HTML to prevent any remaining `<` or `>` from breaking the layout
-	desc = escapeHTML(desc);
+	desc = Utils.escapeHTML(desc);
 	// Convert newlines back to <br /> for display
 	desc = desc.replace(/\n/g, '<br />');
 
 	return `<div style="${bgStyle}">` +
-		`<center><b><big><big>${escapeHTML(title)}</big></big></b><br />` +
-		`<span style="font-size: 10pt; color: white;">${escapeHTML(genresStr)}</span></center>` +
+		`<center><b><big><big>${Utils.escapeHTML(title)}</big></big></b><br />` +
+		`<span style="font-size: 10pt; color: white;">${Utils.escapeHTML(genresStr)}</span></center>` +
 		`<hr style="border-color: rgba(255, 255, 255, 0.4);" />` +
 		`<table cellpadding="2" cellspacing="0" border="0" width="100%"><tr>` +
 		iconCell +
@@ -172,11 +190,28 @@ function generateDisplay(data: any, type: string) {
 		`</div>`;
 }
 
+interface RawgGame {
+	name: string;
+	background_image?: string;
+	background_image_additional?: string;
+	metacritic?: number;
+	rating?: number;
+	released?: string;
+	genres?: { name: string }[];
+	platforms?: { platform: { name: string } }[];
+	developers?: { name: string }[];
+	publishers?: { name: string }[];
+	website?: string;
+	stores?: { url: string; store: { name: string } }[];
+	description_raw?: string;
+	esrb_rating?: { slug: string };
+}
+
 async function fetchGame(query: string) {
 	const cacheId = `game:${query.toLowerCase()}`;
 
 	const cached = await getCached(cacheId);
-	if (cached) return cached;
+	if (cached) return cached as RawgGame;
 
 	if (!Config.rawgApiKey) {
 		return null;
@@ -193,7 +228,7 @@ async function fetchGame(query: string) {
 		const gameId = searchData.results[0].id;
 
 		const detailsResponse = await Net(`https://api.rawg.io/api/games/${gameId}?key=${Config.rawgApiKey}`).get();
-		const gameData = JSON.parse(detailsResponse);
+		const gameData: RawgGame = JSON.parse(detailsResponse);
 
 		if (gameData) await saveCache(cacheId, gameData);
 
@@ -203,23 +238,23 @@ async function fetchGame(query: string) {
 	}
 }
 
-function generateGameDisplay(data: any) {
+function generateGameDisplay(data: RawgGame) {
 	const title = data.name || 'Unknown Title';
 
 	const bgUrl = data.background_image || data.background_image_additional || 'https://wallpapercave.com/wp/wp8695829.png';
-	const bgStyle = `background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url('${escapeHTML(bgUrl)}') center/cover no-repeat; padding: 8px; border-radius: 4px; color: white; text-shadow: 1px 1px 2px black, -1px -1px 2px black, 1px -1px 2px black, -1px 1px 2px black;`;
+	const bgStyle = `background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url('${Utils.escapeHTML(bgUrl)}') center/cover no-repeat; padding: 8px; border-radius: 4px; color: white; text-shadow: 1px 1px 2px black, -1px -1px 2px black, 1px -1px 2px black, -1px 1px 2px black;`;
 
 	const iconCell = data.background_image ?
-		`<td width="100" valign="top"><img src="${escapeHTML(data.background_image)}" width="90" height="130" style="border-radius: 4px; object-fit: cover;" /></td><td width="8"></td>` :
+		`<td width="100" valign="top"><img src="${Utils.escapeHTML(data.background_image)}" width="90" height="130" style="border-radius: 4px; object-fit: cover;" /></td><td width="8"></td>` :
 		'';
 
 	const scoreStr = data.metacritic ? `${data.metacritic}/100` : (data.rating ? `${data.rating}/5` : 'N/A');
 	const releaseStr = data.released || 'N/A';
-	const genresStr = data.genres?.length ? data.genres.map((g: any) => g.name).join(', ') : 'N/A';
-	const platformsStr = data.platforms?.length ? data.platforms.map((p: any) => p.platform.name).join(', ') : 'N/A';
+	const genresStr = data.genres?.length ? data.genres.map(g => g.name).join(', ') : 'N/A';
+	const platformsStr = data.platforms?.length ? data.platforms.map(p => p.platform.name).join(', ') : 'N/A';
 
-	const developers = data.developers?.length ? data.developers.map((d: any) => d.name).join(', ') : '';
-	const publishers = data.publishers?.length ? data.publishers.map((p: any) => p.name).join(', ') : '';
+	const developers = data.developers?.length ? data.developers.map(d => d.name).join(', ') : '';
+	const publishers = data.publishers?.length ? data.publishers.map(p => p.name).join(', ') : '';
 	const devPubStr = developers ? (publishers && developers !== publishers ? `${developers} / ${publishers}` : developers) : publishers;
 
 	let additionalInfo = `<b>Release:</b> ${releaseStr}<br />`;
@@ -228,25 +263,25 @@ function generateGameDisplay(data: any) {
 
 	let linksHtml = '';
 	if (data.website) {
-		linksHtml += `<b>Website:</b> <a href="${escapeHTML(data.website)}" style="color: #6ee7b7;" target="_blank">Link</a><br />`;
+		linksHtml += `<b>Website:</b> <a href="${Utils.escapeHTML(data.website)}" style="color: #6ee7b7;" target="_blank">Link</a><br />`;
 	}
 
 	const storeLinks = (data.stores || [])
-		.filter((s: any) => s.url && s.store?.name)
+		.filter(s => s.url && s.store?.name)
 		.slice(0, 3);
 
 	if (storeLinks.length) {
-		const storeHtml = storeLinks.map((s: any) => `<a href="${escapeHTML(s.url)}" style="color: #6ee7b7;" target="_blank">${escapeHTML(s.store.name)}</a>`).join(', ');
+		const storeHtml = storeLinks.map(s => `<a href="${Utils.escapeHTML(s.url)}" style="color: #6ee7b7;" target="_blank">${Utils.escapeHTML(s.store.name)}</a>`).join(', ');
 		linksHtml += `<b>Buy/Play:</b> ${storeHtml}<br />`;
 	}
 
 	let desc = data.description_raw || 'No description available.';
-	desc = escapeHTML(desc);
+	desc = Utils.escapeHTML(desc);
 	desc = desc.replace(/\n/g, '<br />');
 
 	return `<div style="${bgStyle}">` +
-		`<center><b><big><big>${escapeHTML(title)}</big></big></b><br />` +
-		`<span style="font-size: 10pt; color: white;">${escapeHTML(genresStr)}</span></center>` +
+		`<center><b><big><big>${Utils.escapeHTML(title)}</big></big></b><br />` +
+		`<span style="font-size: 10pt; color: white;">${Utils.escapeHTML(genresStr)}</span></center>` +
 		`<hr style="border-color: rgba(255, 255, 255, 0.4);" />` +
 		`<table cellpadding="2" cellspacing="0" border="0" width="100%"><tr>` +
 		iconCell +
@@ -260,11 +295,23 @@ function generateGameDisplay(data: any) {
 		`</div>`;
 }
 
+interface iTunesSong {
+	trackName?: string;
+	artistName?: string;
+	collectionName?: string;
+	artworkUrl100?: string;
+	releaseDate?: string;
+	primaryGenreName?: string;
+	trackViewUrl?: string;
+	previewUrl?: string;
+	trackExplicitness?: string;
+}
+
 async function fetchSong(query: string) {
 	const cacheId = `song:${query.toLowerCase()}`;
 
 	const cached = await getCached(cacheId);
-	if (cached) return cached;
+	if (cached) return cached as iTunesSong;
 
 	try {
 		const response = await Net(`https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=song&limit=1`).get();
@@ -274,7 +321,7 @@ async function fetchSong(query: string) {
 			return null;
 		}
 
-		const songData = data.results[0];
+		const songData: iTunesSong = data.results[0];
 
 		if (songData) await saveCache(cacheId, songData);
 
@@ -284,40 +331,40 @@ async function fetchSong(query: string) {
 	}
 }
 
-function generateSongDisplay(data: any) {
+function generateSongDisplay(data: iTunesSong) {
 	const title = data.trackName || 'Unknown Title';
 	const artist = data.artistName || 'Unknown Artist';
 	const album = data.collectionName || 'Unknown Album';
 
 	const bgUrl = data.artworkUrl100 ? data.artworkUrl100.replace('100x100bb', '600x600bb').replace('100x100', '600x600') : 'https://wallpapercave.com/wp/wp8695829.png';
-	const bgStyle = `background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url('${escapeHTML(bgUrl)}') center/cover no-repeat; padding: 8px; border-radius: 4px; color: white; text-shadow: 1px 1px 2px black, -1px -1px 2px black, 1px -1px 2px black, -1px 1px 2px black;`;
+	const bgStyle = `background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url('${Utils.escapeHTML(bgUrl)}') center/cover no-repeat; padding: 8px; border-radius: 4px; color: white; text-shadow: 1px 1px 2px black, -1px -1px 2px black, 1px -1px 2px black, -1px 1px 2px black;`;
 
 	const iconCell = data.artworkUrl100 ?
-		`<td width="100" valign="top"><img src="${escapeHTML(data.artworkUrl100.replace('100x100bb', '130x130bb').replace('100x100', '130x130'))}" width="130" height="130" style="border-radius: 4px; object-fit: cover;" /></td><td width="8"></td>` :
+		`<td width="100" valign="top"><img src="${Utils.escapeHTML(data.artworkUrl100.replace('100x100bb', '130x130bb').replace('100x100', '130x130'))}" width="130" height="130" style="border-radius: 4px; object-fit: cover;" /></td><td width="8"></td>` :
 		'';
 
 	const releaseStr = data.releaseDate ? new Date(data.releaseDate).getFullYear() : 'N/A';
 	const genreStr = data.primaryGenreName || 'N/A';
 
-	let additionalInfo = `<b>Artist:</b> ${escapeHTML(artist)}<br />`;
-	additionalInfo += `<b>Album:</b> ${escapeHTML(album)}<br />`;
+	let additionalInfo = `<b>Artist:</b> ${Utils.escapeHTML(artist)}<br />`;
+	additionalInfo += `<b>Album:</b> ${Utils.escapeHTML(album)}<br />`;
 	additionalInfo += `<b>Release:</b> ${releaseStr}<br />`;
 
 	let linksHtml = '';
 	if (data.trackViewUrl) {
-		linksHtml += `<b>Listen:</b> <a href="${escapeHTML(data.trackViewUrl)}" style="color: #6ee7b7;" target="_blank">Apple Music</a><br />`;
+		linksHtml += `<b>Listen:</b> <a href="${Utils.escapeHTML(data.trackViewUrl)}" style="color: #6ee7b7;" target="_blank">Apple Music</a><br />`;
 	}
 
 	let audioPlayer = '';
 	if (data.previewUrl) {
-		audioPlayer = `<audio src="${escapeHTML(data.previewUrl)}" controls style="width: 100%; margin-top: 10px;"></audio>`;
+		audioPlayer = `<audio src="${Utils.escapeHTML(data.previewUrl)}" controls style="width: 100%; margin-top: 10px;"></audio>`;
 	} else {
 		audioPlayer = `<div style="margin-top: 10px;"><i>No audio preview available.</i></div>`;
 	}
 
 	return `<div style="${bgStyle}">` +
-		`<center><b><big><big>${escapeHTML(title)}</big></big></b><br />` +
-		`<span style="font-size: 10pt; color: white;">${escapeHTML(genreStr)}</span></center>` +
+		`<center><b><big><big>${Utils.escapeHTML(title)}</big></big></b><br />` +
+		`<span style="font-size: 10pt; color: white;">${Utils.escapeHTML(genreStr)}</span></center>` +
 		`<hr style="border-color: rgba(255, 255, 255, 0.4);" />` +
 		`<table cellpadding="2" cellspacing="0" border="0" width="100%"><tr>` +
 		iconCell +
@@ -339,7 +386,7 @@ export const commands: Chat.ChatCommands = {
 		const data = await fetchAniList(targetQuery, 'ANIME');
 		if (!data) {
 			return this.sendReplyBox(
-				`Anime "<strong>${escapeHTML(targetQuery)}</strong>" not found on AniList.<br />` +
+				`Anime "<strong>${Utils.escapeHTML(targetQuery)}</strong>" not found on AniList.<br />` +
 				`<span style="font-size: 10px; color: #888;">Note: AniList's search can be strict. If you are searching for a specific season (like "Season 3"), try searching by its official subtitle or arc name (e.g. "Swordsmith Village Arc") or its Japanese Romaji title.</span>`
 			);
 		}
@@ -361,7 +408,7 @@ export const commands: Chat.ChatCommands = {
 		const data = await fetchAniList(targetQuery, 'MANGA');
 		if (!data) {
 			return this.sendReplyBox(
-				`Manga "<strong>${escapeHTML(targetQuery)}</strong>" not found on AniList.<br />` +
+				`Manga "<strong>${Utils.escapeHTML(targetQuery)}</strong>" not found on AniList.<br />` +
 				`<span style="font-size: 10px; color: #888;">Note: AniList's search can be strict. Try searching by its official English subtitle or Japanese Romaji title.</span>`
 			);
 		}

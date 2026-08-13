@@ -1,5 +1,5 @@
 import { PG } from '../../pg';
-import { escapeHTML } from '../../../lib/utils';
+import { Utils } from '../../../lib';
 import { Net } from '../../../lib/net';
 import { initMiscDB } from './database';
 
@@ -22,7 +22,7 @@ async function getCached(cacheId: string) {
 	return null;
 }
 
-async function saveCache(cacheId: string, data: any) {
+async function saveCache<T>(cacheId: string, data: T) {
 	await initMiscDB();
 	await getCacheTable().upsert({
 		id: cacheId,
@@ -31,11 +31,16 @@ async function saveCache(cacheId: string, data: any) {
 	}, ['id']);
 }
 
+interface UrbanDictionaryResult {
+	word?: string;
+	definition?: string;
+}
+
 async function fetchUrbanDictionary(query: string) {
 	const cacheId = `ud:${query.toLowerCase()}`;
 
 	const cached = await getCached(cacheId);
-	if (cached) return cached;
+	if (cached) return cached as UrbanDictionaryResult;
 
 	try {
 		const response = await Net(`https://api.urbandictionary.com/v0/define?term=${encodeURIComponent(query)}`).get();
@@ -45,7 +50,7 @@ async function fetchUrbanDictionary(query: string) {
 			return null;
 		}
 
-		const data = json.list[0];
+		const data: UrbanDictionaryResult = json.list[0];
 
 		if (data) await saveCache(cacheId, data);
 
@@ -64,7 +69,7 @@ export const commands: Chat.ChatCommands = {
 
 		const data = await fetchUrbanDictionary(targetQuery);
 		if (!data) {
-			return this.sendReplyBox(`No definition found for "<strong>${escapeHTML(targetQuery)}</strong>" on Urban Dictionary.`);
+			return this.sendReplyBox(`No definition found for "<strong>${Utils.escapeHTML(targetQuery)}</strong>" on Urban Dictionary.`);
 		}
 
 		const word = data.word || targetQuery;
@@ -72,9 +77,9 @@ export const commands: Chat.ChatCommands = {
 
 		definition = definition.replace(/\[|\]/g, '');
 
-		definition = escapeHTML(definition).replace(/\r\n/g, '<br />').replace(/\n/g, '<br />');
+		definition = Utils.escapeHTML(definition).replace(/\r\n/g, '<br />').replace(/\n/g, '<br />');
 
-		this.sendReplyBox(`<div style="max-height: 250px; overflow: auto;"><b>${escapeHTML(word)}:</b><br />${definition}</div>`);
+		this.sendReplyBox(`<div style="max-height: 250px; overflow: auto;"><b>${Utils.escapeHTML(word)}:</b><br />${definition}</div>`);
 	},
 	udhelp: [`/ud [word] - Search for the definition of a word on Urban Dictionary.`],
 };

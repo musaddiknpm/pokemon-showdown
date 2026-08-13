@@ -1,8 +1,10 @@
 import { escapeHTML } from '../../../lib/utils';
+import type { Visibility, JoinPolicy } from './types';
 import { GuildRepository, getGuildCooldown, setGuildCooldown, setGuildCooldowns, getSeasonInfo, saveSeasonInfo, getGlobalMemberLimit, setGlobalMemberLimit } from './database';
 import { getLastSeen } from '../misc/seen';
 import type { Guild, GuildMember } from './types';
 import { Table } from '../../impulse-utils';
+
 export async function endGuildSeason() {
 	const topGuilds = await GuildRepository.getTopGuilds(3);
 	const topMembers = await GuildRepository.getTopMembers(3);
@@ -64,7 +66,7 @@ const ROLE_HIERARCHY: Record<string, number> = {
 
 const VALID_ROLES = Object.keys(ROLE_HIERARCHY);
 
-function checkGuildAuth(guild: import('./types').Guild, user: import('../../../server/user-groups').User, allowedRoles: string[] | null, actionDesc: string) {
+function checkGuildAuth(guild: import('./types').Guild, user: User, allowedRoles: string[] | null, actionDesc: string) {
 	const userMember = guild.members.find(m => m.id === user.id);
 	if (!userMember && !user.can('bypassall')) {
 		return { error: `You are not a member of '${guild.name}'.` };
@@ -90,9 +92,9 @@ function updateRoomAuth(guild: Guild, userId: string, role: string | null) {
 	if (!room) return;
 
 	if (role && ROLE_TO_RANK[role]) {
-		room.auth.set(userId, ROLE_TO_RANK[role] as import('../../../server/user-groups').GroupSymbol);
+		room.auth.set(userId as ID, ROLE_TO_RANK[role] as GroupSymbol);
 	} else {
-		room.auth.delete(userId);
+		room.auth.delete(userId as ID);
 	}
 	if (room.saveSettings) room.saveSettings();
 }
@@ -157,9 +159,10 @@ export const commands: Chat.ChatCommands = {
 			if (!guildRoom) throw new Chat.ErrorMessage("Failed to retrieve the created chatroom.");
 
 			const defaultDesc = `Welcome to the ${name} Guild Chat Room.`;
-			guildRoom.desc = defaultDesc;
-			guildRoom.isPrivate = false;
-			guildRoom.auth.set(ownerId, '#');
+			if (!guildRoom.settings) guildRoom.settings = {} as any;
+			guildRoom.settings.desc = defaultDesc;
+			guildRoom.settings.isPrivate = false;
+			guildRoom.auth.set(ownerId as ID, '#');
 			if (guildRoom.saveSettings) guildRoom.saveSettings();
 
 			const limit = await getGlobalMemberLimit();
@@ -455,7 +458,7 @@ export const commands: Chat.ChatCommands = {
 				}
 			}
 
-			await GuildRepository.updateGuildSettings(guild.id, { visibility: visibilityStr as any });
+			await GuildRepository.updateGuildSettings(guild.id, { visibility: visibilityStr as Visibility });
 			this.sendReply(`You updated the visibility of '${guild.name}' to '${visibilityStr}'.`);
 		},
 
@@ -478,7 +481,7 @@ export const commands: Chat.ChatCommands = {
 			if (auth.error) throw new Chat.ErrorMessage(auth.error);
 			const userMember = auth.userMember;
 
-			await GuildRepository.updateGuildSettings(guild.id, { icon: url, hasSetIcon: true });
+			await GuildRepository.updateGuildSettings(guild.id, { icon: url });
 			this.sendReply(`You have successfully updated the icon for '${guild.name}'.`);
 		},
 
@@ -501,7 +504,7 @@ export const commands: Chat.ChatCommands = {
 			if (auth.error) throw new Chat.ErrorMessage(auth.error);
 			const userMember = auth.userMember;
 
-			await GuildRepository.updateGuildSettings(guild.id, { background: url, hasSetBackground: true });
+			await GuildRepository.updateGuildSettings(guild.id, { background: url });
 			this.sendReply(`You have successfully updated the background for '${guild.name}'.`);
 		},
 
@@ -521,7 +524,7 @@ export const commands: Chat.ChatCommands = {
 				throw new Chat.ErrorMessage(`Guild join policy is already '${policy}'.`);
 			}
 
-			await GuildRepository.updateGuildSettings(guild.id, { joinPolicy: policy as any });
+			await GuildRepository.updateGuildSettings(guild.id, { joinPolicy: policy as JoinPolicy });
 			this.sendReply(`You updated the join policy of '${guild.name}' to '${policy}'.`);
 		},
 
@@ -837,7 +840,7 @@ export const commands: Chat.ChatCommands = {
 
 		async members(target, room, user) {
 			if (!this.runBroadcast()) return;
-			let guild: Guild | undefined;
+			let guild: Guild | null = null;
 			const targetId = toID(target);
 			if (targetId) {
 				guild = await GuildRepository.getGuildById(targetId);
@@ -870,7 +873,7 @@ export const commands: Chat.ChatCommands = {
 
 		async info(target, room, user) {
 			if (!this.runBroadcast()) return;
-			let guild: Guild | undefined;
+			let guild: Guild | null = null;
 			const targetId = toID(target);
 			if (targetId) {
 				guild = await GuildRepository.getGuildById(targetId);
@@ -890,7 +893,7 @@ export const commands: Chat.ChatCommands = {
 			const createdStr = new Date(guild.createdAt).toISOString().split('T')[0];
 
 			const bgUrl = guild.background || 'https://wallpapercave.com/wp/wp8695829.png';
-			let html = `<div style="background: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('${bgUrl}') center/cover no-repeat; padding: 8px; border-radius: 4px; color: white; text-shadow: 1px 1px 2px black, -1px -1px 2px black, 1px -1px 2px black, -1px 1px 2px black;">`;
+			let html = `<div style="background: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('${bgUrl}') center/cover no-repeat; padding: 8px; border-radius: 1px; color: white; text-shadow: 1px 1px 2px black, -1px -1px 2px black, 1px -1px 2px black, -1px 1px 2px black;">`;
 			html += `<center><b><big><big>${escapeHTML(guild.name)}</big></big></b><br />`;
 			html += `<span style="font-size: 10pt; color: white;">${escapeHTML(guild.description || 'No description set.')}</span></center>`;
 			html += `<hr style="border-color: rgba(255, 255, 255, 0.4);" />`;
@@ -945,47 +948,33 @@ export const commands: Chat.ChatCommands = {
 
 			const sortedMembers = [...guild.members].sort((a, b) => getLastSeen(b.id) - getLastSeen(a.id));
 
-			this.sendReplyBox(
-				<div class="pad" style={{ maxHeight: '350px', overflowY: 'auto' }}>
-					<div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '14pt' }}>
-						{guild.name} - Activity Log
-					</div>
-					<hr />
-					<table style={{ width: '100%', textAlign: 'center', borderCollapse: 'collapse' }}>
-						<tr>
-							<th style={{ padding: '4px' }}>Username</th>
-							<th style={{ padding: '4px' }}>Role</th>
-							<th style={{ padding: '4px' }}>Last Active</th>
-						</tr>
-						{sortedMembers.map(m => {
-							const ts = getLastSeen(m.id);
-							let dateStr = '';
-							let daysAgo = '';
+			const headerRow = ['Username', 'Role', 'Last Active'];
+			const dataRows = sortedMembers.map(m => {
+				const ts = getLastSeen(m.id);
+				let dateStr = '';
+				let daysAgo = '';
 
-							if (Users.get(m.id)?.connected) {
-								dateStr = 'Online';
-								daysAgo = 'now';
-							} else if (!ts) {
-								dateStr = 'Never';
-								daysAgo = '—';
-							} else {
-								const dateObj = new Date(ts);
-								dateStr = dateObj.toISOString().split('T')[0];
-								const days = Math.floor((Date.now() - ts) / (1000 * 60 * 60 * 24));
-								daysAgo = days === 0 ? 'Today' : days === 1 ? '1 day ago' : `${days} days ago`;
-							}
+				if (Users.get(m.id)?.connected) {
+					dateStr = 'Online';
+					daysAgo = 'now';
+				} else if (!ts) {
+					dateStr = 'Never';
+					daysAgo = '—';
+				} else {
+					const dateObj = new Date(ts);
+					dateStr = dateObj.toISOString().split('T')[0];
+					const days = Math.floor((Date.now() - ts) / (1000 * 60 * 60 * 24));
+					daysAgo = days === 0 ? 'Today' : days === 1 ? '1 day ago' : `${days} days ago`;
+				}
 
-							return (
-								<tr style={{ borderTop: '1px solid #ccc' }}>
-									<td style={{ padding: '4px' }}><b>{m.username}</b></td>
-									<td style={{ padding: '4px' }}>{m.role}</td>
-									<td style={{ padding: '4px' }}>{dateStr} <i>({daysAgo})</i></td>
-								</tr>
-							);
-						})}
-					</table>
-				</div>
-			);
+				return [
+					`<b>${m.username}</b>`,
+					m.role,
+					`${dateStr} <i>(${daysAgo})</i>`
+				];
+			});
+
+			this.sendReply(`|html|${Table(`${guild.name} - Activity Log`, headerRow, dataRows)}`);
 		},
 
 		async purge(target, room, user) {
@@ -1048,10 +1037,10 @@ export const commands: Chat.ChatCommands = {
 			const headerRow = ['Rank', 'Guild Name', 'Master', 'Members', 'Points'];
 			const dataRows = sortedGuilds.map((g, idx) => {
 				const rank = idx + 1;
-				const ownerId = (g as any).ownerId || (g as any).owner_id;
-				const ownerName = (g as any).ownerName || ownerId;
-				const memberCount = (g as any).memberCount || 0;
-				const memberLimit = (g as any).member_limit || 0;
+				const ownerId = g.owner_id;
+				const ownerName = g.ownerName || ownerId;
+				const memberCount = g.memberCount || 0;
+				const memberLimit = g.member_limit || 0;
 				return [
 					`<b>#${rank}</b>`,
 					`<b>${g.name}</b>`,

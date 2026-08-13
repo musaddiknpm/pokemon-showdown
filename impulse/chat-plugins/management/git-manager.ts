@@ -1,5 +1,5 @@
 import { FS } from '../../../lib/fs';
-import { escapeHTML } from '../../../lib/utils';
+import { Utils } from '../../../lib';
 import { exec } from 'child_process';
 
 const GITHUB_TOKEN = 'your_github_token_here';
@@ -34,7 +34,7 @@ const GitManager = {
 	},
 
 	render(title: string, output: string) {
-		return `<details><summary><strong>${title}</strong></summary><pre style="white-space: pre-wrap;">${escapeHTML(output)}</pre></details>`;
+		return `<details><summary><strong>${Utils.escapeHTML(title)}</strong></summary><pre style="white-space: pre-wrap;">${Utils.escapeHTML(output)}</pre></details>`;
 	},
 };
 

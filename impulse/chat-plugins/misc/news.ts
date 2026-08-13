@@ -1,5 +1,5 @@
 import { PG } from '../../pg';
-import { escapeHTML } from '../../../lib/utils';
+import { Utils } from '../../../lib';
 import { toID } from '../../../sim/dex';
 import { Customization } from '../customization/manager';
 import { initMiscDB } from './database';
@@ -94,9 +94,9 @@ const NewsManager = {
 
 		const content = sorted.map(entry =>
 			`<div style="margin-bottom: 8px; padding: 5px;">` +
-			`<strong>${escapeHTML(entry.title)}</strong><br><br>` +
-			`${entry.desc}<br><br>` +
-			`<small>— ${escapeHTML(entry.postedBy)} on ${entry.postTime}</small>` +
+			`<strong>${Utils.escapeHTML(entry.title)}</strong><br><br>` +
+			`${Utils.escapeHTML(entry.desc)}<br><br>` +
+			`<small>— ${Utils.escapeHTML(entry.postedBy)} on ${entry.postTime}</small>` +
 			`</div>`
 		).join('<hr>');
 

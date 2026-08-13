@@ -150,3 +150,9 @@ When building custom chat plugins for this server, always follow these architect
 - **Placement:** All custom chat plugins MUST be placed within the `impulse/chat-plugins/` directory (never directly in the upstream `server/chat-plugins/` folder).
 - **Subdirectories:** If a plugin becomes complex and requires multiple files, create a dedicated subdirectory for it inside `impulse/chat-plugins/` (e.g., `impulse/chat-plugins/my-complex-plugin/`).
 - **Database Storage:** Always use Postgres via `impulse/pg.ts` for storing persistent data. Avoid writing state to arbitrary JSON files on the disk, as Postgres provides better concurrency, scalability, and safety across hotpatches.
+
+## 15. Formatted Chat Output
+Prefer `this.sendReply` with `|html|` (e.g., `this.sendReply("|html|...")`) over `this.sendReplyBox` unless you specifically want the box border that `this.sendReplyBox` provides.
+
+## 16. Creating HTML Tables
+Prefer using the `Table` helper function from `impulse/impulse-utils.ts` (e.g., `import { Table } from '../../impulse-utils'`) instead of manually constructing HTML tables. Exceptions can be made when you need to build a specialized layout or a different kind of table that cannot be represented using the standard `Table` function.

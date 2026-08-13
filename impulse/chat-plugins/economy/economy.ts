@@ -85,7 +85,7 @@ export const commands: Chat.ChatCommands = {
 		const remaining = (lastDaily + CONFIG.DAILY_COOLDOWN) - now;
 
 		if (remaining > 0) {
-			const timeParts = Chat.toDurationString(remaining, { precision: true });
+			const timeParts = Chat.toDurationString(remaining, { precision: 1 });
 			throw new Chat.ErrorMessage(`You've already claimed your daily ${CONFIG.CURRENCY}. Please wait ${timeParts}.`);
 		}
 
@@ -165,7 +165,7 @@ export const commands: Chat.ChatCommands = {
 		]);
 
 		const html = Table("Richest Users", ["Rank", "User", CONFIG.CURRENCY], dataRows);
-		this.sendReply(`|raw|${html}`);
+		this.sendReply(`|html|${html}`);
 	},
 
 	ecohelp() {

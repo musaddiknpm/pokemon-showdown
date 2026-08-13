@@ -59,7 +59,7 @@ export async function getRoomData(roomid: string): Promise<ShopConfig> {
 	}
 
 	const enabled = configRow?.enabled === 1;
-	const bank = configRow?.bank ?? null;
+	const bank = configRow?.bank || null;
 
 	const itemRows = await PG.getTable<RoomShopItemRow>('room_shop_item', 'room_id').select({ room_id: roomid });
 	const items: Record<string, ShopItem> = {};
@@ -141,7 +141,7 @@ export const commands: Chat.ChatCommands = {
 			]);
 
 			const html = Table(`${room.title} Shop`, ["Item", "Description", "Cost"], dataRows);
-			this.sendReply(`|raw|${html}`);
+			this.sendReply(`|html|${html}`);
 		},
 
 		async buy(target, room, user) {
@@ -178,7 +178,7 @@ export const commands: Chat.ChatCommands = {
 			const data = await getRoomData(room.roomid);
 			await setRoomConfig(room.roomid, data.enabled, targetId);
 
-			this.sendReplyBox(`|raw|Room bank set to: ${nameColor(targetId, true)}`);
+			this.sendReplyBox(`Room bank set to: ${nameColor(targetId, true)}`);
 		},
 
 		async showbank(target, room, user) {

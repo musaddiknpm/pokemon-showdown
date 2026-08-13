@@ -79,7 +79,7 @@ export class BlackjackGame extends RoomGame<BlackjackPlayer> {
 		activeCasinoGames.set(room.roomid, 'blackjack');
 	}
 
-	makePlayer(user: User | string | null, ...rest: any[]): BlackjackPlayer {
+	makePlayer(user: User | string | null, ...rest: unknown[]): BlackjackPlayer {
 		const num = this.players.length ? this.players[this.players.length - 1].num : 1;
 		return new BlackjackPlayer(user, this, num);
 	}
@@ -222,7 +222,7 @@ export class BlackjackGame extends RoomGame<BlackjackPlayer> {
 				`|uhtmlchange|${this.uid}|` +
 				`<div class="casino-board">` +
 				`<div class="casino-header">Blackjack Game Cancelled</div><hr>` +
-				`${message}<br>All players have been refunded.` +
+				`${Utils.escapeHTML(message)}<br>All players have been refunded.` +
 				`</div>`
 			).update();
 		}

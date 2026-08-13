@@ -1,5 +1,5 @@
 import { FS } from '../../../lib/fs';
-import { escapeHTML } from '../../../lib/utils';
+import { Utils } from '../../../lib';
 
 const GITHUB_TOKEN = 'your_github_token_here';
 const WHITELISTED_USERS = ['princesky', 'musaddiktemkar', 'turborx'];
@@ -83,7 +83,7 @@ export const commands: Chat.ChatCommands = {
 					}
 				}
 
-				let html = `<strong>Listing for: ${escapeHTML(dirPath)}</strong><hr />`;
+				let html = `<strong>Listing for: ${Utils.escapeHTML(dirPath)}</strong><hr />`;
 
 				if (results.directories.length) {
 					html += `<b>Directories:</b><br />`;
@@ -119,8 +119,8 @@ export const commands: Chat.ChatCommands = {
 
 				const content = await file.read();
 				this.sendReplyBox(
-					`<details><summary>File: ${escapeHTML(filePath)}</summary>` +
-					`<pre style="max-height: 400px; overflow-y: auto;">${escapeHTML(content)}</pre></details>`
+					`<details><summary>File: ${Utils.escapeHTML(filePath)}</summary>` +
+					`<pre style="max-height: 400px; overflow-y: auto;">${Utils.escapeHTML(content)}</pre></details>`
 				);
 			} catch (err) {
 				throw new Chat.ErrorMessage(`Read failed: ${FileManager.getError(err)}`);
@@ -194,7 +194,7 @@ export const commands: Chat.ChatCommands = {
 
 				this.sendReplyBox(
 					`<strong>Gist Upload Success!</strong><br />` +
-					`File: ${escapeHTML(filePath)}<br />` +
+					`File: ${Utils.escapeHTML(filePath)}<br />` +
 					`URL: <a href="${result.html_url}" target="_blank">${result.html_url}</a>`
 				);
 			} catch (err) {
@@ -244,7 +244,7 @@ export const commands: Chat.ChatCommands = {
 
 				// Using system tar command since zip might not be installed
 				await new Promise((resolve, reject) => {
-					require('child_process').exec(`tar -czf "${archivePath}" "${backupDir}"`, { cwd: FS.ROOT_PATH }, (error: any) => {
+					require('child_process').exec(`tar -czf "${archivePath}" "${backupDir}"`, { cwd: FS.ROOT_PATH }, (error: Error | null) => {
 						if (error) reject(error);
 						else resolve(true);
 					});
@@ -257,7 +257,7 @@ export const commands: Chat.ChatCommands = {
 				await FS(archiveName).unlinkIfExists();
 
 				this.sendReplyBox(
-					`<strong>Backup of ${escapeHTML(backupDir)}</strong><hr />` +
+					`<strong>Backup of ${Utils.escapeHTML(backupDir)}</strong><hr />` +
 					`<b>Uploaded:</b> <a href="${url}" target="_blank">${url}</a>`
 				);
 			} catch (err) {

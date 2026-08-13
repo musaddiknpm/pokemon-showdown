@@ -83,7 +83,8 @@ export const commands: Chat.ChatCommands = {
 			if (!this.canTalk(formattedMessage)) return;
 
 			const colour = generateRandomColor();
-			const msg = `<center><strong><font color="${colour}">~~ ${formattedMessage || target} ` +
+			const safeMessage = Utils.escapeHTML(formattedMessage || target);
+			const msg = `<center><strong><font color="${colour}">~~ ${safeMessage} ` +
 				`~~</font></strong></center>`;
 			room.addRaw(msg);
 			user.disconnectAll();
