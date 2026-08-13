@@ -106,11 +106,11 @@ export const commands: Chat.ChatCommands = {
 			await setBalance(user.id, bal - item.cost);
 			await addLog(user.name, itemName);
 
-			this.sendReplyBox(`Purchased <b>${itemName}</b> for <b>${item.cost}</b> ${CURRENCY_NAME}.`);
+			this.sendReplyBox(`You have purchased <b>${itemName}</b> for <b>${item.cost}</b> ${CURRENCY_NAME} from the shop.`);
 
 			const staffRoom = Rooms.get('staff');
 			if (staffRoom) {
-				staffRoom.add(`|html|<div class="infobox">${nameColor(user.name, true)} bought <b>${itemName}</b>.</div>`).update();
+				staffRoom.add(`|html|<div class="infobox"><center>${nameColor(user.name, true)} has purchased <b>${itemName}</b> from the shop.</center></div>`).update();
 			}
 		},
 

@@ -166,7 +166,8 @@ export const commands: Chat.ChatCommands = {
 
 			await addLog(room.roomid, user.name, itemName);
 
-			this.sendReplyBox(`Purchased <b>${itemName}</b> for <b>${item.cost}</b> ${CURRENCY_NAME}.`);
+			this.sendReplyBox(`You have purchased <b>${itemName}</b> for <b>${item.cost}</b> ${CURRENCY_NAME} from the room shop.`);
+			this.add(`|html|<div class="infobox"><center>${nameColor(user.name, true)} has purchased <b>${itemName}</b> from the room shop.</center></div>`);
 		},
 
 		async bank(target, room, user) {
@@ -261,7 +262,8 @@ export const commands: Chat.ChatCommands = {
 				`<b>/roomshop showbank</b>: See who receives the coins.<hr>` +
 				`<b>/roomshop bank [user]</b>: Set room bank. (#)<hr>` +
 				`<b>/roomshop add [name], [desc], [cost]</b>: Add item. (#)<hr>` +
-				`<b>/roomshop logs</b>: View purchases. (#)`
+				`<b>/roomshop logs</b>: View purchases. (#)` +
+				`<b>/roomshop enable/disable</b>: Enable/Disable room shop for current room. (&)`
 			);
 		},
 	},
