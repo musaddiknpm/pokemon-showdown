@@ -1,4 +1,5 @@
 import { PG } from '../../pg';
+import { escapeHTML } from '../../../lib/utils';
 import { toID } from '../../../sim/dex';
 import { Table } from '../../impulse-utils';
 import { nameColor } from '../customization/custom-color';
@@ -19,6 +20,79 @@ interface EconomyRow {
 	user_id: string;
 	balance: number;
 	last_claim: number | string;
+}
+
+export interface EconomyLogEntry {
+	user: string;
+	target: string;
+	action: string;
+	amount: number;
+	timestamp: number;
+}
+
+interface EconomyLogRow {
+	id?: number;
+	user_id: string;
+	target_id: string;
+	action: string;
+	amount: number;
+	timestamp: number | string;
+}
+
+export const ACTION_LABELS: Record<string, string> = {
+	transfer: 'Transfer',
+	givemoney: 'Staff Give',
+	takemoney: 'Staff Take',
+};
+
+export async function addEconomyLog(user: string, target: string, action: string, amount: number): Promise<void> {
+	await initEconomyDB();
+	await PG.getTable<EconomyLogRow>('economy_log', 'id').insert({
+		user_id: user,
+		target_id: target,
+		action,
+		amount,
+		timestamp: Date.now(),
+	});
+}
+
+export async function getEconomyLogs(userid?: string): Promise<EconomyLogEntry[]> {
+	await initEconomyDB();
+	let rows: EconomyLogRow[];
+	if (userid) {
+		const result = await PG.query<EconomyLogRow>(`
+			SELECT user_id, target_id, action, amount, timestamp
+			FROM economy_log
+			WHERE user_id = $1 OR target_id = $1
+			ORDER BY timestamp DESC
+			LIMIT 100
+		`, [userid]);
+		rows = result.rows;
+	} else {
+		rows = await PG.getTable<EconomyLogRow>('economy_log', 'id').select(
+			{},
+			['user_id', 'target_id', 'action', 'amount', 'timestamp'],
+			{
+				limit: 100,
+				orderBy: 'timestamp',
+				order: 'DESC',
+			}
+		);
+	}
+
+	return rows.map(r => ({
+		user: r.user_id,
+		target: r.target_id,
+		action: r.action,
+		amount: Number(r.amount),
+		timestamp: Number(r.timestamp),
+	}));
+}
+
+export async function cleanEconomyLogs(): Promise<void> {
+	await initEconomyDB();
+	const cutoff = Date.now() - (14 * 24 * 60 * 60 * 1000);
+	await PG.getTable<EconomyLogRow>('economy_log', 'id').delete({ timestamp: { lt: cutoff } });
 }
 
 export const getBalance = async (userid: string): Promise<number> => {
@@ -100,10 +174,10 @@ export const commands: Chat.ChatCommands = {
 
 		const currencyCapitalized = CONFIG.CURRENCY.charAt(0).toUpperCase() + CONFIG.CURRENCY.slice(1);
 		const html = Table("Richest Users", ["Rank", "User", currencyCapitalized], dataRows);
-		
+
 		this.sendReply(`|html|${html}`);
 	},
-	
+
 	economy: {
 		async claimdaily(target, room, user) {
 			const now = Date.now();
@@ -136,6 +210,7 @@ export const commands: Chat.ChatCommands = {
 
 			await updateBalance(user.id, -amount);
 			await updateBalance(targetId, amount);
+			await addEconomyLog(user.id, targetId, 'transfer', amount);
 
 			this.sendReplyBox(`You have successfully sent <b>${amount}</b> ${CONFIG.CURRENCY} to ${targetName}.`);
 			notify(targetId, `${nameColor(user.name, true)} has sent you <b>${amount}</b> ${CONFIG.CURRENCY}.`);
@@ -147,9 +222,12 @@ export const commands: Chat.ChatCommands = {
 			const amount = parseInt(amountStr);
 			const targetId = toID(targetName);
 
-			if (!targetId || isNaN(amount) || amount <= 0) throw new Chat.ErrorMessage("Usage: /economy givemoney [user], [amount]");
+			if (!targetId || isNaN(amount) || amount <= 0) {
+				throw new Chat.ErrorMessage("Usage: /economy givemoney [user], [amount]");
+			}
 
 			await updateBalance(targetId, amount);
+			await addEconomyLog(user.id, targetId, 'givemoney', amount);
 			this.sendReplyBox(`You have given <b>${amount}</b> ${CONFIG.CURRENCY} to ${targetName}.`);
 
 			Rooms.get('staff')?.add(`|html|<div class="infobox">${nameColor(user.name, true)} has given <b>${amount}</b> ${CONFIG.CURRENCY} to ${targetName}.</div>`).update();
@@ -162,28 +240,67 @@ export const commands: Chat.ChatCommands = {
 			const amount = parseInt(amountStr);
 			const targetId = toID(targetName);
 
-			if (!targetId || isNaN(amount) || amount <= 0) throw new Chat.ErrorMessage("Usage: /economy takemoney [user], [amount]");
+			if (!targetId || isNaN(amount) || amount <= 0) {
+				throw new Chat.ErrorMessage("Usage: /economy takemoney [user], [amount]");
+			}
 
 			await updateBalance(targetId, -amount);
+			await addEconomyLog(user.id, targetId, 'takemoney', amount);
 			this.sendReplyBox(`You have taken <b>${amount}</b> ${CONFIG.CURRENCY} from ${targetName}.`);
 
 			Rooms.get('staff')?.add(`|html|<div class="infobox">${nameColor(user.name, true)} has taken <b>${amount}</b> ${CONFIG.CURRENCY} from ${targetName}.</div>`).update();
 			notify(targetId, `The server staff has taken <b>${amount}</b> ${CONFIG.CURRENCY} from your balance.`);
 		},
 
+		async logs(target, room, user) {
+			const targetId = toID(target);
+			let filterId: string | undefined;
+
+			if (targetId) {
+				if (targetId !== user.id) {
+					this.checkCan('bypassall');
+				}
+				filterId = targetId;
+			} else {
+				if (!user.can('bypassall')) {
+					filterId = user.id;
+				}
+			}
+
+			await cleanEconomyLogs();
+			const logs = await getEconomyLogs(filterId);
+
+			if (!logs.length) {
+				return this.sendReplyBox(filterId ? `No economy logs found for ${filterId}.` : "No economy logs were found.");
+			}
+
+			const dataRows = logs.map(log => [
+				`<small>${new Date(log.timestamp).toLocaleDateString()}</small>`,
+				ACTION_LABELS[log.action] || escapeHTML(log.action),
+				nameColor(log.user, true),
+				nameColor(log.target, true),
+				`<b>${log.amount}</b> ${CONFIG.CURRENCY}`,
+			]);
+
+			const tableTitle = filterId ? `Economy Logs: ${filterId}` : "Economy Logs";
+			const tableHtml = Table(tableTitle, ["Date", "Action", "From", "To", "Amount"], dataRows);
+			this.sendReply(`|html|${tableHtml}`);
+		},
+
 		help() {
 			this.runBroadcast();
-			const dailyAmountStr = CONFIG.DAILY_MIN === CONFIG.DAILY_MAX 
-				? `${CONFIG.DAILY_MIN}` 
-				: `${CONFIG.DAILY_MIN}-${CONFIG.DAILY_MAX}`;
-			
+			const dailyAmountStr = CONFIG.DAILY_MIN === CONFIG.DAILY_MAX ?
+				`${CONFIG.DAILY_MIN}` :
+				`${CONFIG.DAILY_MIN}-${CONFIG.DAILY_MAX}`;
+
 			this.sendReplyBox(
 				`<center><b>Economy Commands</b></center><hr>` +
 				`<b>/bal [user]</b>: Check a user's balance.<hr>` +
 				`<b>/economy claimdaily</b>: Claim ${dailyAmountStr} ${CONFIG.CURRENCY} every 24 hours.<hr>` +
 				`<b>/economy transfer [user], [amount]</b>: Send ${CONFIG.CURRENCY} to another user.<hr>` +
 				`<b>/richu</b>: View the richest users leaderboard.<hr>` +
-				`<b>/economy givemoney</b> | <b>/economy takemoney [user], [amount]</b>: Add or remove a user's ${CONFIG.CURRENCY}. (&)`
+				`<b>/economy givemoney</b> | <b>/economy takemoney [user], [amount]</b>: Add or remove a user's ${CONFIG.CURRENCY}. (&)<hr>` +
+				`<b>/economy logs [user]</b>: View economy transaction logs.`
 			);
 		},
 	},

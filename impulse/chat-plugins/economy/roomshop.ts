@@ -1,7 +1,7 @@
 import { PG } from '../../pg';
 import { escapeHTML } from '../../../lib/utils';
 import { toID } from '../../../sim/dex';
-import { getBalance, setBalance, CURRENCY_NAME, initEconomy } from './economy';
+import { getBalance, setBalance, CURRENCY_NAME } from './economy';
 import { Table } from '../../impulse-utils';
 import { nameColor } from '../customization/custom-color';
 import { initEconomyDB } from './database';
@@ -52,7 +52,7 @@ export async function getRoomData(roomid: string): Promise<ShopConfig> {
 	if (!configRow) {
 		try {
 			configRow = await PG.getTable<RoomShopRow>('room_shop', 'room_id').insert({ room_id: roomid, enabled: 0, bank: null });
-		} catch (err) {
+		} catch {
 			// Handle potential race condition if another process created it concurrently
 			configRow = await PG.getTable<RoomShopRow>('room_shop', 'room_id').findById(roomid);
 		}
@@ -118,7 +118,7 @@ export async function getLogs(roomid: string): Promise<LogEntry[]> {
 
 export async function cleanLogs(roomid: string): Promise<void> {
 	await initEconomyDB();
-	const cutoff = Date.now() - (7 * 24 * 60 * 60 * 1000);
+	const cutoff = Date.now() - (14 * 24 * 60 * 60 * 1000);
 	await PG.getTable<RoomShopLogRow>('room_shop_log', 'id').delete({ room_id: roomid, timestamp: { lt: cutoff } });
 }
 
@@ -236,22 +236,41 @@ export const commands: Chat.ChatCommands = {
 		},
 
 		async logs(target, room, user) {
-			if (!room || room.battle) throw new Chat.ErrorMessage("This command must be used in a chat room.");
-			this.checkCan('roommod', null, room);
+			let targetRoom = room;
+			const targetRoomId = toID(target);
 
-			await cleanLogs(room.roomid);
-			const logs = await getLogs(room.roomid);
+			if (targetRoomId) {
+				const foundRoom = Rooms.get(targetRoomId);
+				if (foundRoom) {
+					targetRoom = foundRoom;
+				}
+			}
 
-			if (!logs.length) return this.sendReplyBox("No shop logs were found.");
+			const targetId = targetRoom ? targetRoom.roomid : targetRoomId;
+			if (!targetId) {
+				throw new Chat.ErrorMessage("This command must be used in a chat room, or specify a room ID: /roomshop logs [room]");
+			}
+
+			if (targetRoom) {
+				this.checkCan('roommod', null, targetRoom);
+			} else {
+				this.checkCan('bypassall');
+			}
+
+			await cleanLogs(targetId);
+			const logs = await getLogs(targetId);
+
+			const roomTitle = targetRoom ? targetRoom.title : targetRoomId;
+			if (!logs.length) return this.sendReplyBox(`No shop logs were found for ${roomTitle}.`);
 
 			const dataRows = logs.map(log => [
 				`<small>${new Date(log.timestamp).toLocaleDateString()}</small>`,
 				`<b>${escapeHTML(log.user)}</b>`,
-				escapeHTML(log.item)
+				escapeHTML(log.item),
 			]);
 
-			const tableHtml = Table(`Room Shop Logs: ${room.title}`, ["Date", "User", "Item"], dataRows);
-			
+			const tableHtml = Table(`Room Shop Logs: ${roomTitle}`, ["Date", "User", "Item"], dataRows);
+
 			this.sendReply(`|html|${tableHtml}`);
 		},
 
@@ -265,7 +284,7 @@ export const commands: Chat.ChatCommands = {
 				`<b>/roomshop bank [user]</b>: Set the room bank. (#, &, ~)<hr>` +
 				`<b>/roomshop add [name], [description], [cost]</b>: Add or update an item. (#, &, ~)<hr>` +
 				`<b>/roomshop remove [item]</b>: Remove an item. (#, &, ~)<hr>` +
-				`<b>/roomshop logs</b>: View the purchase logs. (#, &, ~)<hr>` +
+				`<b>/roomshop logs [room]</b>: View the purchase logs. (#, &, ~)<hr>` +
 				`<b>/roomshop enable/disable</b>: Enable or disable the room shop for the current room. (&, ~)`
 			);
 		},

@@ -41,6 +41,14 @@ export const initEconomyDB = async (): Promise<boolean> => {
 						item TEXT NOT NULL,
 						timestamp BIGINT NOT NULL
 					);
+					CREATE TABLE IF NOT EXISTS economy_log (
+						id SERIAL PRIMARY KEY,
+						user_id TEXT NOT NULL,
+						target_id TEXT NOT NULL,
+						action TEXT NOT NULL,
+						amount INTEGER NOT NULL,
+						timestamp BIGINT NOT NULL
+					);
 				`);
 	}
 	return initPromise;

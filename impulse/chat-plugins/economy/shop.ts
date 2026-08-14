@@ -1,6 +1,6 @@
 import { PG } from '../../pg';
 import { escapeHTML } from '../../../lib/utils';
-import { getBalance, setBalance, CURRENCY_NAME, initEconomy } from './economy';
+import { getBalance, setBalance, CURRENCY_NAME } from './economy';
 import { Table } from '../../impulse-utils';
 import { nameColor } from '../customization/custom-color';
 import { initEconomyDB } from './database';
@@ -78,7 +78,7 @@ export async function getLogs(): Promise<LogEntry[]> {
 
 export async function cleanLogs(): Promise<void> {
 	await initEconomyDB();
-	const cutoff = Date.now() - (7 * 24 * 60 * 60 * 1000);
+	const cutoff = Date.now() - (14 * 24 * 60 * 60 * 1000);
 	await PG.getTable<GlobalShopLogRow>('global_shop_log', 'id').delete({ timestamp: { lt: cutoff } });
 }
 
