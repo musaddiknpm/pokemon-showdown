@@ -206,8 +206,8 @@ export const commands: Chat.ChatCommands = {
 			this.sendReplyBox(
 				`<center><b>Server News Commands</b></center><hr>` +
 				`<b>/svn view</b>: View the latest news.<hr>` +
-				`<b>/svn add [title], [desc]</b>: Add a news entry.<hr>` +
-				`<b>/svn remove [title]</b>: Delete a news entry.<hr>` +
+				`<b>/svn add [title], [desc]</b>: Add a news entry. (&, ~)<hr>` +
+				`<b>/svn remove [title]</b>: Delete a news entry. (&, ~)<hr>` +
 				`<b>/svn block/unblock</b>: Toggle login notifications.`
 			);
 		},

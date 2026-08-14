@@ -206,9 +206,9 @@ export const commands: Chat.ChatCommands = {
 			this.runBroadcast();
 			this.sendReplyBox(
 				`<center><b>Custom Icon Commands</b></center><hr>` +
-				`<b>/icon set [user], [url], [size], [direction], [color1], [color2]</b>: Sets a user's icon (${DEFAULTS.MIN}-${DEFAULTS.MAX}px). The direction and color parameters are optional. Available directions are: 'to right', 'to left', 'to bottom', and 'center'.<hr>` +
-				`<b>/icon update [user], [url], [size], [direction], [color1], [color2]</b>: Updates an existing icon's properties. Leave the space between commas empty to skip specific configurations.<hr>` +
-				`<b>/icon delete [user]</b>: Removes a user's icon.`
+				`<b>/icon set [user], [url], [size], [direction], [color1], [color2]</b>: Sets a user's icon (${DEFAULTS.MIN}-${DEFAULTS.MAX}px). The direction and color parameters are optional. Available directions are: 'to right', 'to left', 'to bottom', and 'center'. (&, ~)<hr>` +
+				`<b>/icon update [user], [url], [size], [direction], [color1], [color2]</b>: Updates an existing icon's properties. Leave the space between commas empty to skip specific configurations. (&, ~)<hr>` +
+				`<b>/icon delete [user]</b>: Removes a user's icon. (&, ~)`
 			);
 		},
 	},

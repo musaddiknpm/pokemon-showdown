@@ -110,8 +110,8 @@ export const commands: Chat.ChatCommands = {
 		this.sendReplyBox(
 			`<div style="max-height: 350px; overflow-y: auto;"><center><h4><strong>Poof Commands</strong></h4><hr>Aliases: /d, /cpoof</center><hr>` +
 			`<b>/poof [message]</b> - Disconnects the user and leaves a message in the chatroom.<hr>` +
-			`<b>/poof on</b> - Enable the use of /poof command. Requires: ~<hr>` +
-			`<b>/poof off</b> - Disable the use of the /poof command. Requires: ~<hr></div>`
+			`<b>/poof on</b> - Enable the use of /poof command. (&, ~)<hr>` +
+			`<b>/poof off</b> - Disable the use of the /poof command. (&, ~)<hr></div>`
 		);
 	},
 

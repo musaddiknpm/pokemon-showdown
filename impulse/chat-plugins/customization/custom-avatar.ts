@@ -197,8 +197,8 @@ export const commands: Chat.ChatCommands = {
 			if (!this.runBroadcast()) return;
 			this.sendReplyBox(
 				`<div style="max-height: 350px; overflow-y: auto;"><center><h4><strong>Custom Avatar Commands</strong></h4><hr>Commands Alias: /ca</center><hr>` +
-				`<b>/customavatar set [user], [url]</b> - Sets a user's custom avatar (maximum 2 per user). Requires: ~<hr>` +
-				`<b>/customavatar delete [user], [avatar_number]</b> - Removes a user's custom avatar. If no number is provided, the first one will be deleted. Requires: ~</div>`
+				`<b>/customavatar set [user], [url]</b> - Sets a user's custom avatar (maximum 2 per user). (&, ~)<hr>` +
+				`<b>/customavatar delete [user], [avatar_number]</b> - Removes a user's custom avatar. If no number is provided, the first one will be deleted. (&, ~)</div>`
 			);
 		},
 	},

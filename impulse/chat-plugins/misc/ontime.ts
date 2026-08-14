@@ -197,7 +197,8 @@ export const commands: Chat.ChatCommands = {
 				`<center><b>Ontime Commands</b></center><hr>` +
 				`<b>/ontime [user]</b>: Check a user's total time.<hr>` +
 				`<b>/ontime ladder</b>: View the top active users.<hr>` +
-				`<b>/ontime block/unblock [user]</b>: Toggle tracking for a user.`
+				`<b>/ontime block/unblock [user]</b>: Toggle tracking for a user. (&, ~)<hr>` +
+				`<b>/ontime blocklist</b>: View blocked users. (&, ~)`
 			);
 		},
 	},

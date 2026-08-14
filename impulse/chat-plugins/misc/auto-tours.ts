@@ -226,10 +226,10 @@ export const commands: Chat.ChatCommands = {
 			this.runBroadcast();
 			this.sendReplyBox(
 				`<center><b>Autotour Commands</b></center><hr>` +
-				`<b>/at enable/disable</b>: Toggle autotours.<hr>` +
-				`<b>/at formats [f1], [f2]</b>: Set format rotation.<hr>` +
-				`<b>/at interval [min]</b>: Set time between tours.<hr>` +
-				`<b>/at show</b>: View current config.<hr>` +
+				`<b>/at enable/disable</b>: Toggle autotours. (#, &, ~)<hr>` +
+				`<b>/at formats [f1], [f2]</b>: Set format rotation. (#, &, ~)<hr>` +
+				`<b>/at interval [min]</b>: Set time between tours. (#, &, ~)<hr>` +
+				`<b>/at show</b>: View current config. (#, &, ~)<hr>` +
 				`<b>/at next</b>: Time until next tour.`
 			);
 		},

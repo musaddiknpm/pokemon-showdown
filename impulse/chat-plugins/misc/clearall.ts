@@ -82,8 +82,8 @@ export const commands: Chat.ChatCommands = {
 			this.runBroadcast();
 			this.sendReplyBox(
 				`<center><b>Clearall Commands</b></center><hr>` +
-				`<b>/clearall</b>: Clears the chat in the current room. Requires: % # & ~ <hr>` +
-				`<b>/clearall global</b>: Clears the chat in all non-battle rooms. Requires: & ~`
+				`<b>/clearall</b>: Clears the chat in the current room. (%, @, #, &, ~)<hr>` +
+				`<b>/clearall global</b>: Clears the chat in all non-battle rooms. (&, ~)`
 			);
 		},
 	},

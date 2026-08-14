@@ -1015,7 +1015,7 @@ export const commands: Chat.ChatCommands = {
 				`<center><b>Poker Commands</b></center><hr>` +
 				`<b>/poker start [entryFee]</b>: Start a Poker tournament with the given entry fee.<hr>` +
 				`<b>/poker start ai</b>: Start a Poker tournament in AI testing mode.<hr>` +
-				`<b>/poker end</b>: Cancel the tournament (Host/Moderator only).<hr>` +
+				`<b>/poker end</b>: Cancel the tournament. (Host, %, @, #, &, ~)<hr>` +
 				`<i>Note: All other actions (joining, dealing, folding, raising) are performed using the interactive buttons on the game board!</i>`
 			);
 		},

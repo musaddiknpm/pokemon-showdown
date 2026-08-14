@@ -170,8 +170,8 @@ export const commands: Chat.ChatCommands = {
 			this.sendReplyBox(
 				`<center><b>Seen Commands</b></center><hr>` +
 				`<b>/seen [user]</b>: Check last connection time.<hr>` +
-				`<b>/seen recent [limit]</b>: Show recently active users (Staff only).<hr>` +
-				`<b>/seen cleanup [days]</b>: Clear old records (Staff only).`
+				`<b>/seen recent [limit]</b>: Show recently active users. (&, ~)<hr>` +
+				`<b>/seen cleanup [days]</b>: Clear old records. (&, ~)`
 			);
 		},
 	},

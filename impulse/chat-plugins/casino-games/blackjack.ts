@@ -526,7 +526,7 @@ export const commands: Chat.ChatCommands = {
 			this.sendReplyBox(
 				`<center><b>Blackjack Commands</b></center><hr>` +
 				`<b>/bj start [bet]</b>: Start a Blackjack game with the specified bet.<hr>` +
-				`<b>/bj end</b>: Cancel the game (Host/Moderator only).<hr>` +
+				`<b>/bj end</b>: Cancel the game. (Host, %, @, #, &, ~)<hr>` +
 				`<i>Note: All other actions (joining, hitting, standing) are performed using the interactive buttons on the game board!</i>`
 			);
 		},

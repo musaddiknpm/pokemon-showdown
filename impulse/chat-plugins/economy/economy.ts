@@ -299,7 +299,7 @@ export const commands: Chat.ChatCommands = {
 				`<b>/economy claimdaily</b>: Claim ${dailyAmountStr} ${CONFIG.CURRENCY} every 24 hours.<hr>` +
 				`<b>/economy transfer [user], [amount]</b>: Send ${CONFIG.CURRENCY} to another user.<hr>` +
 				`<b>/richu</b>: View the richest users leaderboard.<hr>` +
-				`<b>/economy givemoney</b> | <b>/economy takemoney [user], [amount]</b>: Add or remove a user's ${CONFIG.CURRENCY}. (&)<hr>` +
+				`<b>/economy givemoney</b> | <b>/economy takemoney [user], [amount]</b>: Add or remove a user's ${CONFIG.CURRENCY}. (&, ~)<hr>` +
 				`<b>/economy logs [user]</b>: View economy transaction logs.`
 			);
 		},

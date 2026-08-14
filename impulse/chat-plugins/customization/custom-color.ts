@@ -168,8 +168,9 @@ export const commands: Chat.ChatCommands = {
 			this.runBroadcast();
 			this.sendReplyBox(
 				`<center><b>Custom Color Commands</b></center><hr>` +
-				`<b>/cc set [user], [hex]</b>: Sets a custom color for a user.<hr>` +
-				`<b>/cc delete [user]</b>: Removes a user's custom color.<hr>` +
+				`<b>/cc set [user], [hex]</b>: Sets a custom color for a user. (&, ~)<hr>` +
+				`<b>/cc delete [user]</b>: Removes a user's custom color. (&, ~)<hr>` +
+				`<b>/cc reload</b>: Reloads the custom colors CSS. (&, ~)<hr>` +
 				`<b>/cc preview [user], [hex]</b>: Previews a custom color for a user.`
 			);
 		},

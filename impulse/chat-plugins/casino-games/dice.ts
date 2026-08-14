@@ -201,7 +201,7 @@ export const commands: Chat.ChatCommands = {
 			this.sendReplyBox(
 				`<center><b>Dice Commands</b></center><hr>` +
 				`<b>/dice start [bet]</b>: Start a Dice game with the specified bet.<hr>` +
-				`<b>/dice end</b>: Cancel the game (Host/Moderator only).<hr>` +
+				`<b>/dice end</b>: Cancel the game. (Host, %, @, #, &, ~)<hr>` +
 				`<i>Note: Joining is performed using the interactive button on the game board!</i>`
 			);
 		},

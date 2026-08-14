@@ -155,9 +155,9 @@ export const commands: Chat.ChatCommands = {
 			this.runBroadcast();
 			this.sendReplyBox(
 				`<center><b>Custom Symbol Commands</b></center><hr>` +
-				`<b>/cs set [user], [symbol]</b>: Sets a custom symbol for a user.<hr>` +
-				`<b>/cs update [user], [symbol]</b>: Updates a user's custom symbol.<hr>` +
-				`<b>/cs delete [user]</b>: Removes a user's custom symbol.<hr>` +
+				`<b>/cs set [user], [symbol]</b>: Sets a custom symbol for a user. (&, ~)<hr>` +
+				`<b>/cs update [user], [symbol]</b>: Updates a user's custom symbol. (&, ~)<hr>` +
+				`<b>/cs delete [user]</b>: Removes a user's custom symbol. (&, ~)<hr>` +
 				`<center><small>Blocked symbols: ${BLOCKED_SYMBOLS.join(' ')}</small></center>`
 			);
 		},

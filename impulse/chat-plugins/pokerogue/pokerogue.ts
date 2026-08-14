@@ -993,7 +993,7 @@ export const commands: Chat.ChatCommands = {
 				`<code>/pokerogue view top</code> - Leaderboard.<br>` +
 				`<code>/pokerogue quit</code> - Abandon run.<br>`;
 			if (isStaff) {
-				html += `<br><b>Staff Commands (Requires: Admin Only):</b><br>` +
+				html += `<br><b>Staff Commands (&, ~):</b><br>` +
 					`<code>/pokerogue givemoney [user], [amount]</code> - Gives Money to a user.<br>` +
 					`<code>/pokerogue removemoney [user], [amount]</code> - Removes Money from a user.<br>` +
 					`<code>/pokerogue giveitem [user], [item], [amount]</code> - Gives a Pokéball or Key Item to a user.<br>` +

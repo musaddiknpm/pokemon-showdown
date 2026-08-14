@@ -128,9 +128,9 @@ export const commands: Chat.ChatCommands = {
 			this.runBroadcast();
 			this.sendReplyBox(
 				`<center><b>Custom Symbol Color Commands</b></center><hr>` +
-				`<b>/sc set [user], [hex]</b>: Sets a user's custom symbol color.<hr>` +
-				`<b>/sc update [user], [hex]</b>: Updates a user's custom symbol color.<hr>` +
-				`<b>/sc delete [user]</b>: Removes a user's custom symbol color.`
+				`<b>/sc set [user], [hex]</b>: Sets a user's custom symbol color. (&, ~)<hr>` +
+				`<b>/sc update [user], [hex]</b>: Updates a user's custom symbol color. (&, ~)<hr>` +
+				`<b>/sc delete [user]</b>: Removes a user's custom symbol color. (&, ~)`
 			);
 		},
 

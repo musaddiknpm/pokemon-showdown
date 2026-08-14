@@ -255,10 +255,10 @@ export const commands: Chat.ChatCommands = {
 			this.runBroadcast();
 			this.sendReplyBox(
 				`<center><b>Emoticon Commands</b></center><hr>` +
-				`<b>/emote add [name], [url]</b>: Add an emote.<hr>` +
-				`<b>/emote delete [name]</b>: Remove an emote.<hr>` +
-				`<b>/emote size [px]</b>: Set display size.<hr>` +
-				`<b>/emote toggle</b>: Enable/disable in room.<hr>` +
+				`<b>/emote add [name], [url]</b>: Add an emote. (&, ~)<hr>` +
+				`<b>/emote delete [name]</b>: Remove an emote. (&, ~)<hr>` +
+				`<b>/emote size [px]</b>: Set display size. (&, ~)<hr>` +
+				`<b>/emote toggle</b>: Enable/disable in room. (%, @, #, &, ~)<hr>` +
 				`<b>/emote ignore/unignore</b>: Toggle your personal view.`
 			);
 		},
