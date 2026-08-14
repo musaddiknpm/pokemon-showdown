@@ -140,7 +140,7 @@ export const commands: Chat.ChatCommands = {
 				`<button class="button" name="send" value="/roomshop buy ${name}">${item.cost} ${CURRENCY_NAME}</button>`,
 			]);
 
-			const html = Table(`${room.title} Shop`, ["Item", "Description", "Cost"], dataRows);
+			const html = Table(`${room.title} Shop`, ["Item", "Description", "Buy"], dataRows);
 			this.sendReply(`|html|${html}`);
 		},
 
@@ -149,14 +149,14 @@ export const commands: Chat.ChatCommands = {
 			const data = await getRoomData(room.roomid);
 			const itemName = target.trim();
 
-			if (!data.enabled) throw new Chat.ErrorMessage("Shop is disabled.");
-			if (!data.bank) throw new Chat.ErrorMessage("No bank set for this room.");
+			if (!data.enabled) throw new Chat.ErrorMessage("The room shop is disabled.");
+			if (!data.bank) throw new Chat.ErrorMessage("No bank has been set for this room.");
 
 			const item = data.items[itemName];
-			if (!item) throw new Chat.ErrorMessage(`Item "${itemName}" not found.`);
+			if (!item) throw new Chat.ErrorMessage(`The item "${itemName}" was not found.`);
 
 			const bal = await getBalance(user.id);
-			if (bal < item.cost) throw new Chat.ErrorMessage(`Insufficient ${CURRENCY_NAME}. (Cost: ${item.cost}, Bal: ${bal})`);
+			if (bal < item.cost) throw new Chat.ErrorMessage(`Insufficient ${CURRENCY_NAME}. (Cost: ${item.cost}, Balance: ${bal})`);
 
 			if (user.id !== data.bank) {
 				const bankBal = await getBalance(data.bank);
@@ -171,7 +171,7 @@ export const commands: Chat.ChatCommands = {
 		},
 
 		async bank(target, room, user) {
-			if (!room || room.battle) throw new Chat.ErrorMessage("Use this in a room.");
+			if (!room || room.battle) throw new Chat.ErrorMessage("This command must be used in a chat room.");
 			this.checkCan('roommod', null, room);
 			const targetId = toID(target);
 			if (!targetId) throw new Chat.ErrorMessage("Usage: /roomshop bank [user]");
@@ -179,11 +179,11 @@ export const commands: Chat.ChatCommands = {
 			const data = await getRoomData(room.roomid);
 			await setRoomConfig(room.roomid, data.enabled, targetId);
 
-			this.sendReplyBox(`Room bank set to: ${nameColor(targetId, true)}`);
+			this.sendReplyBox(`The room bank has been set to: ${nameColor(targetId, true)}`);
 		},
 
 		async showbank(target, room, user) {
-			if (!room || room.battle) throw new Chat.ErrorMessage("Use this in a room.");
+			if (!room || room.battle) throw new Chat.ErrorMessage("This command must be used in a chat room.");
 			const data = await getRoomData(room.roomid);
 			if (!data.bank) return this.sendReplyBox("No bank has been set for this room.");
 			this.sendReplyBox(`The current bank for this room is: ${nameColor(data.bank, true)}`);
@@ -191,82 +191,83 @@ export const commands: Chat.ChatCommands = {
 
 		add: 'edit',
 		async edit(target, room, user) {
-			if (!room || room.battle) throw new Chat.ErrorMessage("Use this in a room.");
+			if (!room || room.battle) throw new Chat.ErrorMessage("This command must be used in a chat room.");
 			this.checkCan('roommod', null, room);
 			const [name, desc, costStr] = target.split(',').map(s => s.trim());
 			const cost = parseInt(costStr);
 
-			if (!name || !desc || isNaN(cost) || cost <= 0) throw new Chat.ErrorMessage("Usage: /roomshop add [name], [desc], [cost]");
+			if (!name || !desc || isNaN(cost) || cost <= 0) throw new Chat.ErrorMessage("Usage: /roomshop add [name], [description], [cost]");
 
 			const data = await getRoomData(room.roomid);
-			if (!data.enabled) throw new Chat.ErrorMessage("Room shop is not enabled.");
+			if (!data.enabled) throw new Chat.ErrorMessage("The room shop is not enabled.");
 
 			await setRoomItem(room.roomid, name, desc, cost);
-			this.sendReplyBox(`Item <b>${name}</b> has been added/updated.`);
+			this.sendReplyBox(`The item <b>${name}</b> has been added/updated.`);
 		},
 
 		async remove(target, room, user) {
-			if (!room || room.battle) throw new Chat.ErrorMessage("Use this in a room.");
+			if (!room || room.battle) throw new Chat.ErrorMessage("This command must be used in a chat room.");
 			this.checkCan('roommod', null, room);
 			const data = await getRoomData(room.roomid);
 			const name = target.trim();
 
-			if (!data.items[name]) throw new Chat.ErrorMessage(`Item "${name}" not found.`);
+			if (!data.items[name]) throw new Chat.ErrorMessage(`The item "${name}" was not found.`);
 
 			await removeRoomItem(room.roomid, name);
-			this.sendReplyBox(`Item "${name}" removed.`);
+			this.sendReplyBox(`The item "${name}" has been removed.`);
 		},
 
 		async enable(target, room, user) {
 			this.checkCan('bypassall');
-			if (!room || room.battle) throw new Chat.ErrorMessage("Use this in a room.");
+			if (!room || room.battle) throw new Chat.ErrorMessage("This command must be used in a chat room.");
 			const data = await getRoomData(room.roomid);
 
 			await setRoomConfig(room.roomid, true, data.bank);
-			this.sendReplyBox("Room Shop enabled.");
+			this.sendReplyBox("The room shop has been enabled.");
 		},
 
 		async disable(target, room, user) {
 			this.checkCan('bypassall');
-			if (!room || room.battle) throw new Chat.ErrorMessage("Use this in a room.");
+			if (!room || room.battle) throw new Chat.ErrorMessage("This command must be used in a chat room.");
 			const data = await getRoomData(room.roomid);
 
 			await setRoomConfig(room.roomid, false, data.bank);
-			this.sendReplyBox("Room Shop disabled.");
+			this.sendReplyBox("The room shop has been disabled.");
 		},
 
 		async logs(target, room, user) {
-			if (!room || room.battle) throw new Chat.ErrorMessage("Use this in a room.");
+			if (!room || room.battle) throw new Chat.ErrorMessage("This command must be used in a chat room.");
 			this.checkCan('roommod', null, room);
 
 			await cleanLogs(room.roomid);
 			const logs = await getLogs(room.roomid);
 
-			if (!logs.length) return this.sendReplyBox("No shop logs found.");
+			if (!logs.length) return this.sendReplyBox("No shop logs were found.");
 
-			let html = `<div class="infobox" style="max-height: 200px; overflow-y: auto;"><strong>Shop Logs: ${room.title}</strong><hr />`;
-			for (const log of logs) {
-				const date = new Date(log.timestamp).toLocaleDateString();
-				html += `<small>[${date}]</small> <b>${escapeHTML(log.user)}</b> bought <b>${log.item}</b><br />`;
-			}
-			html += `</div>`;
-			this.sendReplyBox(html);
+			const dataRows = logs.map(log => [
+				`<small>${new Date(log.timestamp).toLocaleDateString()}</small>`,
+				`<b>${escapeHTML(log.user)}</b>`,
+				escapeHTML(log.item)
+			]);
+
+			const tableHtml = Table(`Room Shop Logs: ${room.title}`, ["Date", "User", "Item"], dataRows);
+			
+			this.sendReply(`|html|${tableHtml}`);
 		},
 
 		help() {
 			this.runBroadcast();
 			this.sendReplyBox(
 				`<center><b>Room Shop Commands</b></center><hr>` +
-				`<b>/roomshop</b>: View items.<hr>` +
-				`<b>/roomshop buy [item]</b>: Purchase item.<hr>` +
-				`<b>/roomshop showbank</b>: See who receives the coins.<hr>` +
-				`<b>/roomshop bank [user]</b>: Set room bank. (#)<hr>` +
-				`<b>/roomshop add [name], [desc], [cost]</b>: Add item. (#)<hr>` +
-				`<b>/roomshop logs</b>: View purchases. (#)` +
-				`<b>/roomshop enable/disable</b>: Enable/Disable room shop for current room. (&)`
+				`<b>/roomshop</b>: View the available items.<hr>` +
+				`<b>/roomshop buy [item]</b>: Purchase an item.<hr>` +
+				`<b>/roomshop showbank</b>: See who receives the spent currency.<hr>` +
+				`<b>/roomshop bank [user]</b>: Set the room bank. (#, &, ~)<hr>` +
+				`<b>/roomshop add [name], [description], [cost]</b>: Add or update an item. (#, &, ~)<hr>` +
+				`<b>/roomshop remove [item]</b>: Remove an item. (#, &, ~)<hr>` +
+				`<b>/roomshop logs</b>: View the purchase logs. (#, &, ~)<hr>` +
+				`<b>/roomshop enable/disable</b>: Enable or disable the room shop for the current room. (&, ~)`
 			);
 		},
 	},
-	roomshophelp: 'roomshop help',
-	showbank: 'roomshop showbank',
 };

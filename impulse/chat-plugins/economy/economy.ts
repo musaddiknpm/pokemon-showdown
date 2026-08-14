@@ -76,73 +76,7 @@ export const commands: Chat.ChatCommands = {
 		if (!this.runBroadcast()) return;
 		const targetId = toID(target) || user.id;
 		const balance = await getBalance(targetId);
-		this.sendReplyBox(`${nameColor(targetId, true)} has <b>${balance}</b> ${CONFIG.CURRENCY}.`);
-	},
-
-	async claimdaily(target, room, user) {
-		const now = Date.now();
-		const lastDaily = await getLastClaim(user.id);
-		const remaining = (lastDaily + CONFIG.DAILY_COOLDOWN) - now;
-
-		if (remaining > 0) {
-			const timeParts = Chat.toDurationString(remaining, { precision: 1 });
-			throw new Chat.ErrorMessage(`You've already claimed your daily ${CONFIG.CURRENCY}. Please wait ${timeParts}.`);
-		}
-
-		const reward = Math.floor(Math.random() * (CONFIG.DAILY_MAX - CONFIG.DAILY_MIN + 1)) + CONFIG.DAILY_MIN;
-		await setDaily(user.id, now);
-		await updateBalance(user.id, reward);
-
-		const newBal = await getBalance(user.id);
-		this.sendReplyBox(`You received <b>${reward}</b> daily ${CONFIG.CURRENCY}! Your new balance: <b>${newBal}</b>.`);
-	},
-
-	async transfer(target, room, user) {
-		const [targetName, amountStr] = target.split(',').map(s => s.trim());
-		const amount = parseInt(amountStr);
-		const targetId = toID(targetName);
-
-		if (!targetId || isNaN(amount) || amount <= 0) throw new Chat.ErrorMessage("Usage: /transfer [user], [amount]");
-		if (targetId === user.id) throw new Chat.ErrorMessage("You cannot transfer to yourself.");
-
-		const senderBal = await getBalance(user.id);
-		if (senderBal < amount) throw new Chat.ErrorMessage(`You don't have enough ${CONFIG.CURRENCY}.`);
-
-		await updateBalance(user.id, -amount);
-		await updateBalance(targetId, amount);
-
-		this.sendReplyBox(`Sent <b>${amount}</b> ${CONFIG.CURRENCY} to ${targetName}.`);
-		notify(targetId, `${nameColor(user.name, true)} sent you <b>${amount}</b> ${CONFIG.CURRENCY}.`);
-	},
-
-	async givemoney(target, room, user) {
-		this.checkCan('bypassall');
-		const [targetName, amountStr] = target.split(',').map(s => s.trim());
-		const amount = parseInt(amountStr);
-		const targetId = toID(targetName);
-
-		if (!targetId || isNaN(amount) || amount <= 0) throw new Chat.ErrorMessage("Usage: /givemoney [user], [amount]");
-
-		await updateBalance(targetId, amount);
-		this.sendReplyBox(`Gave <b>${amount}</b> ${CONFIG.CURRENCY} to ${targetName}.`);
-
-		Rooms.get('staff')?.add(`|html|<div class="infobox">${user.name} gave <b>${amount}</b> ${CONFIG.CURRENCY} to ${targetName}.</div>`).update();
-		notify(targetId, `You received <b>${amount}</b> ${CONFIG.CURRENCY} from staff.`);
-	},
-
-	async takemoney(target, room, user) {
-		this.checkCan('bypassall');
-		const [targetName, amountStr] = target.split(',').map(s => s.trim());
-		const amount = parseInt(amountStr);
-		const targetId = toID(targetName);
-
-		if (!targetId || isNaN(amount) || amount <= 0) throw new Chat.ErrorMessage("Usage: /takemoney [user], [amount]");
-
-		await updateBalance(targetId, -amount);
-		this.sendReplyBox(`Took <b>${amount}</b> ${CONFIG.CURRENCY} from ${targetName}.`);
-
-		Rooms.get('staff')?.add(`|html|<div class="infobox">${user.name} took <b>${amount}</b> ${CONFIG.CURRENCY} from ${targetName}.</div>`).update();
-		notify(targetId, `Staff took <b>${amount}</b> ${CONFIG.CURRENCY} from your balance.`);
+		this.sendReplyBox(`${nameColor(targetId, true)} has a balance of <b>${balance}</b> ${CONFIG.CURRENCY}.`);
 	},
 
 	richu: 'richestusers',
@@ -156,7 +90,7 @@ export const commands: Chat.ChatCommands = {
 			order: 'DESC',
 		});
 
-		if (!rows.length) return this.sendReplyBox("No economy data found.");
+		if (!rows.length) return this.sendReplyBox("No economy data was found.");
 
 		const dataRows = rows.map((row, i) => [
 			`${i + 1}`,
@@ -164,19 +98,93 @@ export const commands: Chat.ChatCommands = {
 			`${row.balance}`,
 		]);
 
-		const html = Table("Richest Users", ["Rank", "User", CONFIG.CURRENCY], dataRows);
+		const currencyCapitalized = CONFIG.CURRENCY.charAt(0).toUpperCase() + CONFIG.CURRENCY.slice(1);
+		const html = Table("Richest Users", ["Rank", "User", currencyCapitalized], dataRows);
+		
 		this.sendReply(`|html|${html}`);
 	},
+	
+	economy: {
+		async claimdaily(target, room, user) {
+			const now = Date.now();
+			const lastDaily = await getLastClaim(user.id);
+			const remaining = (lastDaily + CONFIG.DAILY_COOLDOWN) - now;
 
-	ecohelp() {
-		this.runBroadcast();
-		this.sendReplyBox(
-			`<center><b>Economy Commands</b></center><hr>` +
-			`<b>/bal [user]</b>: Check balance.<hr>` +
-			`<b>/claimdaily</b>: Claim 1-5 ${CONFIG.CURRENCY} every 24h.<hr>` +
-			`<b>/transfer [user], [amt]</b>: Send ${CONFIG.CURRENCY}.<hr>` +
-			`<b>/richu</b>: See leaderboard.<hr>` +
-			`<b>/givemoney/takemoney [user], [amt]</b>: Staff only.`
-		);
+			if (remaining > 0) {
+				const timeParts = Chat.toDurationString(remaining, { precision: 1 });
+				throw new Chat.ErrorMessage(`You have already claimed your daily ${CONFIG.CURRENCY}. Please wait ${timeParts}.`);
+			}
+
+			const reward = Math.floor(Math.random() * (CONFIG.DAILY_MAX - CONFIG.DAILY_MIN + 1)) + CONFIG.DAILY_MIN;
+			await setDaily(user.id, now);
+			await updateBalance(user.id, reward);
+
+			const newBal = await getBalance(user.id);
+			this.sendReplyBox(`You have received your daily reward of <b>${reward}</b> ${CONFIG.CURRENCY}! Your new balance is <b>${newBal}</b>.`);
+		},
+
+		async transfer(target, room, user) {
+			const [targetName, amountStr] = target.split(',').map(s => s.trim());
+			const amount = parseInt(amountStr);
+			const targetId = toID(targetName);
+
+			if (!targetId || isNaN(amount) || amount <= 0) throw new Chat.ErrorMessage("Usage: /economy transfer [user], [amount]");
+			if (targetId === user.id) throw new Chat.ErrorMessage(`You cannot transfer ${CONFIG.CURRENCY} to yourself.`);
+
+			const senderBal = await getBalance(user.id);
+			if (senderBal < amount) throw new Chat.ErrorMessage(`You do not have enough ${CONFIG.CURRENCY}.`);
+
+			await updateBalance(user.id, -amount);
+			await updateBalance(targetId, amount);
+
+			this.sendReplyBox(`You have successfully sent <b>${amount}</b> ${CONFIG.CURRENCY} to ${targetName}.`);
+			notify(targetId, `${nameColor(user.name, true)} has sent you <b>${amount}</b> ${CONFIG.CURRENCY}.`);
+		},
+
+		async givemoney(target, room, user) {
+			this.checkCan('bypassall');
+			const [targetName, amountStr] = target.split(',').map(s => s.trim());
+			const amount = parseInt(amountStr);
+			const targetId = toID(targetName);
+
+			if (!targetId || isNaN(amount) || amount <= 0) throw new Chat.ErrorMessage("Usage: /economy givemoney [user], [amount]");
+
+			await updateBalance(targetId, amount);
+			this.sendReplyBox(`You have given <b>${amount}</b> ${CONFIG.CURRENCY} to ${targetName}.`);
+
+			Rooms.get('staff')?.add(`|html|<div class="infobox">${nameColor(user.name, true)} has given <b>${amount}</b> ${CONFIG.CURRENCY} to ${targetName}.</div>`).update();
+			notify(targetId, `You have received <b>${amount}</b> ${CONFIG.CURRENCY} from the server staff.`);
+		},
+
+		async takemoney(target, room, user) {
+			this.checkCan('bypassall');
+			const [targetName, amountStr] = target.split(',').map(s => s.trim());
+			const amount = parseInt(amountStr);
+			const targetId = toID(targetName);
+
+			if (!targetId || isNaN(amount) || amount <= 0) throw new Chat.ErrorMessage("Usage: /economy takemoney [user], [amount]");
+
+			await updateBalance(targetId, -amount);
+			this.sendReplyBox(`You have taken <b>${amount}</b> ${CONFIG.CURRENCY} from ${targetName}.`);
+
+			Rooms.get('staff')?.add(`|html|<div class="infobox">${nameColor(user.name, true)} has taken <b>${amount}</b> ${CONFIG.CURRENCY} from ${targetName}.</div>`).update();
+			notify(targetId, `The server staff has taken <b>${amount}</b> ${CONFIG.CURRENCY} from your balance.`);
+		},
+
+		help() {
+			this.runBroadcast();
+			const dailyAmountStr = CONFIG.DAILY_MIN === CONFIG.DAILY_MAX 
+				? `${CONFIG.DAILY_MIN}` 
+				: `${CONFIG.DAILY_MIN}-${CONFIG.DAILY_MAX}`;
+			
+			this.sendReplyBox(
+				`<center><b>Economy Commands</b></center><hr>` +
+				`<b>/bal [user]</b>: Check a user's balance.<hr>` +
+				`<b>/economy claimdaily</b>: Claim ${dailyAmountStr} ${CONFIG.CURRENCY} every 24 hours.<hr>` +
+				`<b>/economy transfer [user], [amount]</b>: Send ${CONFIG.CURRENCY} to another user.<hr>` +
+				`<b>/richu</b>: View the richest users leaderboard.<hr>` +
+				`<b>/economy givemoney</b> | <b>/economy takemoney [user], [amount]</b>: Add or remove a user's ${CONFIG.CURRENCY}. (&)`
+			);
+		},
 	},
 };

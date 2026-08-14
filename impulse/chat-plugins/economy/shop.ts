@@ -40,22 +40,27 @@ export async function getItems(): Promise<Record<string, ShopItem>> {
 
 	return items;
 }
+
 export async function getItem(name: string): Promise<ShopItem | null> {
 	const items = await getItems();
 	return items[name] || null;
 }
+
 export async function setItem(name: string, description: string, cost: number): Promise<void> {
 	await initEconomyDB();
 	await PG.getTable<GlobalShopRow>('global_shop', 'name').upsert({ name, description, cost }, ['name']);
 }
+
 export async function removeItem(name: string): Promise<void> {
 	await initEconomyDB();
 	await PG.getTable<GlobalShopRow>('global_shop', 'name').deleteById(name);
 }
+
 export async function addLog(user: string, item: string): Promise<void> {
 	await initEconomyDB();
 	await PG.getTable<GlobalShopLogRow>('global_shop_log', 'id').insert({ user_id: user, item, timestamp: Date.now() });
 }
+
 export async function getLogs(): Promise<LogEntry[]> {
 	await initEconomyDB();
 	const rows = await PG.getTable<GlobalShopLogRow>('global_shop_log', 'id').select({}, ['user_id', 'item', 'timestamp'], {
@@ -70,6 +75,7 @@ export async function getLogs(): Promise<LogEntry[]> {
 		timestamp: Number(r.timestamp),
 	}));
 }
+
 export async function cleanLogs(): Promise<void> {
 	await initEconomyDB();
 	const cutoff = Date.now() - (7 * 24 * 60 * 60 * 1000);
@@ -91,17 +97,17 @@ export const commands: Chat.ChatCommands = {
 				`<button class="button" name="send" value="/shop buy ${name}">${item.cost} ${CURRENCY_NAME}</button>`,
 			]);
 
-			const html = Table("" + Config.serverName + " Shop", ["Item", "Description", "Cost"], dataRows);
+			const html = Table(`${Config.serverName} Shop`, ["Item", "Description", "Buy"], dataRows);
 			this.sendReply(`|html|${html}`);
 		},
 
 		async buy(target, room, user) {
 			const itemName = target.trim();
 			const item = await getItem(itemName);
-			if (!item) throw new Chat.ErrorMessage(`Item "${itemName}" not found.`);
+			if (!item) throw new Chat.ErrorMessage(`The item "${itemName}" was not found.`);
 
 			const bal = await getBalance(user.id);
-			if (bal < item.cost) throw new Chat.ErrorMessage(`Insufficient ${CURRENCY_NAME}. (Cost: ${item.cost}, Bal: ${bal})`);
+			if (bal < item.cost) throw new Chat.ErrorMessage(`Insufficient ${CURRENCY_NAME}. (Cost: ${item.cost}, Balance: ${bal})`);
 
 			await setBalance(user.id, bal - item.cost);
 			await addLog(user.name, itemName);
@@ -120,20 +126,20 @@ export const commands: Chat.ChatCommands = {
 			const [name, desc, costStr] = target.split(',').map(s => s.trim());
 			const cost = parseInt(costStr);
 
-			if (!name || !desc || isNaN(cost) || cost <= 0) throw new Chat.ErrorMessage("Usage: /shop add [name], [desc], [cost]");
+			if (!name || !desc || isNaN(cost) || cost <= 0) throw new Chat.ErrorMessage("Usage: /shop add [name], [description], [cost]");
 
 			await setItem(name, desc, cost);
-			this.sendReplyBox(`Item <b>${name}</b> has been added/updated.`);
+			this.sendReplyBox(`The item <b>${name}</b> has been added or updated.`);
 		},
 
 		async remove(target, room, user) {
 			this.checkCan('bypassall');
 			const name = target.trim();
 			const item = await getItem(name);
-			if (!item) throw new Chat.ErrorMessage(`Item "${name}" not found.`);
+			if (!item) throw new Chat.ErrorMessage(`The item "${name}" was not found.`);
 
 			await removeItem(name);
-			this.sendReplyBox(`Item "${name}" removed from the global shop.`);
+			this.sendReplyBox(`The item "${name}" has been removed from the shop.`);
 		},
 
 		async logs(target, room, user) {
@@ -141,28 +147,28 @@ export const commands: Chat.ChatCommands = {
 			await cleanLogs();
 			const logs = await getLogs();
 
-			if (!logs.length) return this.sendReplyBox("No shop logs found.");
+			if (!logs.length) return this.sendReplyBox("No shop logs were found.");
 
-			let html = `<div class="infobox" style="max-height: 200px; overflow-y: auto;"><strong>Global Shop Logs</strong><hr />`;
-			for (const log of logs) {
-				const date = new Date(log.timestamp).toLocaleDateString();
-				html += `<small>[${date}]</small> <b>${escapeHTML(log.user)}</b> bought <b>${log.item}</b><br />`;
-			}
-			html += `</div>`;
-			this.sendReplyBox(html);
+			const dataRows = logs.map(log => [
+				`<small>${new Date(log.timestamp).toLocaleDateString()}</small>`,
+				`<b>${escapeHTML(log.user)}</b>`,
+				escapeHTML(log.item),
+			]);
+
+			const tableHtml = Table("Shop Logs", ["Date", "User", "Item"], dataRows);
+			this.sendReply(`|html|${tableHtml}`);
 		},
 
 		help() {
 			this.runBroadcast();
 			this.sendReplyBox(
-				`<center><b>Global Shop Commands</b></center><hr>` +
-				`<b>/shop</b>: View all items.<hr>` +
+				`<center><b>Shop Commands</b></center><hr>` +
+				`<b>/shop</b>: View all available items.<hr>` +
 				`<b>/shop buy [item]</b>: Purchase an item.<hr>` +
-				`<b>/shop add [name], [desc], [cost]</b>: Add/Edit item. (~)<hr>` +
-				`<b>/shop remove [item]</b>: Delete an item. (~)<hr>` +
-				`<b>/shop logs</b>: View purchase history. (~)`
+				`<b>/shop add [name], [description], [cost]</b>: Add or edit an item. (&, ~)<hr>` +
+				`<b>/shop remove [item]</b>: Delete an item. (&, ~)<hr>` +
+				`<b>/shop logs</b>: View the purchase history. (&, ~)`
 			);
 		},
 	},
-	shophelp: 'shop help',
 };
