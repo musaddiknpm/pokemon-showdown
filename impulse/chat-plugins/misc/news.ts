@@ -174,7 +174,7 @@ export const commands: Chat.ChatCommands = {
 			if (posts[id]) throw new Chat.ErrorMessage(`A news entry titled "${title}" already exists.`);
 
 			await NewsManager.addPost(id, title, desc, user.name);
-			this.sendReply(`Added news: "${title}"`);
+			this.sendReply(`The news entry "${title}" has been added.`);
 		},
 
 		delete: 'remove',
@@ -183,10 +183,10 @@ export const commands: Chat.ChatCommands = {
 			const id = toID(target);
 			if (!id) return this.parse('/svn help');
 
-			if (!posts[id]) throw new Chat.ErrorMessage(`News entry "${target}" not found.`);
+			if (!posts[id]) throw new Chat.ErrorMessage(`The news entry "${target}" could not be found.`);
 
 			await NewsManager.removePost(id);
-			this.sendReply(`Deleted news entry: "${target}"`);
+			this.sendReply(`The news entry "${target}" has been deleted.`);
 		},
 
 		async block(target, room, user) {

@@ -126,7 +126,7 @@ export const commands: Chat.ChatCommands = {
 			if (!name || !color) return this.parse('/cc help');
 
 			const targetId = toID(name);
-			if (!ColorManager.validateHex(color)) throw new Chat.ErrorMessage("Invalid hex format (#RRGGBB).");
+			if (!ColorManager.validateHex(color)) throw new Chat.ErrorMessage("The hex color format is invalid. Please use the format #RRGGBB.");
 
 			customColors[targetId] = color;
 			colorCache[targetId] = color;
@@ -134,13 +134,13 @@ export const commands: Chat.ChatCommands = {
 			await Customization.updateCSS();
 
 			Customization.notify(user, name, 'set', `set custom color for <b>${escapeHTML(name)}</b> to <font color="${color}">${color}</font>.`);
-			this.sendReply(`|raw|Color set for <b><font color="${color}">${escapeHTML(name)}</font></b>.`);
+			this.sendReply(`|raw|The custom color for <b><font color="${color}">${escapeHTML(name)}</font></b> has been set.`);
 		},
 
 		async delete(target, room, user) {
 			this.checkCan('bypassall');
 			const targetId = toID(target);
-			if (!customColors[targetId]) throw new Chat.ErrorMessage(`${target} has no custom color.`);
+			if (!customColors[targetId]) throw new Chat.ErrorMessage(`${target} doesn't have a custom color set.`);
 
 			delete customColors[targetId];
 			delete colorCache[targetId];
@@ -148,29 +148,29 @@ export const commands: Chat.ChatCommands = {
 			await Customization.updateCSS();
 
 			Customization.notify(user, target, 'removed', `removed custom color for <b>${targetId}</b>.`);
-			this.sendReply(`Custom color removed for ${targetId}.`);
+			this.sendReply(`The custom color for ${targetId} has been removed.`);
 		},
 
 		preview(target) {
 			this.checkBroadcast();
 			const [name, color] = target.split(',').map(t => t.trim());
-			if (!name || !ColorManager.validateHex(color)) throw new Chat.ErrorMessage("Usage: /cc preview [user], [hex]");
+			if (!name || !ColorManager.validateHex(color)) throw new Chat.ErrorMessage("Invalid usage. The correct format is: /cc preview [user], [hex].");
 			this.sendReplyBox(`<b><font size="3" color="${color}">${escapeHTML(name)}</font></b>`);
 		},
 
 		async reload(target, room, user) {
 			this.checkCan('bypassall');
 			await reloadCSS();
-			this.privateModAction(`(${user.name} reloaded custom colors.)`);
+			this.privateModAction(`(${user.name} has reloaded the custom colors.)`);
 		},
 
 		help() {
 			this.runBroadcast();
 			this.sendReplyBox(
 				`<center><b>Custom Color Commands</b></center><hr>` +
-				`<b>/cc set [user], [hex]</b>: Set color.<hr>` +
-				`<b>/cc delete [user]</b>: Remove color.<hr>` +
-				`<b>/cc preview [user], [hex]</b>: Preview color.`
+				`<b>/cc set [user], [hex]</b>: Sets a custom color for a user.<hr>` +
+				`<b>/cc delete [user]</b>: Removes a user's custom color.<hr>` +
+				`<b>/cc preview [user], [hex]</b>: Previews a custom color for a user.`
 			);
 		},
 	},

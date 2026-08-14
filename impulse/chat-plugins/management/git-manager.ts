@@ -42,11 +42,11 @@ export const commands: Chat.ChatCommands = {
 	git: {
 		async add(target, room, user) {
 			this.checkCan('bypassall');
-			if (!WHITELISTED_USERS.includes(user.id)) throw new Chat.ErrorMessage("Access denied.");
-			if (!target) throw new Chat.ErrorMessage("Specify files to add (e.g., '.', 'filename.ts').");
+			if (!WHITELISTED_USERS.includes(user.id)) throw new Chat.ErrorMessage("You do not have permission to use Git commands.");
+			if (!target) throw new Chat.ErrorMessage("Please specify the files you want to add (for example, '.' or 'filename.ts').");
 
 			const gitRoot = await GitManager.findRoot(FS.ROOT_PATH);
-			if (!gitRoot) throw new Chat.ErrorMessage("Git root not found.");
+			if (!gitRoot) throw new Chat.ErrorMessage("The Git root directory could not be found.");
 
 			const cmd = `sudo git add ${target}`;
 			const output = await GitManager.execute(cmd, gitRoot);
@@ -55,11 +55,11 @@ export const commands: Chat.ChatCommands = {
 
 		async commit(target, room, user) {
 			this.checkCan('bypassall');
-			if (!WHITELISTED_USERS.includes(user.id)) throw new Chat.ErrorMessage("Access denied.");
-			if (!target) throw new Chat.ErrorMessage("You must provide a commit message.");
+			if (!WHITELISTED_USERS.includes(user.id)) throw new Chat.ErrorMessage("You do not have permission to use Git commands.");
+			if (!target) throw new Chat.ErrorMessage("Please provide a commit message.");
 
 			const gitRoot = await GitManager.findRoot(FS.ROOT_PATH);
-			if (!gitRoot) throw new Chat.ErrorMessage("Git root not found.");
+			if (!gitRoot) throw new Chat.ErrorMessage("The Git root directory could not be found.");
 
 			// Escaping message for shell safety
 			const message = target.replace(/"/g, '\\"');
@@ -70,10 +70,10 @@ export const commands: Chat.ChatCommands = {
 
 		async stash(target, room, user) {
 			this.checkCan('bypassall');
-			if (!WHITELISTED_USERS.includes(user.id)) throw new Chat.ErrorMessage("Access denied.");
+			if (!WHITELISTED_USERS.includes(user.id)) throw new Chat.ErrorMessage("You do not have permission to use Git commands.");
 
 			const gitRoot = await GitManager.findRoot(FS.ROOT_PATH);
-			if (!gitRoot) throw new Chat.ErrorMessage("Git root not found.");
+			if (!gitRoot) throw new Chat.ErrorMessage("The Git root directory could not be found.");
 
 			const args = target.split(' ').map(s => s.trim()).filter(Boolean);
 			const subCommand = args[0]?.toLowerCase();
@@ -93,11 +93,11 @@ export const commands: Chat.ChatCommands = {
 
 		async checkout(target, room, user) {
 			this.checkCan('bypassall');
-			if (!WHITELISTED_USERS.includes(user.id)) throw new Chat.ErrorMessage("Access denied.");
+			if (!WHITELISTED_USERS.includes(user.id)) throw new Chat.ErrorMessage("You do not have permission to use Git commands.");
 			if (!target) return this.parse('/git help');
 
 			const gitRoot = await GitManager.findRoot(FS.ROOT_PATH);
-			if (!gitRoot) throw new Chat.ErrorMessage("Git root not found.");
+			if (!gitRoot) throw new Chat.ErrorMessage("The Git root directory could not be found.");
 
 			const cmd = `sudo git checkout ${target}`;
 			const output = await GitManager.execute(cmd, gitRoot);
@@ -106,10 +106,10 @@ export const commands: Chat.ChatCommands = {
 
 		async pull(target, room, user) {
 			this.checkCan('bypassall');
-			if (!WHITELISTED_USERS.includes(user.id)) throw new Chat.ErrorMessage("Access denied.");
+			if (!WHITELISTED_USERS.includes(user.id)) throw new Chat.ErrorMessage("You do not have permission to use Git commands.");
 
 			const gitRoot = await GitManager.findRoot(FS.ROOT_PATH);
-			if (!gitRoot) throw new Chat.ErrorMessage("Git root not found.");
+			if (!gitRoot) throw new Chat.ErrorMessage("The Git root directory could not be found.");
 
 			const output = await GitManager.execute('sudo git pull', gitRoot);
 			this.sendReplyBox(GitManager.render('Git Pull', output));
@@ -117,10 +117,10 @@ export const commands: Chat.ChatCommands = {
 
 		async status(target, room, user) {
 			this.checkCan('bypassall');
-			if (!WHITELISTED_USERS.includes(user.id)) throw new Chat.ErrorMessage("Access denied.");
+			if (!WHITELISTED_USERS.includes(user.id)) throw new Chat.ErrorMessage("You do not have permission to use Git commands.");
 
 			const gitRoot = await GitManager.findRoot(FS.ROOT_PATH);
-			if (!gitRoot) throw new Chat.ErrorMessage("Git root not found.");
+			if (!gitRoot) throw new Chat.ErrorMessage("The Git root directory could not be found.");
 
 			const output = await GitManager.execute('sudo git status', gitRoot);
 			this.sendReplyBox(GitManager.render('Git Status', output));

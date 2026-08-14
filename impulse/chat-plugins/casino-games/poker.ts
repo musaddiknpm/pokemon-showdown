@@ -273,7 +273,7 @@ export class PokerGame extends RoomGame<PokerPlayer> {
 				return;
 			}
 			if (this.players.length < 2) {
-				user.sendTo(this.roomid, "|error|Cannot start without at least 2 players.");
+				user.sendTo(this.roomid, "|error|You cannot start without at least 2 players.");
 				return;
 			}
 			this.startNextHand();
@@ -353,7 +353,7 @@ export class PokerGame extends RoomGame<PokerPlayer> {
 
 			const raiseAmount = parseInt(actionParts[1]);
 			if (isNaN(raiseAmount) || raiseAmount <= 0) {
-				user.sendTo(this.roomid, "|error|Invalid raise amount.");
+				user.sendTo(this.roomid, "|error|This is an invalid raise amount.");
 				return;
 			}
 
@@ -977,7 +977,7 @@ export const commands: Chat.ChatCommands = {
 		async join(target, room, user) {
 			if (!room || room.battle || room.roomid !== CASINO_ROOM) throw new Chat.ErrorMessage("This command can only be used in the Casino room.");
 			const game = room.getGame(PokerGame);
-			if (!game) throw new Chat.ErrorMessage("No active poker game in this room.");
+			if (!game) throw new Chat.ErrorMessage("There is no active poker game in this room.");
 			if (game.state !== 'lobby') throw new Chat.ErrorMessage("This game has already started.");
 			if (game.players.some(p => p.id === user.id)) throw new Chat.ErrorMessage("You are already in this game.");
 
@@ -999,7 +999,7 @@ export const commands: Chat.ChatCommands = {
 		async end(target, room, user) {
 			if (!room || room.battle || room.roomid !== CASINO_ROOM) throw new Chat.ErrorMessage("This command can only be used in the Casino room.");
 			const game = room.getGame(PokerGame);
-			if (!game) throw new Chat.ErrorMessage("No active poker game in this room.");
+			if (!game) throw new Chat.ErrorMessage("There is no active poker game in this room.");
 
 			const canEnd = user.id === game.host || user.can('roommod', null, room);
 			if (!canEnd) throw new Chat.ErrorMessage("Only the host or a room moderator can cancel the game.");

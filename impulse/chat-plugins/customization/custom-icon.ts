@@ -128,7 +128,7 @@ export const commands: Chat.ChatCommands = {
 			if (!name || !url) return this.parse('/icon help');
 
 			const targetId = toID(name);
-			if (targetId.length > 19) throw new Chat.ErrorMessage("Username too long.");
+			if (targetId.length > 19) throw new Chat.ErrorMessage("That username is too long.");
 
 			const result = IconManager.validateSize(sizeStr);
 			if (!result.valid) throw new Chat.ErrorMessage(result.error);
@@ -138,8 +138,8 @@ export const commands: Chat.ChatCommands = {
 			const c2 = color2 || DEFAULTS.COLOR2;
 
 			const colorRegex = /^(#[0-9a-fA-F]{3,8}|[a-zA-Z]+)$/;
-			if (color1 && !colorRegex.test(c1)) throw new Chat.ErrorMessage("Invalid format for Color 1.");
-			if (color2 && !colorRegex.test(c2)) throw new Chat.ErrorMessage("Invalid format for Color 2.");
+			if (color1 && !colorRegex.test(c1)) throw new Chat.ErrorMessage("The format for Color 1 is invalid.");
+			if (color2 && !colorRegex.test(c2)) throw new Chat.ErrorMessage("The format for Color 2 is invalid.");
 
 			const now = Date.now();
 			iconData[targetId] = {
@@ -157,7 +157,7 @@ export const commands: Chat.ChatCommands = {
 			await Customization.updateCSS();
 
 			const sizeInfo = result.size !== DEFAULTS.SIZE ? ` (${result.size}px)` : '';
-			this.sendReply(`|raw|Icon configuration set for ${nameColor(name, true)}.`);
+			this.sendReply(`|raw|The icon configuration for ${nameColor(name, true)} has been set successfully.`);
 			Customization.notify(user, name, 'set', `set userlist icon for ${name}${sizeInfo}.`);
 		},
 
@@ -166,7 +166,7 @@ export const commands: Chat.ChatCommands = {
 			const [name, url, sizeStr, directionStr, color1, color2] = target.split(',').map(s => s.trim());
 			const targetId = toID(name);
 
-			if (!iconData[targetId]) throw new Chat.ErrorMessage("This user does not have an icon set.");
+			if (!iconData[targetId]) throw new Chat.ErrorMessage("This user doesn't have a custom icon set.");
 
 			const colorRegex = /^(#[0-9a-fA-F]{3,8}|[a-zA-Z]+)$/;
 
@@ -184,7 +184,7 @@ export const commands: Chat.ChatCommands = {
 			await IconManager.save(targetId, iconData[targetId]);
 			await Customization.updateCSS();
 
-			this.sendReply(`|raw|Icon configuration updated for ${nameColor(name, true)}.`);
+			this.sendReply(`|raw|The icon configuration for ${nameColor(name, true)} has been updated successfully.`);
 			Customization.notify(user, name, 'updated', `updated userlist icon for ${name}.`);
 		},
 
@@ -193,12 +193,12 @@ export const commands: Chat.ChatCommands = {
 			const targetId = toID(target);
 			if (!targetId) return this.parse('/icon help');
 
-			if (!iconData[targetId]) throw new Chat.ErrorMessage("This user does not have an icon set.");
+			if (!iconData[targetId]) throw new Chat.ErrorMessage("This user doesn't have a custom icon set.");
 
 			await IconManager.save(targetId, null);
 			await Customization.updateCSS();
 
-			this.sendReply(`Icon deleted for user: ${targetId}.`);
+			this.sendReply(`The custom icon for ${targetId} has been successfully deleted.`);
 			Customization.notify(user, target, 'removed', `removed userlist icon for ${target}.`);
 		},
 
@@ -206,9 +206,9 @@ export const commands: Chat.ChatCommands = {
 			this.runBroadcast();
 			this.sendReplyBox(
 				`<center><b>Custom Icon Commands</b></center><hr>` +
-				`<b>/icon set [user], [url], [size], [direction], [color1], [color2]</b>: Set a user's icon (${DEFAULTS.MIN}-${DEFAULTS.MAX}px). Direction and colors are optional. Directions: 'to right', 'to left', 'to bottom', 'center'.<hr>` +
-				`<b>/icon update [user], [url], [size], [direction], [color1], [color2]</b>: Update an existing icon's properties. Leave commas empty to skip configurations.<hr>` +
-				`<b>/icon delete [user]</b>: Remove an icon.`
+				`<b>/icon set [user], [url], [size], [direction], [color1], [color2]</b>: Sets a user's icon (${DEFAULTS.MIN}-${DEFAULTS.MAX}px). The direction and color parameters are optional. Available directions are: 'to right', 'to left', 'to bottom', and 'center'.<hr>` +
+				`<b>/icon update [user], [url], [size], [direction], [color1], [color2]</b>: Updates an existing icon's properties. Leave the space between commas empty to skip specific configurations.<hr>` +
+				`<b>/icon delete [user]</b>: Removes a user's icon.`
 			);
 		},
 	},

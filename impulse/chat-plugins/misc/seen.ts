@@ -142,7 +142,7 @@ export const commands: Chat.ChatCommands = {
 				.sort(([, a], [, b]) => b - a)
 				.slice(0, limit);
 
-			if (!recent.length) return this.sendReply("No history found.");
+			if (!recent.length) return this.sendReply("No recent history could be found.");
 
 			const dataRows = recent.map(([id, date]) => {
 				const u = Users.get(id);
@@ -159,10 +159,10 @@ export const commands: Chat.ChatCommands = {
 		async cleanup(target, room, user) {
 			this.checkCan('bypassall');
 			const days = parseInt(target) || 365;
-			if (days < 30) throw new Chat.ErrorMessage("Minimum cleanup threshold is 30 days.");
+			if (days < 30) throw new Chat.ErrorMessage("The minimum cleanup threshold is 30 days.");
 
 			const removed = await SeenManager.cleanup(days);
-			this.sendReply(`Deleted ${removed} records older than ${days} days.`);
+			this.sendReply(`${removed} records older than ${days} days have been deleted.`);
 		},
 
 		help() {

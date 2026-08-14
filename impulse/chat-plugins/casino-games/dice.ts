@@ -183,7 +183,7 @@ export const commands: Chat.ChatCommands = {
 			if (!room || room.battle || room.roomid !== CASINO_ROOM) throw new Chat.ErrorMessage("This command can only be used in the Casino room.");
 
 			const game = room.getGame(DiceGame);
-			if (!game) throw new Chat.ErrorMessage("No active dice game in this room.");
+			if (!game) throw new Chat.ErrorMessage("There is no active dice game in this room.");
 
 			const canEnd = user.id === game.host || user.can('roommod', null, room);
 			if (!canEnd) throw new Chat.ErrorMessage("Only the host or a room moderator can end the game.");

@@ -122,7 +122,7 @@ export class BaccaratGame extends RoomGame<BaccaratPlayer> {
 
 		const choice = (text || '').trim().toLowerCase() as Choice;
 		if (!['player', 'banker', 'tie'].includes(choice)) {
-			user.sendTo(this.roomid, "|error|Choice must be player, banker, or tie.");
+			user.sendTo(this.roomid, "|error|Your choice must be player, banker, or tie.");
 			return;
 		}
 
@@ -155,7 +155,7 @@ export class BaccaratGame extends RoomGame<BaccaratPlayer> {
 				return;
 			}
 			if (this.players.length === 0) {
-				user.sendTo(this.roomid, "|error|Cannot deal without any players.");
+				user.sendTo(this.roomid, "|error|You cannot deal without any players.");
 				return;
 			}
 			void this.dealGame();
@@ -409,7 +409,7 @@ export const commands: Chat.ChatCommands = {
 		async end(target, room, user) {
 			if (!room || room.battle || room.roomid !== CASINO_ROOM) throw new Chat.ErrorMessage("This command can only be used in the Casino room.");
 			const game = room.getGame(BaccaratGame);
-			if (!game) throw new Chat.ErrorMessage("No active baccarat game in this room.");
+			if (!game) throw new Chat.ErrorMessage("There is no active baccarat game in this room.");
 
 			const canEnd = user.id === game.host || user.can('roommod', null, room);
 			if (!canEnd) throw new Chat.ErrorMessage("Only the host or a room moderator can cancel the game.");
@@ -435,7 +435,7 @@ export const commands: Chat.ChatCommands = {
 			this.sendReplyBox(
 				`<center><b>Baccarat Rules</b></center><hr>` +
 				`Bet on which hand (Player or Banker) will be closest to 9.<br>` +
-				`Number cards are face value, Aces are 1, and 10/face cards are 0.<br>` +
+				`Number cards are worth their face value, Aces are 1, and 10/face cards are 0.<br>` +
 				`Hand values only use the last digit of the sum (e.g., 15 is 5).<br>` +
 				`Winning Player or Banker bets pay 2x, and a Tie bet pays 9x! In the event of a Tie, Player and Banker bets push (refund).`
 			);

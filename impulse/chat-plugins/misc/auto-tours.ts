@@ -182,10 +182,10 @@ export const commands: Chat.ChatCommands = {
 			const config = AutotourManager.getConfig(roomid);
 			this.checkCan('declare', null, room);
 			const val = parseInt(target);
-			if (isNaN(val) || val < 1) throw new Chat.ErrorMessage("Interval must be at least 1 minute.");
+			if (isNaN(val) || val < 1) throw new Chat.ErrorMessage("The interval must be at least 1 minute.");
 			config.interval = val;
 			await AutotourManager.saveConfig(roomid);
-			this.sendReply(`Tournament interval set to ${val} minutes.`);
+			this.sendReply(`The tournament interval has been set to ${val} minutes.`);
 		},
 
 		async formats(target, room) {
@@ -196,7 +196,7 @@ export const commands: Chat.ChatCommands = {
 			if (!formats.length) throw new Chat.ErrorMessage("Usage: /at formats [format1], [format2]");
 			config.formats = formats;
 			await AutotourManager.saveConfig(roomid);
-			this.sendReply("Rotation formats updated.");
+			this.sendReply("The rotation formats have been updated.");
 		},
 
 		show(target, room) {
@@ -216,10 +216,10 @@ export const commands: Chat.ChatCommands = {
 		next(target, room) {
 			const roomid = this.requireRoom().roomid;
 			const config = AutotourManager.getConfig(roomid);
-			if (!config.enabled) throw new Chat.ErrorMessage("Autotour is not enabled here.");
+			if (!config.enabled) throw new Chat.ErrorMessage("Autotours are not enabled for this room.");
 			const next = (config.lastTourTime + (config.interval * 60000)) - Date.now();
 			const remaining = next > 0 ? Math.floor(next / 60000) : 0;
-			this.sendReply(`The next tournament in ${roomid} is scheduled in ~${remaining} minute(s).`);
+			this.sendReply(`The next tournament in ${roomid} is scheduled for ~${remaining} minute(s) from now.`);
 		},
 
 		help() {

@@ -93,14 +93,14 @@ export const commands: Chat.ChatCommands = {
 		on(target: string, room: Room, user: User) {
 			this.checkCan('bypassall');
 			setPoofState(true);
-			this.sendReply("Poof is now enabled.");
+			this.sendReply("Poof has been enabled.");
 		},
 		onhelp: ["/poof on - Enable the use /poof command. Requires: &"],
 
 		off(target: string, room: Room, user: User) {
 			this.checkCan('bypassall');
 			setPoofState(false);
-			this.sendReply("Poof is now disabled.");
+			this.sendReply("Poof has been disabled.");
 		},
 		offhelp: ["/poof off - Disable the use of the /poof command. Requires: &"],
 	},

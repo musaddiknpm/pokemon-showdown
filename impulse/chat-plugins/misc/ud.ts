@@ -69,11 +69,11 @@ export const commands: Chat.ChatCommands = {
 
 		const data = await fetchUrbanDictionary(targetQuery);
 		if (!data) {
-			return this.sendReplyBox(`No definition found for "<strong>${Utils.escapeHTML(targetQuery)}</strong>" on Urban Dictionary.`);
+			return this.sendReplyBox(`No definition could be found for "<strong>${Utils.escapeHTML(targetQuery)}</strong>" on Urban Dictionary.`);
 		}
 
 		const word = data.word || targetQuery;
-		let definition = data.definition || 'No definition available.';
+		let definition = data.definition || 'No definition is available.';
 
 		definition = definition.replace(/\[|\]/g, '');
 

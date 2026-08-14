@@ -165,7 +165,7 @@ export class BlackjackGame extends RoomGame<BlackjackPlayer> {
 				return;
 			}
 			if (this.players.length === 0) {
-				user.sendTo(this.roomid, "|error|Cannot deal without any players.");
+				user.sendTo(this.roomid, "|error|You cannot deal without any players.");
 				return;
 			}
 			void this.startDealing();
@@ -510,7 +510,7 @@ export const commands: Chat.ChatCommands = {
 		end(target, room, user) {
 			if (!room || room.battle || room.roomid !== CASINO_ROOM) throw new Chat.ErrorMessage("This command can only be used in the Casino room.");
 			const game = room.getGame(BlackjackGame);
-			if (!game) throw new Chat.ErrorMessage("No active blackjack game in this room.");
+			if (!game) throw new Chat.ErrorMessage("There is no active blackjack game in this room.");
 
 			const canEnd = user.id === game.host || user.can('roommod', null, room);
 			if (!canEnd) throw new Chat.ErrorMessage("Only the host or a room moderator can cancel the game.");
@@ -536,7 +536,7 @@ export const commands: Chat.ChatCommands = {
 			this.sendReplyBox(
 				`<center><b>Blackjack Rules</b></center><hr>` +
 				`Try to get your hand's value closer to 21 than the dealer's without going over (busting).<br>` +
-				`Number cards are face value, face cards are 10, and Aces can be 1 or 11.<br>` +
+				`Number cards are worth their face value, face cards are 10, and Aces can be 1 or 11.<br>` +
 				`Beating the dealer pays 2x your bet, and getting a natural Blackjack pays 2.5x!`
 			);
 		},

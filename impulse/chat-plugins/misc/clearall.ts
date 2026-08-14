@@ -50,12 +50,12 @@ export const commands: Chat.ChatCommands = {
 		''(target, room, user) {
 			room = this.requireRoom();
 			this.checkCan('roommod', null, room);
-			if (room.battle) throw new Chat.ErrorMessage("Cannot use clearall in battle rooms.");
+			if (room.battle) throw new Chat.ErrorMessage("You cannot use clearall in battle rooms.");
 
 			const result = ClearManager.execute([room]);
 
 			if (result.failed.length) {
-				throw new Chat.ErrorMessage(`Could not clear ${room.id} because a tournament is currently running.`);
+				throw new Chat.ErrorMessage(`The room ${room.id} could not be cleared because a tournament is currently running.`);
 			}
 
 			this.modlog('CLEARALL');
@@ -74,7 +74,7 @@ export const commands: Chat.ChatCommands = {
 			}
 
 			if (result.failed.length) {
-				throw new Chat.ErrorMessage(`Failed to clear (Tournament running): ${result.failed.join(', ')}`);
+				throw new Chat.ErrorMessage(`Failed to clear the following rooms because a tournament is running: ${result.failed.join(', ')}`);
 			}
 		},
 
@@ -82,8 +82,8 @@ export const commands: Chat.ChatCommands = {
 			this.runBroadcast();
 			this.sendReplyBox(
 				`<center><b>Clearall Commands</b></center><hr>` +
-				`<b>/clearall</b>: Clears chat in the current room. Requires: % # & ~ <hr>` +
-				`<b>/clearall global</b>: Clears chat in all non-battle rooms. Requires: & ~`
+				`<b>/clearall</b>: Clears the chat in the current room. Requires: % # & ~ <hr>` +
+				`<b>/clearall global</b>: Clears the chat in all non-battle rooms. Requires: & ~`
 			);
 		},
 	},

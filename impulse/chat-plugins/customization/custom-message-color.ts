@@ -75,38 +75,38 @@ export const commands: Chat.ChatCommands = {
 			if (!color) return this.parse('/chatmessagecolor help');
 
 			const normalized = normalizeColor(color);
-			if (!normalized) throw new Chat.ErrorMessage("Invalid color. Use a hex code (#RRGGBB) or a valid CSS color name.");
+			if (!normalized) throw new Chat.ErrorMessage("That color is invalid. Please use a hex code (e.g., #RRGGBB) or a valid CSS color name.");
 
 			colorCache[user.id] = normalized;
 			saveData();
 
-			this.sendReply(`Your message color has been set to ${normalized}.`);
+			this.sendReply(`Your chat message color has been set to ${normalized}.`);
 		},
 
 		delete(target, room, user) {
-			if (!colorCache[user.id]) throw new Chat.ErrorMessage("You don't have a message color set.");
+			if (!colorCache[user.id]) throw new Chat.ErrorMessage("You don't currently have a chat message color set.");
 			delete colorCache[user.id];
 			saveData();
 
-			this.sendReply("Your message color has been removed.");
+			this.sendReply("Your chat message color has been successfully removed.");
 		},
 
 		view(target, room, user) {
 			if (!this.runBroadcast()) return;
 			const targetId = target.trim() ? toID(target) : user.id;
 			const color = colorCache[targetId];
-			if (!color) throw new Chat.ErrorMessage(targetId === user.id ? "You don't have a message color set." : "That user doesn't have a message color set.");
+			if (!color) throw new Chat.ErrorMessage(targetId === user.id ? "You don't currently have a chat message color set." : "That user doesn't currently have a chat message color set.");
 
-			this.sendReplyBox(`<span style="color:${escapeHTML(color)}">${escapeHTML(targetId)}</span>'s message color is <b>${escapeHTML(color)}</b>.`);
+			this.sendReplyBox(`<span style="color:${escapeHTML(color)}">${escapeHTML(targetId)}</span>'s chat message color is <b>${escapeHTML(color)}</b>.`);
 		},
 
 		help() {
 			this.runBroadcast();
 			this.sendReplyBox(
 				`<center><b>Chat Message Color Commands</b></center><hr>` +
-				`<b>/chatmessagecolor set [color]</b>: Set your chat message color (hex or CSS name).<hr>` +
-				`<b>/chatmessagecolor delete</b>: Remove your chat message color.<hr>` +
-				`<b>/chatmessagecolor view [user]</b>: View your or another user's message color.`
+				`<b>/chatmessagecolor set [color]</b>: Sets your chat message color using a hex code or CSS color name.<hr>` +
+				`<b>/chatmessagecolor delete</b>: Removes your chat message color.<hr>` +
+				`<b>/chatmessagecolor view [user]</b>: Views your own or another user's chat message color.`
 			);
 		},
 	},

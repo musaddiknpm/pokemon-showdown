@@ -76,7 +76,7 @@ const SymbolManager = {
 
 	validate(symbol: string): ValidationResult {
 		if (!symbol || symbol.length !== 1) {
-			return { valid: false, error: "Symbol must be a single character." };
+			return { valid: false, error: "The custom symbol must be a single character." };
 		}
 		if ((BLOCKED_SYMBOLS as readonly string[]).includes(symbol)) {
 			return { valid: false, error: `The following symbols are blocked: ${BLOCKED_SYMBOLS.join(' ')}` };
@@ -101,8 +101,8 @@ export const commands: Chat.ChatCommands = {
 			if (!name || !symbol) return this.parse('/cs help');
 
 			const targetId = toID(name);
-			if (targetId.length > 19) throw new Chat.ErrorMessage("Username too long.");
-			if (symbolData[targetId]) throw new Chat.ErrorMessage("User already has a custom symbol. Use '/cs update'.");
+			if (targetId.length > 19) throw new Chat.ErrorMessage("That username is too long.");
+			if (symbolData[targetId]) throw new Chat.ErrorMessage("This user already has a custom symbol. Please use '/cs update' to change it.");
 
 			const validation = SymbolManager.validate(symbol);
 			if (!validation.valid) throw new Chat.ErrorMessage(validation.error);
@@ -113,7 +113,7 @@ export const commands: Chat.ChatCommands = {
 			await SymbolManager.save(targetId, symbolData[targetId]);
 			SymbolManager.apply(targetId);
 
-			this.sendReply(`|raw|Custom symbol set for ${nameColor(name, true)}.`);
+			this.sendReply(`|raw|The custom symbol for ${nameColor(name, true)} has been set successfully.`);
 			Customization.notify(user, name, 'set', `set custom symbol for ${name} to <strong>${symbol}</strong>.`);
 		},
 
@@ -122,7 +122,7 @@ export const commands: Chat.ChatCommands = {
 			const [name, symbol] = target.split(',').map(s => s.trim());
 			const targetId = toID(name);
 
-			if (!symbolData[targetId]) throw new Chat.ErrorMessage("User does not have a custom symbol.");
+			if (!symbolData[targetId]) throw new Chat.ErrorMessage("This user doesn't have a custom symbol set.");
 
 			const validation = SymbolManager.validate(symbol);
 			if (!validation.valid) throw new Chat.ErrorMessage(validation.error);
@@ -133,7 +133,7 @@ export const commands: Chat.ChatCommands = {
 			await SymbolManager.save(targetId, symbolData[targetId]);
 			SymbolManager.apply(targetId);
 
-			this.sendReply(`|raw|Custom symbol updated for ${nameColor(name, true)}.`);
+			this.sendReply(`|raw|The custom symbol for ${nameColor(name, true)} has been updated successfully.`);
 			Customization.notify(user, name, 'updated', `updated custom symbol for ${name} to <strong>${symbol}</strong>.`);
 		},
 
@@ -141,13 +141,13 @@ export const commands: Chat.ChatCommands = {
 			this.checkCan('bypassall');
 			const targetId = toID(target);
 
-			if (!symbolData[targetId]) throw new Chat.ErrorMessage("User has no custom symbol.");
+			if (!symbolData[targetId]) throw new Chat.ErrorMessage("This user doesn't have a custom symbol set.");
 
 			delete symbolData[targetId];
 			await SymbolManager.save(targetId, null);
 			SymbolManager.apply(targetId);
 
-			this.sendReply(`Custom symbol removed for ${targetId}.`);
+			this.sendReply(`The custom symbol for ${targetId} has been successfully removed.`);
 			Customization.notify(user, target, 'removed', `removed custom symbol for ${target}.`);
 		},
 
@@ -155,10 +155,10 @@ export const commands: Chat.ChatCommands = {
 			this.runBroadcast();
 			this.sendReplyBox(
 				`<center><b>Custom Symbol Commands</b></center><hr>` +
-				`<b>/cs set [user], [symbol]</b>: Set a custom symbol.<hr>` +
-				`<b>/cs update [user], [symbol]</b>: Update the symbol.<hr>` +
-				`<b>/cs delete [user]</b>: Remove the symbol.<hr>` +
-				`<center><small>Blocked: ${BLOCKED_SYMBOLS.join(' ')}</small></center>`
+				`<b>/cs set [user], [symbol]</b>: Sets a custom symbol for a user.<hr>` +
+				`<b>/cs update [user], [symbol]</b>: Updates a user's custom symbol.<hr>` +
+				`<b>/cs delete [user]</b>: Removes a user's custom symbol.<hr>` +
+				`<center><small>Blocked symbols: ${BLOCKED_SYMBOLS.join(' ')}</small></center>`
 			);
 		},
 

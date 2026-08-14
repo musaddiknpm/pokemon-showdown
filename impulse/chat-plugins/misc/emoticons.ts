@@ -10,10 +10,11 @@ const CONFIG = {
 	DEFAULT_SIZE: 32,
 	MAX_NAME_LENGTH: 20,
 	VALID_URL: /^https:\/\/[^\s"'<>]+\.(?:png|gif|jpg|jpeg|webp)(?:\?[^\s"'<>]*)?$/i,
-	VALID_NAME: /^[\w:)(|-]{1,10}$/,
+	VALID_NAME: /^[\w:)(|-]{1,20}$/,
 };
 
 interface EmoticonEntry {
+	readonly name: string;
 	readonly url: string;
 	readonly addedBy: string;
 	readonly addedAt: number;
@@ -43,13 +44,13 @@ let emoteCache: Record<string, EmoticonEntry> = {};
 const ignoreCache = new Set<string>();
 let currentEmoteSize = CONFIG.DEFAULT_SIZE;
 
-let emoteRegex = /^$/g;
+let emoteRegex = /^$/ig;
 
 function buildRegex() {
-	const keys = Object.keys(emoteCache);
+	const keys = Object.values(emoteCache).map(e => e.name);
 	emoteRegex = keys.length > 0 ?
-		new RegExp(`(${keys.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'g') :
-		/^$/g;
+		new RegExp(`(${keys.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'ig') :
+		/^$/ig;
 }
 
 const EmoteManager = {
@@ -60,7 +61,8 @@ const EmoteManager = {
 		const emotesRows = await getEmoteTable().select();
 		emoteCache = {};
 		for (const row of emotesRows) {
-			emoteCache[row.name] = {
+			emoteCache[row.name.toLowerCase()] = {
+				name: row.name,
 				url: row.url,
 				addedBy: row.added_by,
 				addedAt: Number(row.added_at),
@@ -85,7 +87,7 @@ const EmoteManager = {
 
 	async addEmote(name: string, url: string, addedBy: string) {
 		const addedAt = Date.now();
-		emoteCache[name] = { url, addedBy, addedAt };
+		emoteCache[name.toLowerCase()] = { name, url, addedBy, addedAt };
 		buildRegex();
 
 		await initMiscDB();
@@ -98,7 +100,7 @@ const EmoteManager = {
 	},
 
 	async removeEmote(name: string) {
-		delete emoteCache[name];
+		delete emoteCache[name.toLowerCase()];
 		buildRegex();
 
 		await initMiscDB();
@@ -133,9 +135,9 @@ const EmoteManager = {
 
 		const size = currentEmoteSize;
 		const parsed = this.parseMarkdown(message).replace(emoteRegex, match => {
-			const entry = emoteCache[match];
+			const entry = emoteCache[match.toLowerCase()];
 			if (!entry) return Utils.escapeHTML(match);
-			return `<img src="${Utils.escapeHTML(entry.url)}" title="${Utils.escapeHTML(match)}" height="${size}" width="${size}" style="vertical-align:middle" loading="lazy">`;
+			return `<img src="${Utils.escapeHTML(entry.url)}" title="${Utils.escapeHTML(match)}" height="${size}" width="${size}" loading="lazy">`;
 		});
 
 		return parsed;
@@ -164,44 +166,45 @@ export const commands: Chat.ChatCommands = {
 			const [name, url] = target.split(',').map(s => s.trim());
 			if (!name || !url) return this.parse('/emote help');
 
-			if (!CONFIG.VALID_NAME.test(name)) throw new Chat.ErrorMessage(`Names must be 1-${CONFIG.MAX_NAME_LENGTH} chars (letters/numbers/:_-|()).`);
-			if (!CONFIG.VALID_URL.test(url)) throw new Chat.ErrorMessage("Invalid image URL (must be HTTPS and PNG/GIF/JPG/WEBP).");
-			if (emoteCache[name]) throw new Chat.ErrorMessage(`"${name}" already exists.`);
+			if (!CONFIG.VALID_NAME.test(name)) throw new Chat.ErrorMessage(`Emoticon names must be 1-${CONFIG.MAX_NAME_LENGTH} characters long and can only contain letters, numbers, and the characters : _ - | ( ).`);
+			if (!CONFIG.VALID_URL.test(url)) throw new Chat.ErrorMessage("The provided image URL is invalid. It must be an HTTPS link to a PNG, GIF, JPG, or WEBP file.");
+			if (emoteCache[name.toLowerCase()]) throw new Chat.ErrorMessage(`The emoticon "${emoteCache[name.toLowerCase()].name}" already exists.`);
 
 			await EmoteManager.addEmote(name, url, user.id);
 
-			this.sendReply(`|raw|Emoticon <b>${Utils.escapeHTML(name)}</b> added.`);
+			this.sendReply(`|raw|The emoticon <b>${Utils.escapeHTML(name)}</b> has been added.`);
 		},
 
 		async delete(target, room, user) {
 			this.checkCan('bypassall');
 			const name = target.trim();
-			if (!emoteCache[name]) throw new Chat.ErrorMessage("Emoticon not found.");
+			const emote = emoteCache[name.toLowerCase()];
+			if (!emote) throw new Chat.ErrorMessage("The specified emoticon could not be found.");
 
-			await EmoteManager.removeEmote(name);
+			await EmoteManager.removeEmote(emote.name);
 
-			this.sendReply(`Emoticon "${name}" deleted.`);
+			this.sendReply(`The emoticon "${emote.name}" has been deleted.`);
 		},
 
 		async size(target, room, user) {
 			this.checkCan('bypassall');
 			const size = parseInt(target);
 			if (isNaN(size) || size < CONFIG.MIN_SIZE || size > CONFIG.MAX_SIZE) {
-				throw new Chat.ErrorMessage(`Size must be between ${CONFIG.MIN_SIZE} and ${CONFIG.MAX_SIZE}.`);
+				throw new Chat.ErrorMessage(`The size must be between ${CONFIG.MIN_SIZE} and ${CONFIG.MAX_SIZE}.`);
 			}
 			await EmoteManager.setSize(size);
 
-			this.sendReply(`Emoticon size set to ${size}px.`);
+			this.sendReply(`The emoticon size has been set to ${size}px.`);
 		},
 
 		async ignore(target, room, user) {
-			if (ignoreCache.has(user.id)) throw new Chat.ErrorMessage("Already ignoring emoticons.");
+			if (ignoreCache.has(user.id)) throw new Chat.ErrorMessage("You are already ignoring emoticons.");
 			await EmoteManager.setIgnore(user.id, true);
 			this.sendReply("You are now ignoring emoticons.");
 		},
 
 		async unignore(target, room, user) {
-			if (!ignoreCache.has(user.id)) throw new Chat.ErrorMessage("You aren't ignoring emoticons.");
+			if (!ignoreCache.has(user.id)) throw new Chat.ErrorMessage("You are not currently ignoring emoticons.");
 			await EmoteManager.setIgnore(user.id, false);
 			this.sendReply("You are no longer ignoring emoticons.");
 		},
@@ -217,11 +220,11 @@ export const commands: Chat.ChatCommands = {
 		info(target) {
 			if (!this.runBroadcast()) return;
 			const name = target.trim();
-			const emote = emoteCache[name];
+			const emote = emoteCache[name.toLowerCase()];
 			if (!emote) throw new Chat.ErrorMessage("Emoticon not found.");
 
 			this.sendReplyBox(
-				`<strong>Emoticon Info: ${Utils.escapeHTML(name)}</strong><br />` +
+				`<strong>Emoticon Info: ${Utils.escapeHTML(emote.name)}</strong><br />` +
 				`<img src="${Utils.escapeHTML(emote.url)}" width="40" height="40"><br />` +
 				`URL: ${Utils.escapeHTML(emote.url)}<br />` +
 				`Added by: ${nameColor(emote.addedBy, true)}`
@@ -232,14 +235,14 @@ export const commands: Chat.ChatCommands = {
 			if (!this.runBroadcast()) return;
 
 			const emoteKeys = Object.keys(emoteCache);
-			if (emoteKeys.length === 0) return this.sendReplyBox("No emoticons available.");
+			if (emoteKeys.length === 0) return this.sendReplyBox("There are no emoticons available.");
 
 			const rows: string[][] = [];
 			for (let i = 0; i < emoteKeys.length; i += 5) {
 				const row: string[] = [];
 				for (let j = i; j < i + 5 && j < emoteKeys.length; j++) {
-					const name = emoteKeys[j];
-					const emote = emoteCache[name];
+					const emote = emoteCache[emoteKeys[j]];
+					const name = emote.name;
 					row.push(`<center><img src="${Utils.escapeHTML(emote.url)}" width="32" height="32" title="${Utils.escapeHTML(name)}"><br /><code>${Utils.escapeHTML(name)}</code></center>`);
 				}
 				rows.push(row);

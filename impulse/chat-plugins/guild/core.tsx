@@ -69,10 +69,10 @@ const VALID_ROLES = Object.keys(ROLE_HIERARCHY);
 function checkGuildAuth(guild: import('./types').Guild, user: User, allowedRoles: string[] | null, actionDesc: string) {
 	const userMember = guild.members.find(m => m.id === user.id);
 	if (!userMember && !user.can('bypassall')) {
-		return { error: `You are not a member of '${guild.name}'.` };
+		return { error: `You are not a member of the guild '${guild.name}'.` };
 	}
 	if (userMember && allowedRoles && !allowedRoles.some(r => userMember.role === r) && !user.can('bypassall')) {
-		return { error: `You do not have permission to ${actionDesc}.` };
+		return { error: `You don't have permission to ${actionDesc}.` };
 	}
 	return { userMember };
 }
@@ -119,7 +119,7 @@ async function resolveGuildWithVariadic(user: User, target: string): Promise<{ g
 	}
 
 	const guild = await GuildRepository.getGuildByMemberId(user.id);
-	if (!guild) return { guild: null, rest: target, error: "You are not a member of any guild." };
+	if (!guild) return { guild: null, rest: target, error: "You aren't in a guild." };
 	return { guild, rest: target };
 }
 
@@ -127,7 +127,7 @@ export const commands: Chat.ChatCommands = {
 	guilds: 'guild',
 	guild: {
 		async create(target, room, user) {
-			if (!user.can('bypassall')) throw new Chat.ErrorMessage("Access denied. Only global administrators can create a guild.");
+			if (!user.can('bypassall')) throw new Chat.ErrorMessage("Access denied. You need to be a global administrator to create a guild.");
 
 			const parts = target.split(',').map(p => p.trim());
 			const name = parts[0];
@@ -137,14 +137,14 @@ export const commands: Chat.ChatCommands = {
 			const ownerName = parts.length > 1 ? parts[1] : user.name;
 
 			const id = toID(name);
-			if (!id) throw new Chat.ErrorMessage("Guild name must contain alphanumeric characters.");
-			if (id.length > 20) throw new Chat.ErrorMessage("Guild name must be 20 characters or less.");
+			if (!id) throw new Chat.ErrorMessage("A guild name must contain only alphanumeric characters.");
+			if (id.length > 20) throw new Chat.ErrorMessage("A guild name must be 20 characters or less.");
 
-			if (await GuildRepository.guildExists(id)) throw new Chat.ErrorMessage(`Guild '${name}' already exists.`);
+			if (await GuildRepository.guildExists(id)) throw new Chat.ErrorMessage(`The guild '${name}' already exists.`);
 
 			const existingGuild = await GuildRepository.getGuildByMemberId(ownerId);
 			if (existingGuild) {
-				throw new Chat.ErrorMessage(`User '${ownerName}' is already in a guild.`);
+				throw new Chat.ErrorMessage(`The user '${ownerName}' is already in a guild.`);
 			}
 
 			const roomId = `guild${id}` as RoomID;
@@ -175,23 +175,23 @@ export const commands: Chat.ChatCommands = {
 				id: ownerId, username: ownerName, role: 'Master', joinedAt: new Date(),
 				points: 0, totalPoints: 0,
 			});
-			this.sendReply(`Guild '${name}' has been created successfully with '${ownerName}' as the owner.`);
+			this.sendReply(`The guild '${name}' has been successfully created with '${ownerName}' as the owner.`);
 
 			const targetUser = Users.get(ownerId);
 			if (targetUser) {
-				targetUser.popup(`|html|Your guild <b>${name}</b> has been created by ${user.name}!`);
+				targetUser.popup(`|html|Your guild <b>${name}</b> was created by ${user.name}!`);
 				targetUser.joinRoom(roomId);
 			}
 		},
 
 		async delete(target, room, user) {
-			if (!user.can('bypassall')) throw new Chat.ErrorMessage("Access denied. Only global administrators can delete a guild.");
+			if (!user.can('bypassall')) throw new Chat.ErrorMessage("Access denied. You need to be a global administrator to delete a guild.");
 
 			const guildId = toID(target);
 			if (!guildId) return this.parse('/help guild delete');
 
 			const guild = await GuildRepository.getGuildById(guildId);
-			if (!guild) throw new Chat.ErrorMessage(`Guild '${target}' not found.`);
+			if (!guild) throw new Chat.ErrorMessage(`The guild '${target}' could not be found.`);
 
 			if (guild.chatroom) {
 				const chatroom = Rooms.get(guild.chatroom as RoomID);
@@ -202,11 +202,11 @@ export const commands: Chat.ChatCommands = {
 			}
 
 			await GuildRepository.deleteGuild(guildId);
-			this.sendReply(`Guild '${guild.name}' has been deleted.`);
+			this.sendReply(`The guild '${guild.name}' has been deleted.`);
 
 			const ownerUser = Users.get(guild.ownerId);
 			if (ownerUser) {
-				ownerUser.popup(`|html|The guild <b>${guild.name}</b> has been deleted by ${user.name}.`);
+				ownerUser.popup(`|html|The guild <b>${guild.name}</b> was deleted by ${user.name}.`);
 			}
 		},
 
@@ -215,20 +215,20 @@ export const commands: Chat.ChatCommands = {
 			if (!id) return this.parse('/help guild join');
 
 			const guild = await GuildRepository.getGuildById(id);
-			if (!guild) throw new Chat.ErrorMessage(`Guild '${id}' not found.`);
+			if (!guild) throw new Chat.ErrorMessage(`The guild '${id}' could not be found.`);
 
 			const cooldown = await getGuildCooldown(user.id);
 			if (cooldown && !user.can('bypassall')) {
-				throw new Chat.ErrorMessage(`You must wait ${formatCooldown(cooldown)} before joining another guild.`);
+				throw new Chat.ErrorMessage(`You need to wait ${formatCooldown(cooldown)} before joining another guild.`);
 			}
 
 			const userGuild = await GuildRepository.getGuildByMemberId(user.id);
 			if (userGuild) {
-				throw new Chat.ErrorMessage(`You are already in a guild. You must leave it before joining another.`);
+				throw new Chat.ErrorMessage(`You are already in a guild. You need to leave it before joining another one.`);
 			}
 
 			if (guild.memberCount >= guild.memberLimit) {
-				throw new Chat.ErrorMessage(`Guild '${guild.name}' has reached its member limit of ${guild.memberLimit}.`);
+				throw new Chat.ErrorMessage(`The guild '${guild.name}' has reached its member limit of ${guild.memberLimit}.`);
 			}
 
 			if (guild.banned.includes(user.id)) {
@@ -238,12 +238,12 @@ export const commands: Chat.ChatCommands = {
 			if (guild.joinPolicy === 'invite-only') {
 				const inviteIndex = guild.invited.findIndex(i => i.userId === user.id && i.status === 'pending');
 				if (inviteIndex === -1) {
-					throw new Chat.ErrorMessage(`Guild '${guild.name}' is invite-only, and you do not have a pending invite.`);
+					throw new Chat.ErrorMessage(`The guild '${guild.name}' is invite-only, and you don't have a pending invite.`);
 				}
 				const invite = guild.invited[inviteIndex];
 				if (invite.expiresAt < new Date()) {
 					await GuildRepository.updateInviteStatus(guild.id, user.id, 'revoked');
-					throw new Chat.ErrorMessage(`Your invite to '${guild.name}' has expired.`);
+					throw new Chat.ErrorMessage(`Your invite to join '${guild.name}' has expired.`);
 				}
 			}
 
@@ -267,7 +267,7 @@ export const commands: Chat.ChatCommands = {
 			
 			user.joinRoom(guild.chatroom as RoomID);
 
-			broadcastToGuild(guild, `${user.name} has joined the guild.`, 'green');
+			broadcastToGuild(guild, `${user.name} joined the guild.`, 'green');
 		},
 
 		async leave(target, room, user) {
@@ -276,18 +276,18 @@ export const commands: Chat.ChatCommands = {
 			if (!guild) return;
 
 			const memberIndex = guild.members.findIndex(m => m.id === user.id);
-			if (memberIndex === -1) throw new Chat.ErrorMessage(`You are not a member of '${guild.name}'.`);
+			if (memberIndex === -1) throw new Chat.ErrorMessage(`You aren't a member of '${guild.name}'.`);
 
 			if (guild.ownerId === user.id) {
-				throw new Chat.ErrorMessage("You cannot leave a guild you own. Transfer ownership or delete the guild first.");
+				throw new Chat.ErrorMessage("You can't leave a guild you own. Please transfer ownership or delete the guild first.");
 			}
 
 			updateRoomAuth(guild, user.id, null);
 			await GuildRepository.removeMember(guild.id, user.id);
 			await setGuildCooldown(user.id);
-			this.sendReply(`You have left '${guild.name}'. You must wait 12 hours before joining another guild.`);
+			this.sendReply(`You have left '${guild.name}'. You will need to wait 12 hours before joining another guild.`);
 
-			broadcastToGuild(guild, `${user.name} has left the guild.`, 'red');
+			broadcastToGuild(guild, `${user.name} left the guild.`, 'red');
 		},
 
 		async promote(target, room, user) {
@@ -307,19 +307,19 @@ export const commands: Chat.ChatCommands = {
 
 			const targetMember = guild.members.find(m => m.id === targetId);
 			if (!targetMember) {
-				throw new Chat.ErrorMessage(`User '${parts[0]}' is not a member of '${guild.name}'.`);
+				throw new Chat.ErrorMessage(`The user '${parts[0]}' is not a member of '${guild.name}'.`);
 			}
 
 			if (!VALID_ROLES.includes(roleStr)) {
-				throw new Chat.ErrorMessage(`Invalid role '${roleStr}'. Valid roles: ${VALID_ROLES.join(', ')}`);
+				throw new Chat.ErrorMessage(`Invalid role '${roleStr}'. Valid roles are: ${VALID_ROLES.join(', ')}`);
 			}
 
 			if (roleStr === 'Master') {
-				throw new Chat.ErrorMessage("You cannot promote a user to Master. Use /guild transfer instead.");
+				throw new Chat.ErrorMessage("You can't promote a user to Master. Use /guild transfer instead.");
 			}
 
 			if (targetMember.role === roleStr) {
-				throw new Chat.ErrorMessage(`User '${parts[0]}' is already a ${roleStr}.`);
+				throw new Chat.ErrorMessage(`The user '${parts[0]}' is already a ${roleStr}.`);
 			}
 
 			const userRoleRank = userMember ? ROLE_HIERARCHY[userMember.role] : 99;
@@ -327,12 +327,12 @@ export const commands: Chat.ChatCommands = {
 			const newRoleRank = ROLE_HIERARCHY[roleStr];
 
 			if (newRoleRank <= targetRoleRank) {
-				throw new Chat.ErrorMessage(`Role '${roleStr}' is not a promotion from '${targetMember.role}'. Use /guild demote instead.`);
+				throw new Chat.ErrorMessage(`The role '${roleStr}' is not a promotion from '${targetMember.role}'. Use /guild demote instead.`);
 			}
 
 			if (!user.can('bypassall')) {
 				if (userRoleRank <= targetRoleRank) throw new Chat.ErrorMessage("You can only promote users with a lower rank than yours.");
-				if (userRoleRank <= newRoleRank) throw new Chat.ErrorMessage("You cannot promote users to a rank equal to or higher than yours.");
+				if (userRoleRank <= newRoleRank) throw new Chat.ErrorMessage("You can't promote users to a rank equal to or higher than yours.");
 			}
 
 			updateRoomAuth(guild, targetMember.id, roleStr);
@@ -342,10 +342,10 @@ export const commands: Chat.ChatCommands = {
 
 			const targetUser = Users.get(targetMember.id);
 			if (targetUser) {
-				targetUser.popup(`|html|You have been promoted to <b>${roleStr}</b> in the guild <b>${guild.name}</b> by ${user.name}!`);
+				targetUser.popup(`|html|You were promoted to <b>${roleStr}</b> in the guild <b>${guild.name}</b> by ${user.name}!`);
 			}
 
-			broadcastToGuild(guild, `${targetMember.username} has been promoted to ${roleStr}.`, 'green');
+			broadcastToGuild(guild, `${targetMember.username} was promoted to ${roleStr}.`, 'green');
 		},
 
 		async demote(target, room, user) {
@@ -365,15 +365,15 @@ export const commands: Chat.ChatCommands = {
 
 			const targetMember = guild.members.find(m => m.id === targetId);
 			if (!targetMember) {
-				throw new Chat.ErrorMessage(`User '${parts[0]}' is not a member of '${guild.name}'.`);
+				throw new Chat.ErrorMessage(`The user '${parts[0]}' is not a member of '${guild.name}'.`);
 			}
 
 			if (!VALID_ROLES.includes(roleStr)) {
-				throw new Chat.ErrorMessage(`Invalid role '${roleStr}'. Valid roles: ${VALID_ROLES.join(', ')}`);
+				throw new Chat.ErrorMessage(`Invalid role '${roleStr}'. Valid roles are: ${VALID_ROLES.join(', ')}`);
 			}
 
 			if (targetMember.role === roleStr) {
-				throw new Chat.ErrorMessage(`User '${parts[0]}' is already a ${roleStr}.`);
+				throw new Chat.ErrorMessage(`The user '${parts[0]}' is already a ${roleStr}.`);
 			}
 
 			const userRoleRank = userMember ? ROLE_HIERARCHY[userMember.role] : 99;
@@ -381,7 +381,7 @@ export const commands: Chat.ChatCommands = {
 			const newRoleRank = ROLE_HIERARCHY[roleStr];
 
 			if (newRoleRank >= targetRoleRank) {
-				throw new Chat.ErrorMessage(`Role '${roleStr}' is not a demotion from '${targetMember.role}'. Use /guild promote instead.`);
+				throw new Chat.ErrorMessage(`The role '${roleStr}' is not a demotion from '${targetMember.role}'. Use /guild promote instead.`);
 			}
 
 			if (!user.can('bypassall')) {
@@ -389,7 +389,7 @@ export const commands: Chat.ChatCommands = {
 			}
 
 			if (targetMember.id === guild.ownerId) {
-				throw new Chat.ErrorMessage("You cannot demote the guild owner.");
+				throw new Chat.ErrorMessage("You can't demote the guild owner.");
 			}
 
 			updateRoomAuth(guild, targetMember.id, roleStr);
@@ -399,10 +399,10 @@ export const commands: Chat.ChatCommands = {
 
 			const targetUser = Users.get(targetMember.id);
 			if (targetUser) {
-				targetUser.popup(`|html|You have been demoted to <b>${roleStr}</b> in the guild <b>${guild.name}</b> by ${user.name}.`);
+				targetUser.popup(`|html|You were demoted to <b>${roleStr}</b> in the guild <b>${guild.name}</b> by ${user.name}.`);
 			}
 
-			broadcastToGuild(guild, `${targetMember.username} has been demoted to ${roleStr}.`, 'red');
+			broadcastToGuild(guild, `${targetMember.username} was demoted to ${roleStr}.`, 'red');
 		},
 
 		async setdesc(target, room, user) {
@@ -447,7 +447,7 @@ export const commands: Chat.ChatCommands = {
 			const userMember = auth.userMember;
 
 			if (guild.visibility === visibilityStr) {
-				throw new Chat.ErrorMessage(`Guild visibility is already '${visibilityStr}'.`);
+				throw new Chat.ErrorMessage(`The guild's visibility is already '${visibilityStr}'.`);
 			}
 
 			if (guild.chatroom) {
@@ -482,7 +482,7 @@ export const commands: Chat.ChatCommands = {
 			const userMember = auth.userMember;
 
 			await GuildRepository.updateGuildSettings(guild.id, { icon: url });
-			this.sendReply(`You have successfully updated the icon for '${guild.name}'.`);
+			this.sendReply(`You successfully updated the icon for '${guild.name}'.`);
 		},
 
 		async setbg(target, room, user) {
@@ -505,7 +505,7 @@ export const commands: Chat.ChatCommands = {
 			const userMember = auth.userMember;
 
 			await GuildRepository.updateGuildSettings(guild.id, { background: url });
-			this.sendReply(`You have successfully updated the background for '${guild.name}'.`);
+			this.sendReply(`You successfully updated the background for '${guild.name}'.`);
 		},
 
 		async setpolicy(target, room, user) {
@@ -521,7 +521,7 @@ export const commands: Chat.ChatCommands = {
 			const userMember = auth.userMember;
 
 			if (guild.joinPolicy === policy) {
-				throw new Chat.ErrorMessage(`Guild join policy is already '${policy}'.`);
+				throw new Chat.ErrorMessage(`The guild's join policy is already '${policy}'.`);
 			}
 
 			await GuildRepository.updateGuildSettings(guild.id, { joinPolicy: policy as JoinPolicy });
@@ -541,23 +541,23 @@ export const commands: Chat.ChatCommands = {
 			const userMember = auth.userMember;
 
 			if (guild.members.some(m => m.id === targetId)) {
-				throw new Chat.ErrorMessage(`User '${rest}' is already a member of '${guild.name}'.`);
+				throw new Chat.ErrorMessage(`The user '${rest}' is already a member of '${guild.name}'.`);
 			}
 
 			if (guild.banned.includes(targetId)) {
-				throw new Chat.ErrorMessage(`User '${rest}' is banned from '${guild.name}' and cannot be invited.`);
+				throw new Chat.ErrorMessage(`The user '${rest}' is banned from '${guild.name}' and cannot be invited.`);
 			}
 
 			const existingGuild = await GuildRepository.getGuildByMemberId(targetId);
 			if (existingGuild) {
-				throw new Chat.ErrorMessage(`User '${rest}' is already in a guild.`);
+				throw new Chat.ErrorMessage(`The user '${rest}' is already in a guild.`);
 			}
 
 			const pendingIndex = guild.invited.findIndex(i => i.userId === targetId && i.status === 'pending');
 			if (pendingIndex !== -1) {
 				const pending = guild.invited[pendingIndex];
 				if (pending.expiresAt > new Date()) {
-					throw new Chat.ErrorMessage(`User '${rest}' already has a pending invite to '${guild.name}'.`);
+					throw new Chat.ErrorMessage(`The user '${rest}' already has a pending invite to '${guild.name}'.`);
 				}
 				await GuildRepository.removeInvite(guild.id, targetId);
 			}
@@ -591,7 +591,7 @@ export const commands: Chat.ChatCommands = {
 
 			const inviteIndex = guild.invited.findIndex(i => i.userId === targetId && i.status === 'pending');
 			if (inviteIndex === -1) {
-				throw new Chat.ErrorMessage(`User '${rest}' does not have a pending invite to '${guild.name}'.`);
+				throw new Chat.ErrorMessage(`The user '${rest}' doesn't have a pending invite to '${guild.name}'.`);
 			}
 
 			await GuildRepository.updateInviteStatus(guild.id, targetId, 'revoked');
@@ -599,7 +599,7 @@ export const commands: Chat.ChatCommands = {
 			
 			const targetUser = Users.get(targetId);
 			if (targetUser) {
-				targetUser.send(`|pm|~|~|/uhtmlchange guildinvite-${guild.id},The invite to join <b>${guild.name}</b> was revoked.`);
+				targetUser.send(`|pm|~|~|/uhtmlchange guildinvite-${guild.id},Your invite to join <b>${guild.name}</b> was revoked.`);
 			}
 		},
 
@@ -608,11 +608,11 @@ export const commands: Chat.ChatCommands = {
 			if (!guildId) return this.parse('/help guild reject');
 
 			const guild = await GuildRepository.getGuildById(guildId);
-			if (!guild) throw new Chat.ErrorMessage(`Guild '${guildId}' not found.`);
+			if (!guild) throw new Chat.ErrorMessage(`The guild '${guildId}' could not be found.`);
 
 			const inviteIndex = guild.invited.findIndex(i => i.userId === user.id && i.status === 'pending');
 			if (inviteIndex === -1) {
-				throw new Chat.ErrorMessage(`You do not have a pending invite to '${guild.name}'.`);
+				throw new Chat.ErrorMessage(`You don't have a pending invite to '${guild.name}'.`);
 			}
 
 			await GuildRepository.updateInviteStatus(guild.id, user.id, 'rejected');
@@ -632,12 +632,12 @@ export const commands: Chat.ChatCommands = {
 			}
 
 			if (guild.ownerId === targetId) {
-				throw new Chat.ErrorMessage("You cannot transfer ownership to the current owner.");
+				throw new Chat.ErrorMessage("You can't transfer ownership to the current owner.");
 			}
 
 			const newOwnerMember = guild.members.find(m => m.id === targetId);
 			if (!newOwnerMember) {
-				throw new Chat.ErrorMessage(`User '${rest}' is not a member of '${guild.name}'.`);
+				throw new Chat.ErrorMessage(`The user '${rest}' is not a member of '${guild.name}'.`);
 			}
 
 			const oldOwnerMember = guild.members.find(m => m.id === guild.ownerId);
@@ -649,21 +649,21 @@ export const commands: Chat.ChatCommands = {
 			await GuildRepository.updateMemberRole(guild.id, newOwnerMember.id, 'Master');
 			if (oldOwnerMember) await GuildRepository.updateMemberRole(guild.id, oldOwnerMember.id, 'Rookie');
 			await GuildRepository.updateGuildSettings(guild.id, { ownerId: newOwnerMember.id });
-			this.sendReply(`You have successfully transferred ownership of '${guild.name}' to '${newOwnerMember.username}'.`);
+			this.sendReply(`You successfully transferred ownership of '${guild.name}' to '${newOwnerMember.username}'.`);
 
 			const newOwnerUser = Users.get(newOwnerMember.id);
 			if (newOwnerUser) {
-				newOwnerUser.popup(`|html|You have been granted ownership of the guild <b>${guild.name}</b> by ${user.name}!`);
+				newOwnerUser.popup(`|html|You were granted ownership of the guild <b>${guild.name}</b> by ${user.name}!`);
 			}
 
 			const oldOwnerUser = Users.get(oldOwnerId);
 			if (oldOwnerUser && oldOwnerUser.id !== user.id) {
-				oldOwnerUser.popup(`|html|Ownership of your guild <b>${guild.name}</b> has been transferred to ${newOwnerMember.username} by ${user.name}.`);
+				oldOwnerUser.popup(`|html|Ownership of your guild <b>${guild.name}</b> was transferred to ${newOwnerMember.username} by ${user.name}.`);
 			} else if (oldOwnerUser && oldOwnerUser.id === user.id) {
-				oldOwnerUser.popup(`|html|You have successfully transferred ownership of your guild <b>${guild.name}</b> to ${newOwnerMember.username}.`);
+				oldOwnerUser.popup(`|html|You successfully transferred ownership of your guild <b>${guild.name}</b> to ${newOwnerMember.username}.`);
 			}
 
-			broadcastToGuild(guild, `Guild ownership has been transferred to ${newOwnerMember.username}.`, 'green');
+			broadcastToGuild(guild, `Guild ownership was transferred to ${newOwnerMember.username}.`, 'green');
 		},
 
 		async memberlimit(target, room, user) {
@@ -672,7 +672,7 @@ export const commands: Chat.ChatCommands = {
 			if (isNaN(limit) || limit <= 0) throw new Chat.ErrorMessage("Usage: /guild memberlimit [number]");
 
 			await setGlobalMemberLimit(limit);
-			this.sendReply(`You have successfully updated the global member limit to ${limit} for all guilds.`);
+			this.sendReply(`You successfully updated the global member limit to ${limit} for all guilds.`);
 
 			const allChatrooms = await GuildRepository.getAllChatrooms();
 			for (const chatroom of allChatrooms) {
@@ -735,12 +735,12 @@ export const commands: Chat.ChatCommands = {
 			const userMember = auth.userMember;
 
 			if (targetId === guild.ownerId) {
-				throw new Chat.ErrorMessage("You cannot kick the guild owner.");
+				throw new Chat.ErrorMessage("You can't kick the guild owner.");
 			}
 
 			const targetIndex = guild.members.findIndex(m => m.id === targetId);
 			if (targetIndex === -1) {
-				throw new Chat.ErrorMessage(`User '${rest}' is not a member of '${guild.name}'.`);
+				throw new Chat.ErrorMessage(`The user '${rest}' is not a member of '${guild.name}'.`);
 			}
 
 			const targetMember = guild.members[targetIndex];
@@ -757,7 +757,7 @@ export const commands: Chat.ChatCommands = {
 
 			const targetUser = Users.get(targetId);
 			if (targetUser) {
-				targetUser.popup(`|html|You have been kicked from the guild <b>${guild.name}</b> by ${user.name}.`);
+				targetUser.popup(`|html|You were kicked from the guild <b>${guild.name}</b> by ${user.name}.`);
 			}
 
 			broadcastToGuild(guild, `${targetMember.username} was kicked from the guild by ${user.name}.`, 'red');
@@ -776,11 +776,11 @@ export const commands: Chat.ChatCommands = {
 			const userMember = auth.userMember;
 
 			if (targetId === guild.ownerId) {
-				throw new Chat.ErrorMessage("You cannot ban the guild owner.");
+				throw new Chat.ErrorMessage("You can't ban the guild owner.");
 			}
 
 			if (guild.banned.includes(targetId)) {
-				throw new Chat.ErrorMessage(`User '${rest}' is already banned from '${guild.name}'.`);
+				throw new Chat.ErrorMessage(`The user '${rest}' is already banned from '${guild.name}'.`);
 			}
 
 			let targetName = rest.trim();
@@ -806,7 +806,7 @@ export const commands: Chat.ChatCommands = {
 
 			const targetUser = Users.get(targetId);
 			if (targetUser) {
-				targetUser.popup(`|html|You have been banned from the guild <b>${guild.name}</b> by ${user.name}.`);
+				targetUser.popup(`|html|You were banned from the guild <b>${guild.name}</b> by ${user.name}.`);
 			}
 
 			broadcastToGuild(guild, `${targetName} was banned from the guild by ${user.name}.`, 'red');
@@ -826,7 +826,7 @@ export const commands: Chat.ChatCommands = {
 
 			const banIndex = guild.banned.indexOf(targetId);
 			if (banIndex === -1) {
-				throw new Chat.ErrorMessage(`User '${rest}' is not banned from '${guild.name}'.`);
+				throw new Chat.ErrorMessage(`The user '${rest}' isn't banned from '${guild.name}'.`);
 			}
 
 			await GuildRepository.unbanUser(guild.id, targetId);
@@ -834,7 +834,7 @@ export const commands: Chat.ChatCommands = {
 
 			const targetUser = Users.get(targetId);
 			if (targetUser) {
-				targetUser.popup(`|html|You have been unbanned from the guild <b>${guild.name}</b> by ${user.name}.`);
+				targetUser.popup(`|html|You were unbanned from the guild <b>${guild.name}</b> by ${user.name}.`);
 			}
 		},
 
@@ -848,7 +848,7 @@ export const commands: Chat.ChatCommands = {
 
 				const userMember = guild.members.find(m => m.id === user.id);
 				if (!userMember && !user.can('bypassall') && guild.visibility === 'private') {
-					throw new Chat.ErrorMessage(`Guild '${guild.name}' is private. You cannot view its members.`);
+					throw new Chat.ErrorMessage(`Guild '${guild.name}' is private. You can't view its members.`);
 				}
 			} else {
 				guild = await GuildRepository.getGuildByMemberId(user.id);
@@ -881,7 +881,7 @@ export const commands: Chat.ChatCommands = {
 
 				const userMember = guild.members.find(m => m.id === user.id);
 				if (!userMember && !user.can('bypassall') && guild.visibility === 'private') {
-					throw new Chat.ErrorMessage(`Guild '${guild.name}' is private. You cannot view its info.`);
+					throw new Chat.ErrorMessage(`Guild '${guild.name}' is private. You can't view its info.`);
 				}
 			} else {
 				guild = await GuildRepository.getGuildByMemberId(user.id);
@@ -1016,7 +1016,7 @@ export const commands: Chat.ChatCommands = {
 
 					const targetUser = Users.get(m.id);
 					if (targetUser) {
-						targetUser.popup(`|html|You have been purged from the guild <b>${guild.name}</b> due to inactivity.`);
+						targetUser.popup(`|html|You were purged from the guild <b>${guild.name}</b> due to inactivity.`);
 					}
 				}
 			}
@@ -1032,7 +1032,7 @@ export const commands: Chat.ChatCommands = {
 		async ladder(target, room, user) {
 			if (!this.runBroadcast()) return;
 			const sortedGuilds = await GuildRepository.getTopGuilds(50);
-			if (sortedGuilds.length === 0) throw new Chat.ErrorMessage("There are currently no guilds registered.");
+			if (sortedGuilds.length === 0) throw new Chat.ErrorMessage("There are currently no registered guilds.");
 
 			const headerRow = ['Rank', 'Guild Name', 'Master', 'Members', 'Points'];
 			const dataRows = sortedGuilds.map((g, idx) => {
@@ -1075,7 +1075,7 @@ export const commands: Chat.ChatCommands = {
 			if (!user.can('bypassall')) throw new Chat.ErrorMessage("Only global administrators can manually end the guild season.");
 
 			await endGuildSeason();
-			this.sendReply(`You have successfully ended the current Guild Season. All points have been reset, and rewards have been distributed.`);
+			this.sendReply(`You successfully ended the current Guild Season. All points have been reset, and rewards have been distributed.`);
 		},
 
 		help(target, room, user) {

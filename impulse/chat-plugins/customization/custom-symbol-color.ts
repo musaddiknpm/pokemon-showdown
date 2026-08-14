@@ -77,9 +77,9 @@ export const commands: Chat.ChatCommands = {
 			const color = rawColor.startsWith('#') ? rawColor : `#${rawColor}`;
 
 			const targetId = toID(name);
-			if (targetId.length > 19) throw new Chat.ErrorMessage("Username too long.");
-			if (!SymbolColorManager.validateColor(color)) throw new Chat.ErrorMessage("Invalid hex color format.");
-			if (symbolData[targetId]) throw new Chat.ErrorMessage("User already has a symbol color.");
+			if (targetId.length > 19) throw new Chat.ErrorMessage("That username is too long.");
+			if (!SymbolColorManager.validateColor(color)) throw new Chat.ErrorMessage("The hex color format is invalid.");
+			if (symbolData[targetId]) throw new Chat.ErrorMessage("This user already has a custom symbol color set.");
 
 			const now = Date.now();
 			symbolData[targetId] = { color, setBy: user.id, createdAt: now, updatedAt: now };
@@ -87,7 +87,7 @@ export const commands: Chat.ChatCommands = {
 			await SymbolColorManager.save(targetId, symbolData[targetId]);
 			await Customization.updateCSS();
 
-			this.sendReply(`|raw|Symbol color set for ${nameColor(name, true)}.`);
+			this.sendReply(`|raw|The symbol color for ${nameColor(name, true)} has been set successfully.`);
 			Customization.notify(user, name, 'set', `set symbol color for ${name} to <font color="${color}">${color}</font>.`);
 		},
 
@@ -97,8 +97,8 @@ export const commands: Chat.ChatCommands = {
 			const targetId = toID(name);
 			const color = rawColor.startsWith('#') ? rawColor : `#${rawColor}`;
 
-			if (!symbolData[targetId]) throw new Chat.ErrorMessage("User does not have a symbol color.");
-			if (!SymbolColorManager.validateColor(color)) throw new Chat.ErrorMessage("Invalid hex color format.");
+			if (!symbolData[targetId]) throw new Chat.ErrorMessage("This user doesn't have a custom symbol color set.");
+			if (!SymbolColorManager.validateColor(color)) throw new Chat.ErrorMessage("The hex color format is invalid.");
 
 			symbolData[targetId].color = color;
 			symbolData[targetId].updatedAt = Date.now();
@@ -106,7 +106,7 @@ export const commands: Chat.ChatCommands = {
 			await SymbolColorManager.save(targetId, symbolData[targetId]);
 			await Customization.updateCSS();
 
-			this.sendReply(`|raw|Symbol color updated for ${nameColor(name, true)}.`);
+			this.sendReply(`|raw|The symbol color for ${nameColor(name, true)} has been updated successfully.`);
 			Customization.notify(user, name, 'updated', `updated symbol color for ${name} to <font color="${color}">${color}</font>.`);
 		},
 
@@ -114,13 +114,13 @@ export const commands: Chat.ChatCommands = {
 			this.checkCan('bypassall');
 			const targetId = toID(target);
 
-			if (!symbolData[targetId]) throw new Chat.ErrorMessage("User has no symbol color.");
+			if (!symbolData[targetId]) throw new Chat.ErrorMessage("This user doesn't have a custom symbol color set.");
 
 			delete symbolData[targetId];
 			await SymbolColorManager.save(targetId, null);
 			await Customization.updateCSS();
 
-			this.sendReply(`Symbol color removed for ${targetId}.`);
+			this.sendReply(`The symbol color for ${targetId} has been successfully removed.`);
 			Customization.notify(user, target, 'removed', `removed symbol color for ${target}.`);
 		},
 
@@ -128,9 +128,9 @@ export const commands: Chat.ChatCommands = {
 			this.runBroadcast();
 			this.sendReplyBox(
 				`<center><b>Custom Symbol Color Commands</b></center><hr>` +
-				`<b>/sc set [user], [hex]</b>: Set a user's symbol color.<hr>` +
-				`<b>/sc update [user], [hex]</b>: Update symbol color.<hr>` +
-				`<b>/sc delete [user]</b>: Remove symbol color.`
+				`<b>/sc set [user], [hex]</b>: Sets a user's custom symbol color.<hr>` +
+				`<b>/sc update [user], [hex]</b>: Updates a user's custom symbol color.<hr>` +
+				`<b>/sc delete [user]</b>: Removes a user's custom symbol color.`
 			);
 		},
 

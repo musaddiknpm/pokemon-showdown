@@ -115,7 +115,7 @@ export const commands: Chat.ChatCommands = {
 		check(target, room, user) {
 			if (!this.runBroadcast()) return;
 			const targetId = toID(target) || user.id;
-			if (targetId.length > MAX_USERID_LENGTH) throw new Chat.ErrorMessage("Invalid username.");
+			if (targetId.length > MAX_USERID_LENGTH) throw new Chat.ErrorMessage("The specified username is invalid.");
 
 			const targetUser = Users.get(targetId);
 			if (targetUser?.isPublicBot) return this.sendReplyBox(`${nameColor(targetId, true)} is a bot and is not tracked.`);
@@ -147,7 +147,7 @@ export const commands: Chat.ChatCommands = {
 				.sort((a, b) => b.total - a.total)
 				.slice(0, 50);
 
-			if (!leaderboard.length) return this.sendReplyBox("The ontime leaderboard is empty.");
+			if (!leaderboard.length) return this.sendReplyBox("The ontime leaderboard is currently empty.");
 
 			const dataRows = leaderboard.map((entry, i) => [
 				`${i + 1}`,
@@ -162,10 +162,10 @@ export const commands: Chat.ChatCommands = {
 		async block(target, room, user) {
 			this.checkCan('bypassall');
 			const targetId = toID(target);
-			if (!targetId || targetId.length > MAX_USERID_LENGTH) throw new Chat.ErrorMessage("Invalid username.");
+			if (!targetId || targetId.length > MAX_USERID_LENGTH) throw new Chat.ErrorMessage("The specified username is invalid.");
 
 			const entry = ontimeData[targetId];
-			if (entry?.isBlocked) throw new Chat.ErrorMessage("User is already blocked.");
+			if (entry?.isBlocked) throw new Chat.ErrorMessage("This user is already blocked.");
 
 			await OntimeManager.setBlocked(targetId, true);
 			this.sendReply(`${targetId} has been blocked from ontime tracking.`);
@@ -175,7 +175,7 @@ export const commands: Chat.ChatCommands = {
 			this.checkCan('bypassall');
 			const targetId = toID(target);
 			const entry = ontimeData[targetId];
-			if (!entry?.isBlocked) throw new Chat.ErrorMessage("User is not blocked.");
+			if (!entry?.isBlocked) throw new Chat.ErrorMessage("This user is not currently blocked.");
 
 			await OntimeManager.setBlocked(targetId, false);
 			this.sendReply(`${targetId} has been unblocked.`);

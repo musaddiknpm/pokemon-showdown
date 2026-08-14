@@ -992,7 +992,7 @@ export const commands: Chat.ChatCommands = {
 		if (/^[+-]?\d[\d:.]*\+?$/.test(query)) {
 			const offsetMinutes = parseUTCOffset(query);
 			if (offsetMinutes === null) {
-				throw new Chat.ErrorMessage(`Invalid UTC offset "${query}". Use formats like: 5:30, +5:30, -8, 5.5`);
+				throw new Chat.ErrorMessage(`The provided UTC offset "${query}" is invalid. Use formats like: 5:30, +5:30, -8, 5.5`);
 			}
 			const absMin = Math.abs(offsetMinutes);
 			const sign = offsetMinutes >= 0 ? '+' : '-';
@@ -1030,7 +1030,7 @@ export const commands: Chat.ChatCommands = {
 			try {
 				return this.sendReplyBox(`<b>Current Time in ${Utils.escapeHTML(toTitleCase(query))}:</b> ${formatForTimezone(now, tz)}`);
 			} catch (e) {
-				throw new Chat.ErrorMessage(`Error formatting time for "${query}".`);
+				throw new Chat.ErrorMessage(`There was an error formatting the time for "${query}".`);
 			}
 		}
 
@@ -1041,7 +1041,7 @@ export const commands: Chat.ChatCommands = {
 			}
 		}
 
-		throw new Chat.ErrorMessage(`Unknown location "${query}". Try a country (india, usa), city (mumbai, tokyo, new york), or UTC offset (5:30, -8).`);
+		throw new Chat.ErrorMessage(`The specified location "${query}" could not be found. Try a country (india, usa), city (mumbai, tokyo, new york), or UTC offset (5:30, -8).`);
 	},
 
 	timehelp: [

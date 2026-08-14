@@ -21,7 +21,7 @@ export const commands: Chat.ChatCommands = {
 
 		if (Monitor.updateServerLock) {
 			throw new Chat.ErrorMessage(
-				"Wait for /updateserver to finish before using /restartserver.",
+				"Please wait for /updateserver to finish before using /restartserver.",
 			);
 		}
 
@@ -46,13 +46,13 @@ export const commands: Chat.ChatCommands = {
 			try {
 				const count = await Rooms.global.saveBattles();
 				saveDetail = `${count} battles saved`;
-				this.sendReply("DONE.");
-				this.sendReply(`${count} battles saved.`);
+				this.sendReply("Done.");
+				this.sendReply(`${count} battles have been saved successfully.`);
 			} catch (error) {
 				saveDetail = "save failed";
 				console.error("Failed to save battles during /restartserver:", error);
 				this.sendReply(
-					"Failed to save battles; proceeding with restart anyway.",
+					"Failed to save battles. The server will restart anyway.",
 				);
 			}
 		}

@@ -48,12 +48,12 @@ const notifyChanges = (
 
 	if (action === 'set' && filename) {
 		const imgHtml = displayAvatar(filename);
-		userMsg = `${setterColor} set your custom avatar.<p>${imgHtml}</p><p>Use <code>/avatars</code> to see it!</p>`;
-		staffMsg = `<center><strong>${setterColor} set custom avatar for ${targetColor}:</strong><br>${imgHtml}</center>`;
+		userMsg = `${setterColor} has set your custom avatar.<p>${imgHtml}</p><p>Use <code>/avatars</code> to view it!</p>`;
+		staffMsg = `<center><strong>${setterColor} has set a custom avatar for ${targetColor}:</strong><br>${imgHtml}</center>`;
 		if (targetUser) targetUser.avatar = filename;
 	} else {
 		userMsg = `${setterColor} has deleted your custom avatar.`;
-		staffMsg = `<strong>${setterColor} deleted custom avatar for ${targetColor}.</strong>`;
+		staffMsg = `<strong>${setterColor} has deleted the custom avatar for ${targetColor}.</strong>`;
 		if (targetUser) targetUser.avatar = 1;
 	}
 
@@ -104,11 +104,11 @@ export const commands: Chat.ChatCommands = {
 			if (!targetName || !url) return this.parse('/ca help');
 
 			const userId = toID(targetName);
-			if (!userId) throw new Chat.ErrorMessage("Invalid username.");
+			if (!userId) throw new Chat.ErrorMessage("Please provide a valid username.");
 
 			const ext = getExtension(url);
 			if (!VALID_EXTENSIONS.includes(ext)) {
-				throw new Chat.ErrorMessage(`URL must end with ${VALID_EXTENSIONS.join(', ')}`);
+				throw new Chat.ErrorMessage(`The image URL must end with one of the following extensions: ${VALID_EXTENSIONS.join(', ')}.`);
 			}
 
 			const processedUrl = url.startsWith('http') ? url : `https://${url}`;
@@ -116,7 +116,7 @@ export const commands: Chat.ChatCommands = {
 			const userAvatarsList = Users.Avatars.avatars[userId]?.allowed || [];
 			const currentAvatars = userAvatarsList.filter(avatar => avatar && !avatar.startsWith('#'));
 			if (currentAvatars.length >= 2) {
-				throw new Chat.ErrorMessage("User already has the maximum of 2 custom avatars. Use '/ca delete' first.");
+				throw new Chat.ErrorMessage("This user already has the maximum of 2 custom avatars. Please use '/ca delete' to remove one first.");
 			}
 
 			this.sendReply(`Downloading avatar for ${userId}...`);
@@ -140,17 +140,17 @@ export const commands: Chat.ChatCommands = {
 			const filename = baseFilename + ext;
 
 			const result = await downloadImage(processedUrl, baseFilename, ext);
-			if (result.error) throw new Chat.ErrorMessage(`Failed: ${result.error}`);
+			if (result.error) throw new Chat.ErrorMessage(`Failed to download the avatar: ${result.error}`);
 
 			const alreadyHasAvatar = userAvatarsList.includes(filename);
 
 			if (!Users.Avatars.addPersonal(userId, filename) && !alreadyHasAvatar) {
 				await FS(CONFIG.path + filename).unlinkIfExists();
-				throw new Chat.ErrorMessage("Failed to register avatar. User may be banned from avatars.");
+				throw new Chat.ErrorMessage("Failed to register the avatar. The user might be banned from using custom avatars.");
 			}
 
 			Users.Avatars.save(true);
-			this.sendReply(`|raw|${targetName}'s avatar set successfully.`);
+			this.sendReply(`|raw|${targetName}'s avatar has been set successfully.`);
 			notifyChanges(user, userId, 'set', filename);
 		},
 
@@ -158,18 +158,18 @@ export const commands: Chat.ChatCommands = {
 			this.checkCan('bypassall');
 			const [targetName, avatarNumStr] = target.split(',').map(s => s.trim());
 			const userId = toID(targetName);
-			if (!userId) throw new Chat.ErrorMessage('Invalid username.');
+			if (!userId) throw new Chat.ErrorMessage('Please provide a valid username.');
 
 			const userAvatars = Users.Avatars.avatars[userId];
 			if (!userAvatars?.allowed || userAvatars.allowed.length === 0) {
-				throw new Chat.ErrorMessage(`${targetName} does not have a custom avatar set.`);
+				throw new Chat.ErrorMessage(`${targetName} doesn't have a custom avatar set.`);
 			}
 
 			let indexToDelete = 0;
 			if (avatarNumStr) {
 				const parsedNum = parseInt(avatarNumStr, 10);
 				if (isNaN(parsedNum) || parsedNum < 1 || parsedNum > userAvatars.allowed.length) {
-					throw new Chat.ErrorMessage(`Invalid avatar number. Must be between 1 and ${userAvatars.allowed.length}.`);
+					throw new Chat.ErrorMessage(`The avatar number is invalid. It must be between 1 and ${userAvatars.allowed.length}.`);
 				}
 				indexToDelete = parsedNum - 1;
 			}
@@ -177,7 +177,7 @@ export const commands: Chat.ChatCommands = {
 			const filename = userAvatars.allowed[indexToDelete];
 
 			if (!filename || filename.startsWith('#')) {
-				throw new Chat.ErrorMessage(`Selected avatar is not a custom avatar.`);
+				throw new Chat.ErrorMessage(`The selected avatar is not a custom avatar.`);
 			}
 
 			try {
@@ -186,10 +186,10 @@ export const commands: Chat.ChatCommands = {
 
 				await deleteAvatarFile(filename);
 
-				this.sendReply(`${targetName}'s avatar removed.`);
+				this.sendReply(`${targetName}'s custom avatar has been successfully removed.`);
 				notifyChanges(user, userId, 'delete');
 			} catch (e) {
-				throw new Chat.ErrorMessage("Error deleting avatar.");
+				throw new Chat.ErrorMessage("An error occurred while deleting the avatar.");
 			}
 		},
 
@@ -197,8 +197,8 @@ export const commands: Chat.ChatCommands = {
 			if (!this.runBroadcast()) return;
 			this.sendReplyBox(
 				`<div style="max-height: 350px; overflow-y: auto;"><center><h4><strong>Custom Avatar Commands</strong></h4><hr>Commands Alias: /ca</center><hr>` +
-				`<b>/customavatar set [user], [url]</b> - Set a user's avatar (max 2 per user). Requires: ~<hr>` +
-				`<b>/customavatar delete [user], [avatar_number]</b> - Remove a user's avatar. If no number is provided, deletes the first one. Requires: ~</div>`
+				`<b>/customavatar set [user], [url]</b> - Sets a user's custom avatar (maximum 2 per user). Requires: ~<hr>` +
+				`<b>/customavatar delete [user], [avatar_number]</b> - Removes a user's custom avatar. If no number is provided, the first one will be deleted. Requires: ~</div>`
 			);
 		},
 	},

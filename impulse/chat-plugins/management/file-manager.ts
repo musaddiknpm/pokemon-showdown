@@ -9,16 +9,16 @@ const PROTECTED_PATHS = ['fullchain.pem', 'privkey.pem', '.env'];
 const FileManager = {
 	checkPath(path: string) {
 		if (!FS(path).path.startsWith(FS.ROOT_PATH)) {
-			throw new Chat.ErrorMessage("Path must be inside the server directory.");
+			throw new Chat.ErrorMessage("The path must be located inside the server directory.");
 		}
 		if (PROTECTED_PATHS.some(p => path.toLowerCase().includes(p.toLowerCase()))) {
-			throw new Chat.ErrorMessage("This file is protected.");
+			throw new Chat.ErrorMessage("This file is protected and cannot be modified.");
 		}
 	},
 
 	checkAccess(user: User) {
 		if (!WHITELISTED_USERS.includes(user.id)) {
-			throw new Chat.ErrorMessage("You are not whitelisted to use file management commands.");
+			throw new Chat.ErrorMessage("You do not have permission to use file management commands.");
 		}
 	},
 
@@ -65,8 +65,8 @@ export const commands: Chat.ChatCommands = {
 			FileManager.checkPath(dirPath);
 			try {
 				const dir = FS(dirPath);
-				if (!await dir.exists()) throw new Error(`Directory not found: ${dirPath}`);
-				if (!await dir.isDirectory()) throw new Error(`Path is not a directory: ${dirPath}`);
+				if (!await dir.exists()) throw new Error(`The specified directory could not be found: ${dirPath}`);
+				if (!await dir.isDirectory()) throw new Error(`The specified path is not a directory: ${dirPath}`);
 
 				const contents = await dir.readdir();
 				const results = {
@@ -96,7 +96,7 @@ export const commands: Chat.ChatCommands = {
 				}
 
 				if (!results.directories.length && !results.files.length) {
-					html += `<i>Directory is empty.</i>`;
+					html += `<i>The directory is empty.</i>`;
 				}
 
 				this.sendReplyBox(`<div style="max-height: 300px; overflow-y: auto;">${html}</div>`);
@@ -114,8 +114,8 @@ export const commands: Chat.ChatCommands = {
 			FileManager.checkPath(filePath);
 			try {
 				const file = FS(filePath);
-				if (!await file.exists()) throw new Error(`File not found: ${filePath}`);
-				if (!await file.isFile()) throw new Error(`Path is not a file: ${filePath}`);
+				if (!await file.exists()) throw new Error(`The specified file could not be found: ${filePath}`);
+				if (!await file.isFile()) throw new Error(`The specified path is not a file: ${filePath}`);
 
 				const content = await file.read();
 				this.sendReplyBox(
@@ -135,9 +135,9 @@ export const commands: Chat.ChatCommands = {
 
 			try {
 				const file = FS(filePath);
-				if (!await file.exists()) throw new Error("File does not exist.");
+				if (!await file.exists()) throw new Error("The specified file does not exist.");
 				await file.unlinkIfExists();
-				this.sendReply(`File deleted: ${filePath}`);
+				this.sendReply(`The file ${filePath} has been successfully deleted.`);
 			} catch (err) {
 				throw new Chat.ErrorMessage(`Delete failed: ${FileManager.getError(err)}`);
 			}
@@ -147,16 +147,16 @@ export const commands: Chat.ChatCommands = {
 			this.checkCan('bypassall');
 			FileManager.checkAccess(user);
 			const [source, dest] = target.split(',').map(s => s.trim());
-			if (!source || !dest) throw new Chat.ErrorMessage("Usage: /file move [source], [dest]");
+			if (!source || !dest) throw new Chat.ErrorMessage("Usage: /file move [source], [destination]");
 
 			FileManager.checkPath(source);
 			FileManager.checkPath(dest);
 
 			try {
 				const sourceFile = FS(source);
-				if (!await sourceFile.exists()) throw new Error("Source not found.");
+				if (!await sourceFile.exists()) throw new Error("The source file could not be found.");
 				await sourceFile.rename(FS(dest).path);
-				this.sendReply(`Moved: ${source} -> ${dest}`);
+				this.sendReply(`The file ${source} has been successfully moved to ${dest}.`);
 			} catch (err) {
 				throw new Chat.ErrorMessage(`Move failed: ${FileManager.getError(err)}`);
 			}
@@ -170,7 +170,7 @@ export const commands: Chat.ChatCommands = {
 
 			try {
 				const file = FS(filePath);
-				if (!await file.exists()) throw new Error("File not found.");
+				if (!await file.exists()) throw new Error("The specified file could not be found.");
 				const content = await file.read();
 				const fileName = filePath.split('/').pop() || 'file.txt';
 
@@ -193,7 +193,7 @@ export const commands: Chat.ChatCommands = {
 				if (!response.ok) throw new Error(result.message || response.statusText);
 
 				this.sendReplyBox(
-					`<strong>Gist Upload Success!</strong><br />` +
+					`<strong>Gist Upload Successful!</strong><br />` +
 					`File: ${Utils.escapeHTML(filePath)}<br />` +
 					`URL: <a href="${result.html_url}" target="_blank">${result.html_url}</a>`
 				);
@@ -237,7 +237,7 @@ export const commands: Chat.ChatCommands = {
 			try {
 				const dir = FS(backupDir);
 				if (!await dir.exists()) throw new Error(`Directory not found: ${backupDir}`);
-				if (!await dir.isDirectory()) throw new Error(`${backupDir} is not a directory.`);
+				if (!await dir.isDirectory()) throw new Error(`The specified path ${backupDir} is not a directory.`);
 
 				const archiveName = `backup-${Date.now()}.tar.gz`;
 				const archivePath = FS(archiveName).path;

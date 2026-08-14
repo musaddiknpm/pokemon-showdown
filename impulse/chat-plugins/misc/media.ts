@@ -430,7 +430,7 @@ export const commands: Chat.ChatCommands = {
 		const data = await fetchGame(targetQuery);
 		if (!data) {
 			if (!Config.rawgApiKey) {
-				return this.sendReplyBox(`<div class="message-error">The game database API key is not configured.</div>`);
+				return this.sendReplyBox(`<div class="message-error">The game database API key has not been configured.</div>`);
 			}
 			return this.sendReplyBox(
 				`Game "<strong>${escapeHTML(targetQuery)}</strong>" not found on RAWG.<br />` +
