@@ -1,10 +1,25 @@
+import * as https from 'node:https';
+import { FS } from '../../../lib/fs';
 import { PG } from '../../pg';
 import { Utils } from '../../../lib';
 import { toID } from '../../../sim/dex';
-import { Customization } from '../customization/manager';
 import { initMiscDB } from './database';
 
 const SERVER_NAME = 'Impulse';
+const CONFIG_PATH = 'config/custom.css' as const;
+const START_TAG = '/* NEWS START */';
+const END_TAG = '/* NEWS END */';
+
+const reloadCSS = (): void => {
+	if (global.Config?.serverid) {
+		const url = `https://play.pokemonshowdown.com/customcss.php?server=${Config.serverid}&invalidate`;
+		const req = https.get(url, () => {});
+		req.on('error', err => {
+			Monitor.warn(`Failed to reload custom CSS from central server: ${err.message}`);
+		});
+		req.end();
+	}
+};
 
 interface NewsPost {
 	id: string;
@@ -59,27 +74,6 @@ async function initNews() {
 }
 
 const NewsManager = {
-	init() {
-		Customization.register({
-			name: 'news',
-			startTag: '/* NEWS START */',
-			endTag: '/* NEWS END */',
-			generateCSS() {
-				const serverId = toID(SERVER_NAME);
-				return (
-					`\n` +
-					`.pm-window-${serverId}news .challenge { display: none !important; }\n` +
-					`.pm-window-${serverId}news .pm-buttonbar { display: none !important; }\n` +
-					`.pm-window-${serverId}news .pm-log-add { display: none !important; }\n` +
-					`.pm-window-${serverId}news form { display: none !important; }\n` +
-					`.pm-window-${serverId}news .pm-log { bottom: 0 !important; }`
-				);
-			},
-		});
-
-		void Customization.updateCSS();
-	},
-
 	formatDate(date = new Date()) {
 		const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'June', 'July', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 		return `${months[date.getUTCMonth()]} ${date.getUTCDate()}, ${date.getUTCFullYear()}`;
@@ -144,6 +138,39 @@ const NewsManager = {
 			await getNewsBlockedTable().deleteById(userid);
 		}
 	},
+
+	async updateCSS() {
+		const serverId = toID(SERVER_NAME);
+		const content = (
+			`\n` +
+			`.pm-window-${serverId}news .challenge { display: none !important; }\n` +
+			`.pm-window-${serverId}news .pm-buttonbar { display: none !important; }\n` +
+			`.pm-window-${serverId}news .pm-log-add { display: none !important; }\n` +
+			`.pm-window-${serverId}news form { display: none !important; }\n` +
+			`.pm-window-${serverId}news .pm-log { bottom: 0 !important; }`
+		);
+		const block = `${START_TAG}\n${content}\n${END_TAG}`;
+
+		try {
+			let css = await FS(CONFIG_PATH).readIfExists();
+			if (!css.includes(START_TAG)) {
+				css = `${css.trimEnd()}\n\n${block}\n`;
+			} else {
+				const startIndex = css.indexOf(START_TAG);
+				const endIndex = css.indexOf(END_TAG) + END_TAG.length;
+				css = css.slice(0, startIndex) + block + css.slice(endIndex);
+			}
+
+			await FS(CONFIG_PATH).safeWrite(css);
+			reloadCSS();
+		} catch (err) {
+			Monitor.warn(`Failed to update news CSS: ${(err as Error).message}`);
+		}
+	},
+
+	init() {
+		void this.updateCSS();
+	},
 };
 
 void initNews()
@@ -155,7 +182,6 @@ export const loginfilter: Chat.LoginFilter = user => {
 };
 
 export const commands: Chat.ChatCommands = {
-	svn: 'servernews',
 	servernews: {
 		view(target, room, user) {
 			if (!this.runBroadcast()) return;
@@ -168,7 +194,7 @@ export const commands: Chat.ChatCommands = {
 			const [title, ...descParts] = target.split(',').map(s => s.trim());
 			const desc = descParts.join(',');
 
-			if (!title || !desc) return this.parse('/svn help');
+			if (!title || !desc) return this.parse('/servernews help');
 			const id = toID(title);
 
 			if (posts[id]) throw new Chat.ErrorMessage(`A news entry titled "${title}" already exists.`);
@@ -181,7 +207,7 @@ export const commands: Chat.ChatCommands = {
 		async remove(target, room, user) {
 			this.checkCan('bypassall');
 			const id = toID(target);
-			if (!id) return this.parse('/svn help');
+			if (!id) return this.parse('/servernews help');
 
 			if (!posts[id]) throw new Chat.ErrorMessage(`The news entry "${target}" could not be found.`);
 
@@ -205,12 +231,11 @@ export const commands: Chat.ChatCommands = {
 			this.runBroadcast();
 			this.sendReplyBox(
 				`<center><b>Server News Commands</b></center><hr>` +
-				`<b>/svn view</b>: View the latest news.<hr>` +
-				`<b>/svn add [title], [desc]</b>: Add a news entry. (&, ~)<hr>` +
-				`<b>/svn remove [title]</b>: Delete a news entry. (&, ~)<hr>` +
-				`<b>/svn block/unblock</b>: Toggle login notifications.`
+				`<b>/servernews view</b>: View the latest news.<hr>` +
+				`<b>/servernews add [title], [desc]</b>: Add a news entry. (&, ~)<hr>` +
+				`<b>/servernews remove [title]</b>: Delete a news entry. (&, ~)<hr>` +
+				`<b>/servernews block/unblock</b>: Toggle login notifications.`
 			);
 		},
 	},
-	svnhelp: 'servernews help',
 };
