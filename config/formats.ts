@@ -270,7 +270,7 @@ export const Formats: import('../sim/dex-formats').FormatList = [
 		name: "[Gen 9 Champions] UU",
 		mod: 'champions',
 		ruleset: ['[Gen 9 Champions] OU'],
-		banlist: ['OU', 'UUBL', 'Drought'],
+		banlist: ['OU', 'UUBL', 'Drought', 'King\'s Rock'],
 	},
 	{
 		name: "[Gen 9 Champions] BSS Reg M-A",
@@ -429,7 +429,7 @@ export const Formats: import('../sim/dex-formats').FormatList = [
 			'Chinchou', 'Diglett-Alola', 'Elekid', 'Foongus', 'Glimmet', 'Gothita', 'Growlithe-Hisui', 'Impidimp', 'Mareanie', 'Mienfoo', 'Mudbray',
 			'Sandshrew-Alola', 'Shellos', 'Stunky', 'Tinkatink', 'Toedscool', 'Vullaby', 'Zorua-Hisui',
 			// LC UUBL
-			'Deerling', 'Minccino', 'Light Clay',
+			'Deerling', 'Minccino', 'Wingull', 'Light Clay',
 		],
 	},
 	{
@@ -776,7 +776,7 @@ export const Formats: import('../sim/dex-formats').FormatList = [
 		mod: 'gen9',
 		// searchShow: false,
 		ruleset: ['[Gen 9] National Dex', 'Same Letter Clause'],
-		banlist: ['Kommo-o', 'Light Clay'],
+		banlist: ['Light Clay'],
 		unbanlist: ['Ogerpon-Hearthflame', 'Ursaluna-Bloodmoon', 'Walking Wake', 'Yveltal', 'Urshifu', 'Naganadel'],
 	},
 	{
