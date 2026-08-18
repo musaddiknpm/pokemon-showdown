@@ -189,6 +189,7 @@ export interface PokeRogueState {
 	lockedSlots?: boolean[];
 	rerollCount?: number;
 	luck?: number;
+	luckOverride?: number;
 	starterPage?: number;
 
 	timesRerolled: number;

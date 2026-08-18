@@ -83,7 +83,8 @@ export function genItem(quantity: number, extraArg?: PokemonSet[] | string): str
 	return all.slice(0, quantity).map(i => i.name);
 }
 
-export function calculatePartyLuck(team: PokemonEntry[]): number {
+export function calculatePartyLuck(team: PokemonEntry[], state: PokeRogueState): number {
+	if (state.luckOverride !== undefined) return state.luckOverride;
 	let luck = 0;
 	for (const mon of team) {
 		if (mon.shiny) luck += 2;
@@ -284,7 +285,7 @@ function isItemValidForDraft(
 }
 
 export function generateDraftOptions(state: PokeRogueState, config?: ModeConfig): string[] {
-	const luck = calculatePartyLuck(state.team);
+	const luck = calculatePartyLuck(state.team, state);
 	state.luck = luck;
 
 	const draft: string[] = [];

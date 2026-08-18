@@ -65,6 +65,24 @@ export const devCommands: Chat.ChatCommands = {
 		}
 	},
 
+	async maxluck(target, room, user) {
+		await loadUser(user.id);
+		this.checkCan("bypassall");
+		const tId = toID(target) || user.id;
+		await loadUser(tId);
+		const s = getState(tId);
+		if (s) {
+			s.luckOverride = 14;
+			s.luck = 14;
+			setState(tId, s);
+			this.sendReply(`Set luck to max (14) for ${tId}.`);
+			const staffName = nameColor(user.name, false, true);
+			notifyUser(tId, `Your Luck has been maximized by ${staffName}.`);
+		} else {
+			throw new Chat.ErrorMessage(`${tId} does not have an active run.`);
+		}
+	},
+
 	async giveitem(target, room, user) {
 		await loadUser(user.id);
 		this.checkCan("bypassall");
