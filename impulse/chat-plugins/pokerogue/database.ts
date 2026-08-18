@@ -195,7 +195,7 @@ export function loadUser(userid: string): Promise<void> {
 					selectedAbility: row.selectedAbility as string,
 					selectedTeraType: row.selectedTeraType as string,
 					shiny: !!row.shiny,
-					eggTier: row.eggTier as any,
+					eggTier: row.eggTier,
 				};
 			}
 
@@ -204,8 +204,8 @@ export function loadUser(userid: string): Promise<void> {
 				userData.eggs!.push({
 					species: row.species as string,
 					wavesRemaining: Number(row.wavesRemaining),
-					bannerType: row.bannerType as any,
-					tier: row.tier as any,
+					bannerType: row.bannerType,
+					tier: row.tier,
 					shiny: !!row.shiny,
 					hiddenAbility: !!row.hiddenAbility,
 				});

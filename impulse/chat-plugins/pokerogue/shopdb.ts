@@ -149,7 +149,6 @@ for (const [id, name, desc] of EVO_ITEMS_DATA) {
 	};
 }
 
-
 const HELD_ITEMS_DATA: [string, string, ItemRarityTier, number, number, string][] = [
 	['sitrusberry', 'Sitrus Berry', 'Common', 4, 1.0, 'Restores 1/4 max HP when at 1/2 max HP or less. Single use.'],
 	['lumberry', 'Lum Berry', 'Common', 4, 1.0, 'Cures any status condition. Single use.'],

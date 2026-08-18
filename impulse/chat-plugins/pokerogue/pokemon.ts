@@ -977,7 +977,7 @@ function resolveTrainerTeam(
 					const pick: TrainerMon = typeof rawPick === 'string' ? { species: rawPick } : { ...rawPick };
 					if (trainerData.exactSpecies !== undefined && pick.exactSpecies === undefined) pick.exactSpecies = trainerData.exactSpecies;
 					forcedTeam.push(pick);
-					if (memoryKey && state && state.trainerMemories) {
+					if (memoryKey && state?.trainerMemories) {
 						state.trainerMemories[memoryKey] = state.trainerMemories[memoryKey] || [];
 						state.trainerMemories[memoryKey].push(pick.species);
 					}

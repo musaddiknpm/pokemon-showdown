@@ -644,49 +644,53 @@ export interface CommandContext {
 	parse(cmd: string): void;
 }
 
-export const ActionResolvers: Record<string, (state: PokeRogueState, user: User, rest: string, ctx: CommandContext) => boolean> = {
-	hatched(state, user, rest, ctx) {
-		if (rest === 'continue') {
-			delete state.hatchedEggs;
-			return true;
-		}
-		return false;
-	},
+export type Intent =
+	| { type: 'LearnMove', action: 'skip' } |
+	{ type: 'LearnMove', action: 'learn', slot: number } |
+	{ type: 'SwapMon', action: 'skip' } |
+	{ type: 'SwapMon', action: 'swap', slot: number } |
+	{ type: 'PickItem', action: 'skip' } |
+	{ type: 'PickItem', action: 'pick', itemId: string } |
+	{ type: 'GiveItem', action: 'skip' } |
+	{ type: 'GiveItem', action: 'give', slot: number } |
+	{ type: 'Hatched', action: 'continue' } |
+	{ type: 'UseShopItem', action: 'skip' } |
+	{ type: 'UseShopItem', action: 'use', slot: number, userId: string };
 
-	learnmove(state, user, rest, ctx) {
-		if (!state.pendingMoves?.length) return false;
+export function applyIntent(state: PokeRogueState, intent: Intent): void {
+	switch (intent.type) {
+	case 'LearnMove': {
+		if (!state.pendingMoves?.length) return;
 		const pending = state.pendingMoves[0];
 		const mon = state.team[pending.pokemonIndex];
 		if (!mon.moves) mon.moves = getLevelUpMoves(mon.species, mon.level, MODE_CONFIGS[state.gameMode]?.generation || 9);
 
-		if (rest === 'skip') {
+		if (intent.action === 'skip') {
 			state.notification = `Your Pokémon gave up on learning <b>${Dex.moves.get(pending.move).name}</b>.`;
 		} else {
-			const slot = parseInt(rest) - 1;
-			if (isNaN(slot) || slot < 0 || slot >= mon.moves.length) {
-				ctx.errorReply("Invalid move slot.");
-				return false;
+			const slot = intent.slot;
+			if (slot < 0 || slot >= mon.moves.length) {
+				throw new Chat.ErrorMessage("Invalid move slot.");
 			}
 			const oldMoveName = Dex.moves.get(mon.moves[slot]).name;
 			mon.moves[slot] = pending.move;
 			state.notification = `Forgot ${oldMoveName} and learned <b>${Dex.moves.get(pending.move).name}</b>!`;
 		}
 		state.pendingMoves.shift();
-		return true;
-	},
+		break;
+	}
 
-	swapmon(state, user, rest, ctx) {
-		if (!state.pendingSwap) return false;
+	case 'SwapMon': {
+		if (!state.pendingSwap) return;
 		const newMon = state.pendingSwap;
 		const newMonName = Dex.species.get(toID(newMon.species)).name;
 
-		if (rest === 'skip') {
+		if (intent.action === 'skip') {
 			state.notification = `You released <b>${newMonName}</b> into the wild.`;
 		} else {
-			const slot = parseInt(rest) - 1;
-			if (isNaN(slot) || slot < 0 || slot >= state.team.length) {
-				ctx.errorReply("Invalid team slot.");
-				return false;
+			const slot = intent.slot;
+			if (slot < 0 || slot >= state.team.length) {
+				throw new Chat.ErrorMessage("Invalid team slot.");
 			}
 			const oldMonName = Dex.species.get(toID(state.team[slot].species)).name;
 			state.team[slot] = newMon;
@@ -694,35 +698,33 @@ export const ActionResolvers: Record<string, (state: PokeRogueState, user: User,
 			state.notification = `You replaced ${oldMonName} with <b>${newMonName}</b>!`;
 		}
 		delete state.pendingSwap;
-		return true;
-	},
+		break;
+	}
 
-	pickitem(state, user, rest, ctx) {
-		if (!state.itemOptions?.length) return false;
-		if (rest === 'skip') {
+	case 'PickItem': {
+		if (!state.itemOptions?.length) return;
+		if (intent.action === 'skip') {
 			delete state.itemOptions;
 			delete state.purchasedItem;
 		} else {
-			const dexItem = Dex.items.get(rest);
+			const dexItem = Dex.items.get(intent.itemId);
 			if (!dexItem.exists) {
-				ctx.errorReply("Unknown item.");
-				return false;
+				throw new Chat.ErrorMessage("Unknown item.");
 			}
 			state.pendingItemName = dexItem.name;
 			delete state.itemOptions;
 			delete state.purchasedItem;
 		}
-		return true;
-	},
+		break;
+	}
 
-	giveitem(state, user, rest, ctx) {
+	case 'GiveItem': {
 		if (!state.pendingItemName) {
-			ctx.errorReply("No item pending.");
-			return false;
+			throw new Chat.ErrorMessage("No item pending.");
 		}
 		const itemKey = state.purchasedItem;
 
-		if (rest === 'skip') {
+		if (intent.action === 'skip') {
 			delete state.pendingItemName;
 			delete state.purchasedItem;
 			delete state.pendingItemIsEvo;
@@ -739,13 +741,12 @@ export const ActionResolvers: Record<string, (state: PokeRogueState, user: User,
 
 			if (state.pendingRewardDraft) state.view = 'draft';
 			else { state.floor++; state.view = 'main'; }
-			return true;
+			break;
 		}
 
-		const slot = parseInt(rest) - 1;
-		if (isNaN(slot) || slot < 0 || slot >= state.team.length) {
-			ctx.errorReply("Invalid team slot.");
-			return false;
+		const slot = intent.slot;
+		if (slot < 0 || slot >= state.team.length) {
+			throw new Chat.ErrorMessage("Invalid team slot.");
 		}
 
 		const mon = state.team[slot];
@@ -753,10 +754,11 @@ export const ActionResolvers: Record<string, (state: PokeRogueState, user: User,
 		const dexSpecies = Dex.species.get(toID(mon.species));
 
 		if (itemKey === 'memorymushroom') {
-			const allMoves = getMovesLearnedBetween(mon.species, 1, mon.level, false, MODE_CONFIGS[state.gameMode]?.generation || 9, MODE_CONFIGS[state.gameMode]?.randomizeMoves);
+			let allMoves = getMovesLearnedBetween(mon.species, 1, mon.level, false, MODE_CONFIGS[state.gameMode]?.generation || 9, MODE_CONFIGS[state.gameMode]?.randomizeMoves);
+			if (mon.moves) allMoves = allMoves.filter(m => !mon.moves.includes(m));
+
 			if (allMoves.length === 0) {
-				ctx.errorReply("This Pokémon has no moves to remember.");
-				return false;
+				throw new Chat.ErrorMessage("This Pokémon has no new moves to remember.");
 			}
 			state.pendingMoves = [{ pokemonIndex: slot, move: Utils.randomElement(allMoves), speciesName: mon.species }];
 			delete state.purchasedItem;
@@ -770,21 +772,19 @@ export const ActionResolvers: Record<string, (state: PokeRogueState, user: User,
 
 			if (state.pendingRewardDraft) state.view = 'draft';
 			else { state.floor++; state.view = 'main'; }
-			return true;
+			break;
 		}
 
 		let evoTarget = '';
 		if (state.pendingItemIsEvo) {
 			evoTarget = getItemEvolution(mon.species, state.pendingItemName) || '';
 			if (!evoTarget) {
-				ctx.errorReply("That Pokémon can't evolve with this item.");
-				return false;
+				throw new Chat.ErrorMessage("That Pokémon can't evolve with this item.");
 			}
 		} else if (state.pendingItemIsMega) {
 			evoTarget = getMegaEvolution(mon.species, state.pendingItemName) || '';
 			if (!evoTarget) {
-				ctx.errorReply("That Pokémon can't Mega Evolve with this stone.");
-				return false;
+				throw new Chat.ErrorMessage("That Pokémon can't Mega Evolve with this stone.");
 			}
 		} else if (state.pendingItemIsGmax) {
 			const spData = Dex.species.get(toID(mon.species));
@@ -792,8 +792,7 @@ export const ActionResolvers: Record<string, (state: PokeRogueState, user: User,
 				evoTarget = spData.name + '-Gmax';
 			}
 			if (!evoTarget) {
-				ctx.errorReply("That Pokémon can't Gigantamax with this mushroom.");
-				return false;
+				throw new Chat.ErrorMessage("That Pokémon can't Gigantamax with this mushroom.");
 			}
 		}
 
@@ -847,17 +846,20 @@ export const ActionResolvers: Record<string, (state: PokeRogueState, user: User,
 
 		if (state.pendingRewardDraft) state.view = 'draft';
 		else { state.floor++; state.view = 'main'; }
-		return true;
-	},
+		break;
+	}
+	case 'Hatched': {
+		delete state.hatchedEggs;
+		break;
+	}
 
-	useshopitem(state, user, rest, ctx) {
+	case 'UseShopItem': {
 		if (!state.purchasedItem) {
-			ctx.errorReply("No item selected.");
-			return false;
+			throw new Chat.ErrorMessage("No item selected.");
 		}
 		const itemKey = state.purchasedItem;
 
-		if (rest === 'skip') {
+		if (intent.action === 'skip') {
 			delete state.purchasedItem;
 			delete state.pendingConsumableType;
 
@@ -871,27 +873,25 @@ export const ActionResolvers: Record<string, (state: PokeRogueState, user: User,
 
 			if (state.pendingRewardDraft) state.view = 'draft';
 			else { state.floor++; state.view = 'main'; }
-			return true;
+			break;
 		}
 
 		const activeShop = MODE_REGISTRY[state.gameMode]?.shop || SHOP_ITEMS;
 		const item = activeShop[itemKey];
 		if (!item) {
-			ctx.errorReply("Unknown item.");
-			return false;
+			throw new Chat.ErrorMessage("Unknown item.");
 		}
 
-		const slot = parseInt(rest) - 1;
-		if (isNaN(slot) || slot < 0 || slot >= state.team.length) {
-			ctx.errorReply("Invalid team slot.");
-			return false;
+		const slot = intent.slot;
+		if (slot < 0 || slot >= state.team.length) {
+			throw new Chat.ErrorMessage("Invalid team slot.");
 		}
 		const mon = state.team[slot];
 		const hp = mon.currentHp ?? 100;
 
 		if (item.type === 'healHP') {
-			if (hp <= 0) { ctx.errorReply("Can't heal a fainted Pokémon. Use a Revive."); return false; }
-			if (hp >= 100) { ctx.errorReply("That Pokémon is already at full HP."); return false; }
+			if (hp <= 0) { throw new Chat.ErrorMessage("Can't heal a fainted Pokémon. Use a Revive."); }
+			if (hp >= 100) { throw new Chat.ErrorMessage("That Pokémon is already at full HP."); }
 
 			const spData = Dex.species.get(toID(mon.species));
 			const bs = spData.baseStats ?? { hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 };
@@ -905,7 +905,7 @@ export const ActionResolvers: Record<string, (state: PokeRogueState, user: User,
 			mon.happiness = Math.min(255, (mon.happiness ?? 70) + 3);
 			state.notification = `<b>${Dex.species.get(toID(mon.species)).name}</b> restored HP! (${hp}% → ${mon.currentHp}%)`;
 		} else if (item.type === 'rareCandy') {
-			if (hp <= 0) { ctx.errorReply("Can't use on a fainted Pokémon."); return false; }
+			if (hp <= 0) { throw new Chat.ErrorMessage("Can't use on a fainted Pokémon."); }
 			const candyJarStacks = state.keyItems?.['Candy Jar'] || 0;
 			const levelsToGain = 1 + candyJarStacks;
 
@@ -924,37 +924,37 @@ export const ActionResolvers: Record<string, (state: PokeRogueState, user: User,
 			const msgs = processLevelUp(mon, oldLevel, oldSpecies, evolved, slot, state, config.generation || 9);
 			if (msgs.length) state.notification += '<br>' + msgs.join('<br>');
 		} else if (item.type === 'cureStatus') {
-			if (hp <= 0) { ctx.errorReply("Can't cure a fainted Pokémon."); return false; }
-			if (!mon.status) { ctx.errorReply("That Pokémon has no status condition."); return false; }
+			if (hp <= 0) { throw new Chat.ErrorMessage("Can't cure a fainted Pokémon."); }
+			if (!mon.status) { throw new Chat.ErrorMessage("That Pokémon has no status condition."); }
 			const oldStatus = mon.status;
 			delete mon.status;
 			state.notification = `<b>${Dex.species.get(toID(mon.species)).name}</b>'s ${oldStatus.toUpperCase()} was cured!`;
 		} else if (item.type === 'revive') {
-			if (hp > 0) { ctx.errorReply("That Pokémon hasn't fainted."); return false; }
+			if (hp > 0) { throw new Chat.ErrorMessage("That Pokémon hasn't fainted."); }
 			const revAmt = item.reviveAmount || 50;
 			mon.currentHp = (item.isMax || mon.species === 'shedinja') ? 100 : revAmt;
 			delete mon.status;
 			state.notification = `<b>${Dex.species.get(toID(mon.species)).name}</b> was revived${item.isMax ? ' to full health' : ''}!`;
 		} else if (item.type === 'vitamin') {
-			if (hp <= 0) { ctx.errorReply("Can't use on a fainted Pokémon."); return false; }
+			if (hp <= 0) { throw new Chat.ErrorMessage("Can't use on a fainted Pokémon."); }
 			const evStat = (item).evStat as keyof NonNullable<PokemonEntry['evs']>;
-			if (!evStat) { ctx.errorReply("Invalid vitamin."); return false; }
+			if (!evStat) { throw new Chat.ErrorMessage("Invalid vitamin."); }
 			if (!mon.evs) mon.evs = { hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 };
 			let totalEvs = 0;
 			for (const val of Object.values(mon.evs)) totalEvs += val;
-			if (totalEvs >= 508) { ctx.errorReply("This Pokémon's EVs are maxed out (508 total)."); return false; }
-			if (mon.evs[evStat] >= 252) { ctx.errorReply(`This Pokémon's EV in this stat is already at max (252).`); return false; }
+			if (totalEvs >= 508) { throw new Chat.ErrorMessage("This Pokémon's EVs are maxed out (508 total)."); }
+			if (mon.evs[evStat] >= 252) { throw new Chat.ErrorMessage(`This Pokémon's EV in this stat is already at max (252).`); }
 
 			const gain = Math.min(item.evGain ?? 10, 252 - mon.evs[evStat], 508 - totalEvs);
 			mon.evs[evStat] += gain;
 			mon.happiness = Math.min(255, (mon.happiness ?? 70) + 5);
 			state.notification = `<b>${Dex.species.get(toID(mon.species)).name}</b>'s EVs raised by ${gain}! (Now: ${mon.evs[evStat]}/252)`;
 		} else if (item.type === 'tm') {
-			if (hp <= 0) { ctx.errorReply("Can't use on a fainted Pokémon."); return false; }
+			if (hp <= 0) { throw new Chat.ErrorMessage("Can't use on a fainted Pokémon."); }
 			const moveId = itemKey.includes('_') ? itemKey.substring(itemKey.indexOf('_') + 1).replace(/[^a-z0-9]/g, '') : toID(item.name.replace(/^TM\d+\s*/i, ''));
 			const moveData = Dex.moves.get(moveId);
-			if (!moveData.exists) { ctx.errorReply("This TM is invalid or unimplemented."); return false; }
-			if (mon.moves.includes(moveData.id)) { ctx.errorReply("This Pokémon already knows this move."); return false; }
+			if (!moveData.exists) { throw new Chat.ErrorMessage("This TM is invalid or unimplemented."); }
+			if (mon.moves.includes(moveData.id)) { throw new Chat.ErrorMessage("This Pokémon already knows this move."); }
 
 			if (mon.moves.length < 4) {
 				mon.moves.push(moveData.id);
@@ -965,10 +965,10 @@ export const ActionResolvers: Record<string, (state: PokeRogueState, user: User,
 				state.notification = `<b>${Dex.species.get(toID(mon.species)).name}</b> is trying to learn <b>${moveData.name}</b>!`;
 			}
 		} else if (item.type === 'mint') {
-			if (hp <= 0) { ctx.errorReply("Can't use on a fainted Pokémon."); return false; }
+			if (hp <= 0) { throw new Chat.ErrorMessage("Can't use on a fainted Pokémon."); }
 			const natureName = item.name.replace(' Mint', '');
 			const nature = Dex.natures.get(natureName);
-			if (!nature.exists) { ctx.errorReply("Invalid mint."); return false; }
+			if (!nature.exists) { throw new Chat.ErrorMessage("Invalid mint."); }
 
 			mon.nature = nature.name;
 			mon.happiness = Math.min(255, (mon.happiness ?? 70) + 5);
@@ -976,7 +976,7 @@ export const ActionResolvers: Record<string, (state: PokeRogueState, user: User,
 
 			const config = MODE_CONFIGS[state.gameMode] || MODE_CONFIGS['classic'];
 			if (state.gameMode === 'classic' || config.progression) {
-				const userData = getUserData(user.id);
+				const userData = getUserData(intent.userId);
 				let baseSpecies = toID(mon.species);
 				while (true) {
 					const sp = Dex.species.get(baseSpecies);
@@ -989,12 +989,12 @@ export const ActionResolvers: Record<string, (state: PokeRogueState, user: User,
 					if (!starterData.unlockedNatures) starterData.unlockedNatures = [starterData.nature!];
 					if (!starterData.unlockedNatures.includes(nature.name)) {
 						starterData.unlockedNatures.push(nature.name);
-						saveUserData(user.id);
+						saveUserData(intent.userId);
 					}
 				}
 			}
 		} else if (item.type === 'xItem') {
-			if (hp <= 0) { ctx.errorReply("Can't use on a fainted Pokémon."); return false; }
+			if (hp <= 0) { throw new Chat.ErrorMessage("Can't use on a fainted Pokémon."); }
 			const stat = item.buffStat!;
 			if (!mon.activeBuffs) mon.activeBuffs = {};
 
@@ -1018,6 +1018,83 @@ export const ActionResolvers: Record<string, (state: PokeRogueState, user: User,
 
 		if (state.pendingRewardDraft) state.view = 'draft';
 		else { state.floor++; state.view = 'main'; }
+		break;
+	}
+	}
+}
+
+export const ActionResolvers: Record<string, (state: PokeRogueState, user: User, rest: string, ctx: CommandContext) => boolean> = {
+	hatched(state, user, rest, ctx) {
+		if (rest === 'continue') {
+			applyIntent(state, { type: 'Hatched', action: 'continue' });
+			return true;
+		}
+		return false;
+	},
+
+	learnmove(state, user, rest, ctx) {
+		if (!state.pendingMoves?.length) return false;
+		if (rest === 'skip') {
+			applyIntent(state, { type: 'LearnMove', action: 'skip' });
+		} else {
+			const slot = parseInt(rest) - 1;
+			if (isNaN(slot)) {
+				throw new Chat.ErrorMessage("Invalid move slot.");
+			}
+			applyIntent(state, { type: 'LearnMove', action: 'learn', slot });
+		}
+		return true;
+	},
+
+	swapmon(state, user, rest, ctx) {
+		if (!state.pendingSwap) return false;
+		if (rest === 'skip') {
+			applyIntent(state, { type: 'SwapMon', action: 'skip' });
+		} else {
+			const slot = parseInt(rest) - 1;
+			if (isNaN(slot)) {
+				throw new Chat.ErrorMessage("Invalid team slot.");
+			}
+			applyIntent(state, { type: 'SwapMon', action: 'swap', slot });
+		}
+		return true;
+	},
+
+	pickitem(state, user, rest, ctx) {
+		if (!state.itemOptions?.length) return false;
+		if (rest === 'skip') {
+			applyIntent(state, { type: 'PickItem', action: 'skip' });
+		} else {
+			applyIntent(state, { type: 'PickItem', action: 'pick', itemId: rest });
+		}
+		return true;
+	},
+
+	giveitem(state, user, rest, ctx) {
+		if (!state.pendingItemName) return false;
+		if (rest === 'skip') {
+			applyIntent(state, { type: 'GiveItem', action: 'skip' });
+		} else {
+			const slot = parseInt(rest) - 1;
+			if (isNaN(slot)) {
+				throw new Chat.ErrorMessage("Invalid team slot.");
+			}
+			applyIntent(state, { type: 'GiveItem', action: 'give', slot });
+		}
+		return true;
+	},
+
+	useshopitem(state, user, rest, ctx) {
+		if (!state.purchasedItem) return false;
+		if (rest === 'skip') {
+			applyIntent(state, { type: 'UseShopItem', action: 'skip', userId: user.id });
+		} else {
+			const slot = parseInt(rest) - 1;
+			if (isNaN(slot)) {
+				throw new Chat.ErrorMessage("Invalid team slot.");
+			}
+			applyIntent(state, { type: 'UseShopItem', action: 'use', slot, userId: user.id });
+		}
 		return true;
 	},
 };
