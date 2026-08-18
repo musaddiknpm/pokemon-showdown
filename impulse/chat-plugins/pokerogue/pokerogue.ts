@@ -3,7 +3,7 @@ import { type PokemonEntry, type PokeRogueState, type StatusCondition, type Game
 import { EGG_POOLS, getStarterCost, type EggTier } from './data/starter-data';
 import { MODE_CONFIGS, MODE_REGISTRY } from './config';
 import { CATCH_RATES } from './data/pokemon-data';
-import { SHOP_ITEMS, genItem, generateDraftOptions, getRewardMoney, getItemPrice, getRerollCost } from './items';
+import { SHOP_ITEMS, generateDraftOptions, getRewardMoney, getItemPrice, getRerollCost } from './items';
 import {
 	loadUser, getState, setState, getUserData, saveUserData, globalStats, saveGlobalStats, recordRunStats,
 } from './database';

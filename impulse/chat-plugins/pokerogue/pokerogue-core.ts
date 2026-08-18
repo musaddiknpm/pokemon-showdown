@@ -4,7 +4,7 @@ import { type PokemonEntry, type PokeRogueState, type StatusCondition, type Game
 import { EGG_POOLS, getStarterCost, type EggTier } from './data/starter-data';
 import { MODE_CONFIGS, MODE_REGISTRY } from './config';
 import { CATCH_RATES } from './data/pokemon-data';
-import { SHOP_ITEMS, genItem, generateDraftOptions, getRewardMoney, getItemPrice, getRerollCost } from './items';
+import { SHOP_ITEMS, generateDraftOptions, getRewardMoney, getItemPrice, getRerollCost } from './items';
 import { getState, setState, getUserData, saveUserData, globalStats, saveGlobalStats, recordRunStats, incrementAccountStat } from './database';
 import { pickStarterOptions, expForLevel, applyExpAndLevelUp, getLevelUpEvo,
 	getLevelUpMoves, getMovesLearnedBetween, calcKillExp, getExpType, getExpYield, botLevel,
@@ -61,8 +61,7 @@ export function isBossFloorBoundary(floor: number, bossInterval = 10): boolean {
 
 export function parseFloorRange(range: string): { start: number, end: number } | null {
 	const match = /^(\d+)-(\d+)$/.exec(range.trim());
-	if (!match) return null;
-	return { start: parseInt(match[1]), end: parseInt(match[2]) };
+	return match ? { start: +match[1], end: +match[2] } : null;
 }
 
 export function pickNextBiome(

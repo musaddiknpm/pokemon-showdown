@@ -63,26 +63,6 @@ export const TIER_WEIGHTS: Record<ItemRarityTier, TierConfig> = {
 
 export const SHOP_ITEMS: Record<string, ShopItem> = { ...SHOP_DB, ...TMS_DB };
 
-export function genItem(quantity: number, extraArg?: PokemonSet[] | string): string[] {
-	let all = Dex.items.all().filter(s => (s.isGem || s.itemUser || s.zMove) || !s.isNonstandard);
-	all = all.filter(i => {
-		if (!i.itemUser) return i.zMove || Object.values(i).some(v => typeof v === 'function');
-		const getForms = (sp: string) => {
-			const ds = Dex.species.get(sp);
-			return [ds.name, ...(ds.otherFormes || [])];
-		};
-		const pokes = typeof extraArg === 'string' ? [extraArg] : (extraArg?.map(p => p.species) || []);
-		const valid = new Set(pokes.flatMap(getForms));
-		return i.itemUser.some(v => valid.has(v));
-	});
-
-	for (let i = all.length - 1; i > 0; i--) {
-		const j = Math.floor(Math.random() * (i + 1));
-		[all[i], all[j]] = [all[j], all[i]];
-	}
-	return all.slice(0, quantity).map(i => i.name);
-}
-
 export function calculatePartyLuck(team: PokemonEntry[], state: PokeRogueState): number {
 	if (state.luckOverride !== undefined) return state.luckOverride;
 	let luck = 0;

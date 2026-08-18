@@ -50,11 +50,7 @@ export interface ActiveRougeMatch {
 
 const TRAINER_NAME = "PokéRogue Challenger";
 
-class NoopStream extends ObjectReadWriteStream<string> {
-	override _write(_data: string): void {}
-}
-
-const noopWorker = new StreamWorker(new NoopStream());
+const noopWorker = new StreamWorker(new ObjectReadWriteStream({ write() {} }));
 let botCounter = 0;
 
 export class PokeRogueBattleResolver {

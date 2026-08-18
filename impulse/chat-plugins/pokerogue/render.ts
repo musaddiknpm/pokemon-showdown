@@ -713,7 +713,13 @@ export function renderStarterSelectionView(state: PokeRogueState, user: User): s
 	let sort: 'costAsc' | 'costDesc' | null = null;
 	let filterEgg = false;
 
-	if (rawSearch.includes('cost +') || rawSearch.includes('cost+')) { sort = 'costDesc'; rawSearch = rawSearch.replace(/cost\s*\+/, '').trim(); } else if (rawSearch.includes('cost -') || rawSearch.includes('cost-')) { sort = 'costAsc'; rawSearch = rawSearch.replace(/cost\s*-/, '').trim(); }
+	if (rawSearch.includes('cost +') || rawSearch.includes('cost+')) {
+		sort = 'costDesc';
+		rawSearch = rawSearch.replace(/cost\s*\+/, '').trim();
+	} else if (rawSearch.includes('cost -') || rawSearch.includes('cost-')) {
+		sort = 'costAsc';
+		rawSearch = rawSearch.replace(/cost\s*-/, '').trim();
+	}
 	if (/\begg\b/.test(rawSearch)) { filterEgg = true; rawSearch = rawSearch.replace(/\begg\b/, '').trim(); }
 
 	let currentCost = 0;

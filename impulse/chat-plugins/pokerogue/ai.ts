@@ -172,34 +172,22 @@ export class PokeRogueAI {
 	}
 
 	private getOpponentSpecies(slot: number): string {
-		try {
-			const oppActive = (this.room?.battle)?.p1?.active?.[slot];
-			if (isFainted(oppActive)) return '';
-			return toID(oppActive.species?.name ?? '');
-		} catch {
-			return '';
-		}
+		const oppActive = this.room?.battle?.p1?.active?.[slot];
+		if (isFainted(oppActive)) return '';
+		return toID(oppActive.species?.name ?? '');
 	}
 
 	private getOpponentAbility(slot: number): string {
-		try {
-			const oppActive = (this.room?.battle)?.p1?.active?.[slot];
-			if (isFainted(oppActive)) return '';
-			return toID(oppActive.ability ?? oppActive.baseAbility ?? '');
-		} catch {
-			return '';
-		}
+		const oppActive = this.room?.battle?.p1?.active?.[slot];
+		if (isFainted(oppActive)) return '';
+		return toID(oppActive.ability ?? oppActive.baseAbility ?? '');
 	}
 
 	private getOpponentMoveTypes(slot: number): string[] {
-		try {
-			const oppActive = (this.room?.battle)?.p1?.active?.[slot];
-			if (!oppActive) return [];
-			const species = Dex.species.get(oppActive.species?.name ?? '');
-			return species.exists ? species.types : [];
-		} catch {
-			return [];
-		}
+		const oppActive = this.room?.battle?.p1?.active?.[slot];
+		if (!oppActive) return [];
+		const species = Dex.species.get(oppActive.species?.name ?? '');
+		return species.exists ? species.types : [];
 	}
 
 	private getMatchupContext(slot: number, pokemon: BattleRequestPokemon): MatchupContext {
@@ -245,10 +233,8 @@ export class PokeRogueAI {
 	private getTypeMultiplier(atkType: string, defTypes: string[]): number {
 		let multiplier = 1;
 		for (const defType of defTypes) {
-			const val = Dex.mod(`gen${this.gen}`).data.TypeChart[toID(defType)]?.damageTaken?.[atkType] ?? 0;
-			if (val === 3) return 0;
-			if (val === 2) multiplier *= 0.5;
-			if (val === 1) multiplier *= 2;
+			if (!Dex.mod(`gen${this.gen}`).getImmunity(atkType, defType)) return 0;
+			multiplier *= (2 ** Dex.mod(`gen${this.gen}`).getEffectiveness(atkType, defType));
 		}
 		return multiplier;
 	}

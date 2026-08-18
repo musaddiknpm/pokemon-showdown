@@ -541,7 +541,13 @@ function pickMovesLateFloor(viableMoves: string[], species: Species): string[] {
 	for (const { moveId, type, isStatus } of scored) {
 		if (picked.length >= 4) break;
 		if (picked.includes(moveId)) continue;
-		if (isStatus) { if (statusCount === 0) { picked.push(moveId); statusCount++; } continue; }
+		if (isStatus) {
+			if (statusCount === 0) {
+				picked.push(moveId);
+				statusCount++;
+			}
+			continue;
+		}
 		if (!usedTypes.has(type)) { picked.push(moveId); usedTypes.add(type); }
 	}
 	for (const { moveId } of scored) {
@@ -694,12 +700,7 @@ function defaultResolveBiome(floor: number, currentBiome: string, config: ModeCo
 }
 
 export function pickStarterOptions(availableStarters: string[]): string[] {
-	const shuffled = [...availableStarters];
-	for (let i = shuffled.length - 1; i > 0; i--) {
-		const j = Math.floor(Math.random() * (i + 1));
-		[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-	}
-	return shuffled.slice(0, 5);
+	return Utils.shuffle([...availableStarters]).slice(0, 5);
 }
 
 function determineLevel(minLevel: number, maxLevel: number, depth: number): number {
