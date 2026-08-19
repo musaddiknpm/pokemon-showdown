@@ -8,6 +8,51 @@ export const Rulesets: import('../sim/dex-formats').FormatDataTable = {
 	// Rulesets
 	///////////////////////////////////////////////////////////////////
 
+	/**
+	 * EXP Gain Mod
+	 *
+	 * Tracks active battle participation on the player's side (p1) across turns and switches.
+	 * When an opposing Pokémon on p2 faints, emits a raw `-message` stream event in the format:
+	 * `EXP_GAIN|<defeated_species>|<defeated_level>|<participant_species_csv>`
+	 *
+	 * Used by custom game engines, RPG plugins, and PvE battle resolvers to calculate
+	 * and distribute scaled experience points.
+	 */
+	expgainmod: {
+		effectType: 'Rule',
+		name: 'EXP Gain Mod',
+		desc: 'Tracks battle participation natively and outputs EXP_GAIN messages on faint for custom game engines.',
+
+		onBegin() {
+			if (!(this as any).p1Participants) {
+				(this as any).p1Participants = new Set<string>();
+			}
+		},
+
+		onSwitchIn(pokemon) {
+			if (pokemon.side.id === 'p1') {
+				if (!(this as any).p1Participants) {
+					(this as any).p1Participants = new Set<string>();
+				}
+				(this as any).p1Participants.add(pokemon.species.id);
+			}
+		},
+
+		onFaint(pokemon) {
+			if (pokemon.side.id === 'p2') {
+				const participants = Array.from((this as any).p1Participants || []).join(',');
+				const species = pokemon.species.id;
+				const level = pokemon.level;
+
+				this.add('-message', `EXP_GAIN|${species}|${level}|${participants}`);
+
+				if ((this as any).p1Participants) {
+					(this as any).p1Participants.clear();
+				}
+			}
+		},
+	},
+
 	standardag: {
 		effectType: 'ValidatorRule',
 		name: 'Standard AG',
