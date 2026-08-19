@@ -40,7 +40,6 @@ export interface ActiveBotMatch {
 	isDoubles?: boolean;
 	onTurn?: (room: AnyObject, turn: number) => void;
 	isTrainerBattle?: boolean;
-	floor?: number;
 	matchContext?: AnyObject;
 }
 
