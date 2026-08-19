@@ -1,7 +1,6 @@
 import { Utils } from '../../../lib';
 import { type PokemonEntry, type ModeConfig, type ModeData, type BiomeEntry, type TrainerMon, type SGGameState, type StatTable, type RarityTier } from './types';
-import { BASE_EXP, GROWTH_RATES } from './data/pokemon-data';
-import { expForLevel, applyExpAndLevelUp } from '../../utils/exp';
+import { expForLevel, applyExpAndLevelUp, getExpType, getExpYield } from '../../utils/exp';
 import { SHOP_ITEMS } from './items';
 
 export interface AIPokemonSet {

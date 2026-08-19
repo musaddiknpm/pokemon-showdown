@@ -1,3 +1,4 @@
+import { BASE_EXP, GROWTH_RATES } from './data/pokemon-data';
 
 export const EXP_LEVELS = [
 	[0, 15, 52, 122, 237, 406, 637, 942, 1326, 1800, 2369, 3041, 3822, 4719, 5737, 6881, 8155, 9564, 11111, 12800, 14632, 16610, 18737, 21012, 23437, 26012, 28737, 31610, 34632, 37800, 41111, 44564, 48155, 51881, 55737, 59719, 63822, 68041, 72369, 76800, 81326, 85942, 90637, 95406, 100237, 105122, 110052, 115015, 120001, 125000, 131324, 137795, 144410, 151165, 158056, 165079, 172229, 179503, 186894, 194400, 202013, 209728, 217540, 225443, 233431, 241496, 249633, 257834, 267406, 276458, 286328, 296358, 305767, 316074, 326531, 336255, 346965, 357812, 367807, 378880, 390077, 400293, 411686, 423190, 433572, 445239, 457001, 467489, 479378, 491346, 501878, 513934, 526049, 536557, 548720, 560922, 571333, 583539, 591882, 600000],
@@ -93,4 +94,32 @@ export function applyExpAndLevelUp(
 	}
 
 	return { leveledUp, newLevel, newExp };
+}
+
+export function getExpYield(speciesId: string): number {
+	const id = toID(speciesId);
+	if (BASE_EXP[id]) return BASE_EXP[id];
+
+	const sp = Dex.species.get(id);
+	if (!sp.exists) return 70;
+	const bs = sp.baseStats ?? { hp: 45, atk: 45, def: 45, spa: 45, spd: 45, spe: 45 };
+	return Math.round((bs.hp + bs.atk + bs.def + bs.spa + bs.spd + bs.spe) / 3.5);
+}
+
+export function getExpType(speciesId: string): string {
+	const id = toID(speciesId);
+	if (GROWTH_RATES[id]) return GROWTH_RATES[id];
+
+	const sp = Dex.species.get(id);
+	if (sp.exists && sp.baseSpecies) {
+		const baseId = toID(sp.baseSpecies);
+		if (baseId !== id && GROWTH_RATES[baseId]) return GROWTH_RATES[baseId];
+	}
+
+	if (sp.exists) {
+		const evo = sp.evos && sp.evos.length ? Dex.species.get(sp.evos[0]) : null;
+		if (evo && GROWTH_RATES[evo.id]) return GROWTH_RATES[evo.id];
+	}
+
+	return 'Medium Fast';
 }

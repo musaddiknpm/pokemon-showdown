@@ -1,7 +1,7 @@
 import { Utils } from '../../../lib';
 import { loadUser, getState, setState, deleteState, getUserData, saveUserData, globalStats, saveGlobalStats, userCache, saveAllData, incrementAccountStat } from './database';
-import { expForLevel } from '../../utils/exp';
-import { getLevelUpEvo, getExpType, getLevelUpMoves,  getEggMoves, rollTeraTypeForSpecies } from './pokemon';
+import { expForLevel, getExpType } from '../../utils/exp';
+import { getLevelUpEvo, getLevelUpMoves,  getEggMoves, rollTeraTypeForSpecies } from './pokemon';
 import { type SGGameState, type PokemonEntry, type GameMode } from './types';
 import { nameColor } from '../customization/custom-color';
 import { refreshGamePage } from './render';
