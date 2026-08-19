@@ -94,35 +94,6 @@ export function getBaseSpecies(speciesId: string): string {
 	return currentId;
 }
 
-export function getExpYield(speciesId: string): number {
-	const id = toID(speciesId);
-	if (BASE_EXP[id]) return BASE_EXP[id];
-
-	const sp = Dex.species.get(id);
-	if (!sp.exists) return 70;
-	const bs = sp.baseStats ?? { hp: 45, atk: 45, def: 45, spa: 45, spd: 45, spe: 45 };
-	return Math.round((bs.hp + bs.atk + bs.def + bs.spa + bs.spd + bs.spe) / 3.5);
-}
-
-export function getExpType(speciesId: string): string {
-	const id = toID(speciesId);
-	if (GROWTH_RATES[id]) return GROWTH_RATES[id];
-
-	const sp = Dex.species.get(id);
-	if (sp.exists && sp.baseSpecies) {
-		const baseId = toID(sp.baseSpecies);
-		if (baseId !== id && GROWTH_RATES[baseId]) return GROWTH_RATES[baseId];
-	}
-
-	if (sp.exists) {
-		const bs = sp.baseStats ?? { hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 };
-		if (bs.hp + bs.atk + bs.def + bs.spa + bs.spd + bs.spe >= 580) return 'Slow';
-	}
-	return 'Medium Fast';
-}
-
-
-
 
 export function getLevelScaling(floor: number, config?: ModeConfig): { cap: number, min: number, max: number, bossLevel?: number } {
 	if (config?.levelScalingFn) {
