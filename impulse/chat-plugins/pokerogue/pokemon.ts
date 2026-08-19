@@ -359,25 +359,26 @@ export function getAllLevelUpMoves(speciesId: string, level: number, genNumber =
 		break;
 	}
 
-	const fullLearn = Dex.species.getFullLearnset(id);
-	const viableMoves: string[] = [];
+	const fullLearn = Dex.mod(`gen${gen}`).species.getFullLearnset(id);
+	const viableMoves = new Set<string>();
 
 	for (const learnsetIndex of fullLearn) {
 		const learnset = learnsetIndex.learnset;
+		if (!learnset) continue;
 		for (const move in learnset) {
-			if (viableMoves.includes(move)) continue;
+			if (viableMoves.has(move)) continue;
 			for (const src of learnset[move]) {
 				const match = /^(\d)L(\d+)$/.exec(src);
 				if (match && parseInt(match[1]) === gen && parseInt(match[2]) <= level) {
-					viableMoves.push(move);
+					viableMoves.add(move);
 					break;
 				}
 			}
 		}
 	}
 
-	if (!viableMoves.length) return ['tackle'];
-	return viableMoves;
+	if (!viableMoves.size) return ['tackle'];
+	return Array.from(viableMoves);
 }
 
 export function getLevelUpMoves(speciesId: string, level: number, genNumber = 9): string[] {
@@ -392,47 +393,54 @@ export function getEggMoves(speciesId: string, genNumber = 9): string[] {
 		break;
 	}
 
-	const fullLearn = Dex.species.getFullLearnset(id);
-	const eggMoves: string[] = [];
+	const fullLearn = Dex.mod(`gen${gen}`).species.getFullLearnset(id);
+	const eggMoves = new Set<string>();
 
 	for (const learnsetIndex of fullLearn) {
 		const learnset = learnsetIndex.learnset;
+		if (!learnset) continue;
 		for (const move in learnset) {
-			if (eggMoves.includes(move)) continue;
+			if (eggMoves.has(move)) continue;
 			for (const src of learnset[move]) {
 				if (src.startsWith(`${gen}E`) || src.startsWith(`E`)) {
-					eggMoves.push(move);
+					eggMoves.add(move);
 					break;
 				}
 			}
 		}
 	}
-	return eggMoves;
+	return Array.from(eggMoves);
 }
 
 export function getMovesLearnedBetween(speciesId: string, oldLevel: number, newLevel: number, isEvolution = false, genNumber = 9, randomizeMoves = false): string[] {
 	const id = toID(speciesId);
-	const sp = Dex.species.get(id);
-	const learnsetData = Dex.species.getLearnsetData(id);
-	const baseLearnsetData = (sp.baseSpecies && toID(sp.baseSpecies) !== id) ?
-		Dex.species.getLearnsetData(toID(sp.baseSpecies)) : null;
-	const learnset = { ...(baseLearnsetData?.learnset ?? {}), ...(learnsetData?.learnset ?? {}) };
-	if (!Object.keys(learnset).length) return [];
+	let gen = genNumber;
+	while (gen > 1) {
+		if (Dex.mod(`gen${gen}`).species.get(id).isNonstandard) { gen--; continue; }
+		break;
+	}
 
-	const learned: string[] = [];
-	const regex = new RegExp(`^${genNumber}L(\\d+)$`);
-	for (const [moveid, sources] of Object.entries(learnset)) {
-		for (const src of sources) {
-			const match = regex.exec(src);
-			if (match) {
-				const learnLvl = parseInt(match[1]);
-				if (learnLvl > oldLevel && learnLvl <= newLevel) learned.push(moveid);
-				else if (isEvolution && learnLvl === 0) learned.push(moveid);
-				break;
+	const fullLearn = Dex.mod(`gen${gen}`).species.getFullLearnset(id);
+	const learned = new Set<string>();
+
+	const regex = new RegExp(`^${gen}L(\\d+)$`);
+	for (const learnsetIndex of fullLearn) {
+		const learnset = learnsetIndex.learnset;
+		if (!learnset) continue;
+		for (const [moveid, sources] of Object.entries(learnset)) {
+			if (learned.has(moveid)) continue;
+			for (const src of sources as string[]) {
+				const match = regex.exec(src);
+				if (match) {
+					const learnLvl = parseInt(match[1]);
+					if (learnLvl > oldLevel && learnLvl <= newLevel) learned.add(moveid);
+					else if (isEvolution && learnLvl === 0) learned.add(moveid);
+					break;
+				}
 			}
 		}
 	}
-	let uniqueLearned = Array.from(new Set(learned));
+	let uniqueLearned = Array.from(learned);
 
 	if (randomizeMoves) {
 		const allMoves = Dex.moves.all().filter(m => !m.isNonstandard && !m.isZ && !m.isMax && m.id !== 'struggle');
@@ -447,17 +455,25 @@ export function getMovesLearnedBetween(speciesId: string, oldLevel: number, newL
 }
 
 function collectViableMoves(speciesId: string, chosenLevel: number, genNumber: number, floor: number): string[] {
-	const fullLearn = Dex.species.getFullLearnset(toID(speciesId));
-	const viableMoves: string[] = [];
+	const id = toID(speciesId);
+	let gen = genNumber;
+	while (gen > 1) {
+		if (Dex.mod(`gen${gen}`).species.get(id).isNonstandard) { gen--; continue; }
+		break;
+	}
+
+	const fullLearn = Dex.mod(`gen${gen}`).species.getFullLearnset(id);
+	const viableMoves = new Set<string>();
 
 	for (const learnsetIndex of fullLearn) {
 		const learnset = learnsetIndex.learnset;
+		if (!learnset) continue;
 		for (const move in learnset) {
-			if (viableMoves.includes(move)) continue;
+			if (viableMoves.has(move)) continue;
 			for (const src of learnset[move]) {
 				const match = /^(\d)L(\d+)$/.exec(src);
-				if (match && parseInt(match[1]) === genNumber && parseInt(match[2]) <= chosenLevel) {
-					viableMoves.push(move);
+				if (match && parseInt(match[1]) === gen && parseInt(match[2]) <= chosenLevel) {
+					viableMoves.add(move);
 					break;
 				}
 			}
@@ -465,15 +481,18 @@ function collectViableMoves(speciesId: string, chosenLevel: number, genNumber: n
 	}
 
 	if (floor > 100) {
-		const learnset = Dex.species.getLearnsetData(toID(speciesId))?.learnset ?? {};
-		for (const move in learnset) {
-			if (!viableMoves.includes(move) && (learnset[move] as string[]).some((src: string) => src.startsWith(`${genNumber}E`))) {
-				viableMoves.push(move);
+		for (const learnsetIndex of fullLearn) {
+			const learnset = learnsetIndex.learnset;
+			if (!learnset) continue;
+			for (const move in learnset) {
+				if (!viableMoves.has(move) && (learnset[move] as string[]).some((src: string) => src.startsWith(`${gen}E`))) {
+					viableMoves.add(move);
+				}
 			}
 		}
 	}
 
-	return viableMoves.length ? viableMoves : ['tackle'];
+	return viableMoves.size ? Array.from(viableMoves) : ['tackle'];
 }
 
 function pickMovesEarlyFloor(viableMoves: string[], species: Species): string[] {
