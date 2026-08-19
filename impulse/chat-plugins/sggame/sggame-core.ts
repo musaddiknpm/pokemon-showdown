@@ -13,7 +13,7 @@ import { pickStarterOptions,
 } from './pokemon';
 import { UtilityBattleResolver } from '../../utils/battle';
 import { renderGamePage, refreshGamePage } from './render';
-import { calcSVExp, applyExpAndLevelUp, expForLevel, getExpType, getExpYield } from '../../utils/exp';
+import { calcSVExp, applyExpAndLevelUp, expForLevel, getExpType, getExpYield, distributeBattleExp } from '../../utils/exp';
 import { getLevelUpEvo, getItemEvolution, getMegaEvolution } from '../../utils/evolutions';
 import { getLevelUpMoves, getMovesLearnedBetween, getEggMoves, getAllLevelUpMoves } from '../../utils/moves';
 import { packTeam, packAITeam } from '../../utils/packers';
@@ -1246,38 +1246,19 @@ export function processBattleExperience(
 	isTrainerBattle: boolean,
 ): string[] {
 	const detailMsgs: string[] = [];
+	const hasExpAll = !!(state.keyItems && state.keyItems["Exp. All"]);
+	
+	const expArray = distributeBattleExp(logLines, state.team.map(m => ({
+		species: m.species,
+		level: m.level,
+		isFainted: (m.currentHp ?? 100) <= 0,
+		heldItem: m.heldItem
+	})), { isTrainerBattle, hasExpAll });
+	
 	const expMap = new Map<number, number>();
-
-	for (const line of logLines) {
-		if (!line.includes('EXP_GAIN|')) continue;
-
-		const parts = line.split('|');
-		const dataIndex = parts.indexOf('EXP_GAIN') + 1;
-		const enemySpecies = parts[dataIndex];
-		const enemyLevel = parseInt(parts[dataIndex + 1]);
-		const participantSpeciesIds = parts[dataIndex + 2] ? parts[dataIndex + 2].split(',') : [];
-
-		const participantIndices = new Set<number>();
-		for (const sid of participantSpeciesIds) {
-			const idx = state.team.findIndex(m => toID(m.species) === sid && (m.currentHp ?? 100) > 0);
-			if (idx !== -1) participantIndices.add(idx);
-		}
-
-		if (participantIndices.size === 0 && state.team.length > 0) {
-			participantIndices.add(0);
-		}
-
-		for (let i = 0; i < state.team.length; i++) {
-			const mon = state.team[i];
-			if (!mon || (mon.currentHp ?? 100) <= 0) continue;
-			const isParticipant = participantIndices.has(i);
-			const b = getExpYield(enemySpecies);
-			const hasLuckyEgg = mon.heldItem === 'luckyegg';
-			const hasExpAll = !!(state.keyItems && state.keyItems["Exp. All"]);
-			const exp = calcSVExp(b, enemyLevel, mon.level, isParticipant, isTrainerBattle, hasLuckyEgg, hasExpAll);
-			expMap.set(i, (expMap.get(i) ?? 0) + exp);
-		}
-	}
+	expArray.forEach((exp, idx) => {
+		if (exp > 0) expMap.set(idx, exp);
+	});
 
 	if (expMap.size > 0) {
 		for (const [teamIdx, expGained] of expMap) {

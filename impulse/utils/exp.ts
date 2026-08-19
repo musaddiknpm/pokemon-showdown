@@ -124,3 +124,79 @@ export function getExpType(speciesId: string): string {
 
 	return 'Medium Fast';
 }
+
+
+export interface BattleExpYield {
+	enemySpecies: string;
+	enemyLevel: number;
+	participantSpecies: string[];
+}
+
+export interface ExpPartyMember {
+	species: string;
+	level: number;
+	isFainted: boolean;
+	heldItem?: string;
+}
+
+export function parseBattleExpStream(logLines: string[]): BattleExpYield[] {
+	const yields: BattleExpYield[] = [];
+	for (const line of logLines) {
+		if (!line.includes('EXP_GAIN|')) continue;
+		const parts = line.split('|');
+		const dataIndex = parts.indexOf('EXP_GAIN') + 1;
+		if (dataIndex === 0) continue;
+		
+		yields.push({
+			enemySpecies: parts[dataIndex],
+			enemyLevel: parseInt(parts[dataIndex + 1]) || 1,
+			participantSpecies: parts[dataIndex + 2] ? parts[dataIndex + 2].split(',') : [],
+		});
+	}
+	return yields;
+}
+
+export function distributeBattleExp(
+	logLines: string[],
+	party: ExpPartyMember[],
+	options: { isTrainerBattle?: boolean, hasExpAll?: boolean } = {}
+): number[] {
+	const yields = parseBattleExpStream(logLines);
+	const expGained = new Array(party.length).fill(0);
+
+	for (const y of yields) {
+		const participantIndices = new Set<number>();
+		for (const sid of y.participantSpecies) {
+			const idx = party.findIndex(m => toID(m.species) === toID(sid) && !m.isFainted);
+			if (idx !== -1) participantIndices.add(idx);
+		}
+
+		if (participantIndices.size === 0 && party.length > 0) {
+			participantIndices.add(0);
+		}
+
+		const b = getExpYield(y.enemySpecies);
+
+		for (let i = 0; i < party.length; i++) {
+			const mon = party[i];
+			if (!mon || mon.isFainted) continue;
+
+			const isParticipant = participantIndices.has(i);
+			const hasLuckyEgg = toID(mon.heldItem) === 'luckyegg';
+			
+			const exp = calcSVExp(
+				b, 
+				y.enemyLevel, 
+				mon.level, 
+				isParticipant, 
+				options.isTrainerBattle || false, 
+				hasLuckyEgg, 
+				options.hasExpAll || false
+			);
+			
+			expGained[i] += exp;
+		}
+	}
+	
+	return expGained;
+}
