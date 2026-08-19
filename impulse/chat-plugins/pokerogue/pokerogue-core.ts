@@ -3,7 +3,7 @@ import { escapeHTML } from '../../../lib/utils';
 import { type PokemonEntry, type PokeRogueState, type StatusCondition, type GameMode, type ModeConfig, type BiomePool, type PokeRogueView, type EggData, type StatTable } from './types';
 import { EGG_POOLS, getStarterCost, type EggTier } from './data/starter-data';
 import { MODE_CONFIGS, MODE_REGISTRY } from './config';
-import { CATCH_RATES } from './data/pokemon-data';
+import { calculateCatchShakes } from '../../utils/catch';
 import { SHOP_ITEMS, generateDraftOptions, getRewardMoney, getItemPrice, getRerollCost } from './items';
 import { getState, setState, getUserData, saveUserData, globalStats, saveGlobalStats, recordRunStats, incrementAccountStat } from './database';
 import { pickStarterOptions, expForLevel, applyExpAndLevelUp, getLevelUpEvo,
@@ -1461,28 +1461,7 @@ export function applyIntent(state: PokeRogueState, intent: Intent): void {
 		if (userObj) userObj.sendTo(room as BasicRoom, `|uhtmlchange|catchpanel-${turn}|${catchHTML}`);
 		room.add(`|c|~|You threw a ${ballType}!`).update();
 
-		const baseCatchRate = CATCH_RATES[p2Species] || 45;
-		let ballBonus = 1;
-		if (ballType === 'greatball') ballBonus = 1.5;
-		if (ballType === 'ultraball') ballBonus = 2.0;
-
-		let statusBonus = 1;
-		if (['slp', 'frz'].includes(p2Status)) statusBonus = 2.5;
-		else if (['brn', 'psn', 'tox', 'par'].includes(p2Status)) statusBonus = 1.5;
-
-		const hpPercent = p2Hp / p2MaxHp;
-		const modifiedCatchRate = (1 - (2 / 3) * hpPercent) * baseCatchRate * ballBonus * statusBonus;
-		const shakeProb = Math.min(65536, Math.floor(65536 * (modifiedCatchRate / 255) ** 0.1875));
-
-		let shakes = 0;
-		if (ballType === 'masterball') {
-			shakes = 3;
-		} else {
-			for (let i = 0; i < 3; i++) {
-				if (Math.floor(Math.random() * 65536) < shakeProb) shakes++;
-				else break;
-			}
-		}
+		const shakes = calculateCatchShakes(p2Species, p2Hp, p2MaxHp, p2Status, ballType);
 
 		if (shakes === 3) {
 			const dexSp = Dex.species.get(p2Species);

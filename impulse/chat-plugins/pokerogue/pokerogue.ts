@@ -2,7 +2,6 @@ import { Utils } from '../../../lib';
 import { type PokemonEntry, type PokeRogueState, type StatusCondition, type GameMode, type ModeConfig, type BiomePool, type PokeRogueView, type EggData, type StatTable } from './types';
 import { EGG_POOLS, getStarterCost, type EggTier } from './data/starter-data';
 import { MODE_CONFIGS, MODE_REGISTRY } from './config';
-import { CATCH_RATES } from './data/pokemon-data';
 import { SHOP_ITEMS, generateDraftOptions, getRewardMoney, getItemPrice, getRerollCost } from './items';
 import {
 	loadUser, getState, setState, getUserData, saveUserData, globalStats, saveGlobalStats, recordRunStats,
