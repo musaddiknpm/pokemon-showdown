@@ -5,6 +5,7 @@ import { type SGGameState } from './types';
 import { renderGamePage, refreshGamePage } from './render';
 import { devCommands } from './dev-tools';
 import { UtilityBattleResolver } from '../../utils/battle';
+import { packTeam } from '../../utils/packers';
 import { buildBotTeam } from './sggame-core';
 import { packTeam } from './pokemon';
 import { MODE_CONFIGS } from './config';
