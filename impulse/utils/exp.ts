@@ -117,8 +117,8 @@ export function getExpType(speciesId: string): string {
 	}
 
 	if (sp.exists) {
-		const evo = sp.evos && sp.evos.length ? Dex.species.get(sp.evos[0]) : null;
-		if (evo && GROWTH_RATES[evo.id]) return GROWTH_RATES[evo.id];
+		const bs = sp.baseStats ?? { hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 };
+		if (bs.hp + bs.atk + bs.def + bs.spa + bs.spd + bs.spe >= 580) return 'Slow';
 	}
 
 	return 'Medium Fast';
