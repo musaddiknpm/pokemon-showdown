@@ -5,7 +5,8 @@ import { getStarterCost } from './data/starter-data';
 import { MODE_CONFIGS, MODE_REGISTRY } from './config';
 import { SHOP_ITEMS, getRerollCost, getItemPrice, type ShopItem } from './items';
 import { globalStats, getUserData } from './database';
-import { expForLevel, getLevelUpMoves, getAllLevelUpMoves, getEggMoves } from './pokemon';
+import { expForLevel } from '../../utils/exp';
+import { getLevelUpMoves, getAllLevelUpMoves, getEggMoves } from './pokemon';
 
 export const PAGE_REFRESH_SECONDS = 20;
 

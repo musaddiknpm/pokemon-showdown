@@ -6,13 +6,14 @@ import { MODE_CONFIGS, MODE_REGISTRY } from './config';
 import { CATCH_RATES } from './data/pokemon-data';
 import { SHOP_ITEMS, getRewardMoney, getItemPrice, getRerollCost } from './items';
 import { getState, setState, getUserData, saveUserData, globalStats, saveGlobalStats, recordRunStats, incrementAccountStat } from './database';
-import { pickStarterOptions, expForLevel, applyExpAndLevelUp, getLevelUpEvo,
+import { pickStarterOptions, getLevelUpEvo,
 	getLevelUpMoves, getMovesLearnedBetween,  getExpType, getExpYield, botLevel,
 	packTeam, genPokemon, genAIPokemon, packAITeam, type AIPokemonSet, processLevelUpEvolutions, getItemEvolution, getMegaEvolution,
 	getEggMoves, getAllLevelUpMoves, getLevelScaling, rollTeraTypeForSpecies,
 } from './pokemon';
 import { UtilityBattleResolver } from '../../utils/battle';
 import { renderGamePage, refreshGamePage } from './render';
+import { calcSVExp, applyExpAndLevelUp, expForLevel } from '../../utils/exp';
 import { devCommands } from './dev-tools';
 
 export const LADDER_RESET_CONFIRM_WINDOW = 2 * 60 * 1000;
@@ -1235,42 +1236,6 @@ export function handleCatchAction(target: string, room: AnyObject, user: User, s
 	applyIntent(state, { type: 'Catch', action: 'catch', ballType, slot: reqSlot, userId: user.id, room });
 }
 
-export function calcSVExp(
-	state: SGGameState,
-	enemySpeciesId: string,
-	enemyLevel: number,
-	playerMon: PokemonEntry,
-	isParticipant: boolean,
-	isTrainerBattle: boolean
-): number {
-	const b = getExpYield(enemySpeciesId);
-	const L = enemyLevel;
-	const Lp = playerMon.level;
-
-	let exp = (b * L) / 5;
-
-	// Scale factor
-	const scaleNum = (2 * L) + 10;
-	const scaleDenom = L + Lp + 10;
-	const scaleFactor = Math.pow(scaleNum / scaleDenom, 2.5);
-
-	exp = Math.floor((exp * scaleFactor) + 1);
-
-	// Modifier 'a'
-	if (isTrainerBattle) exp = Math.floor(exp * 1.5);
-
-	// Modifier 'e'
-	if (playerMon.heldItem === 'luckyegg') exp = Math.floor(exp * 1.5);
-
-	const hasExpAll = state.keyItems && state.keyItems["Exp. All"];
-	// Exp Share (non-participants)
-	if (!isParticipant) {
-		if (hasExpAll) exp = Math.floor(exp * 0.5);
-		else exp = 0;
-	}
-
-	return exp === 0 ? 0 : Math.max(1, exp);
-}
 
 export function processBattleExperience(
 	logLines: string[],
@@ -1303,7 +1268,10 @@ export function processBattleExperience(
 			const mon = state.team[i];
 			if (!mon || (mon.currentHp ?? 100) <= 0) continue;
 			const isParticipant = participantIndices.has(i);
-			const exp = calcSVExp(state, enemySpecies, enemyLevel, mon, isParticipant, isTrainerBattle);
+			const b = getExpYield(enemySpecies);
+			const hasLuckyEgg = mon.heldItem === 'luckyegg';
+			const hasExpAll = !!(state.keyItems && state.keyItems["Exp. All"]);
+			const exp = calcSVExp(b, enemyLevel, mon.level, isParticipant, isTrainerBattle, hasLuckyEgg, hasExpAll);
 			expMap.set(i, (expMap.get(i) ?? 0) + exp);
 		}
 	}
@@ -1316,7 +1284,16 @@ export function processBattleExperience(
 			const oldLevel = mon.level;
 			const oldSpecies = mon.species;
 
-			const { evolved } = applyExpAndLevelUp(mon, expGained);
+			const expType = mon.expType ?? getExpType(mon.species);
+			const scaling = getLevelScaling(state.floor, MODE_CONFIGS[state.gameMode] || MODE_CONFIGS['classic']);
+			const levelCap = Math.min(10000, scaling.cap);
+			
+			const { leveledUp, newLevel, newExp } = applyExpAndLevelUp(mon.level, mon.exp, expGained, expType, levelCap);
+			mon.level = newLevel;
+			mon.exp = newExp;
+			
+			if (leveledUp) mon.happiness = Math.min(255, (mon.happiness ?? 70) + 5);
+			const evolved = processLevelUpEvolutions(mon);
 			
 			if (mon.level > oldLevel || evolved) {
 				const msgs = processLevelUp(mon, oldLevel, oldSpecies, evolved, teamIdx, state, 9);
