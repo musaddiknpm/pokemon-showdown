@@ -154,6 +154,27 @@ export const commands: Chat.ChatCommands = {
 	}
 };
 
+
+export const pages: Chat.PageTable = {
+	async sggame(args, user) {
+		await loadUser(user.id);
+		if (!user.named) throw new Chat.ErrorMessage('Login required.');
+		const state = getState(user.id);
+		if (!state) return `<div class="pr-popup"><div class="pr-popup-header"><h2>SGGame</h2></div><div style="text-align:center;padding:16px"><button name="send" value="/sggame start" class="button">Start New Run</button></div></div>`;
+		const v = state.view || 'main';
+		this.title = `SGGame - ${v.toUpperCase()}`;
+
+		const html = renderGamePage(state, user);
+
+		if (state.notification) {
+			delete state.notification;
+			setState(user.id, state);
+		}
+
+		return html;
+	},
+};
+
 export const handlers: Chat.Handlers = {
 	onBattleEnd(battle, winner, players) {
 		const match = SGGameBattleResolver.activeMatches.get(battle.roomid);
