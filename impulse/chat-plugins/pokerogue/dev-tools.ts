@@ -6,6 +6,7 @@ import { nameColor } from '../customization/custom-color';
 import { refreshGamePage } from './render';
 import { SHOP_ITEMS } from './items';
 import { MODE_CONFIGS } from './config';
+import { hatchEgg } from './pokerogue-core';
 
 const LADDER_RESET_CONFIRM_WINDOW = 2 * 60 * 1000;
 const pendingLadderResetConfirmations = new Map<ID, number>();
@@ -202,79 +203,8 @@ export const devCommands: Chat.ChatCommands = {
 
 		for (let i = userData.eggs.length - 1; i >= 0; i--) {
 			const egg = userData.eggs[i];
-			const sid = toID(egg.species);
-			const isShiny = egg.shiny;
-			const dexSpecies = Dex.species.get(sid);
-
-			const allNatures = Dex.natures.all().map(n => n.name);
-			const randomNature = Utils.randomElement(allNatures) || 'Hardy';
-
-			const generatedTeraType = rollTeraTypeForSpecies(sid);
-
-			let haName = '';
-			if (egg.hiddenAbility && dexSpecies.abilities['H']) {
-				haName = dexSpecies.abilities['H'];
-			}
-
-			const eggMoveRoll = Math.floor(Math.random() * 512) === 0;
-			let unlockedEggMove = '';
-			if (eggMoveRoll) {
-				const allEggMoves = getEggMoves(sid, config.generation || 9);
-				const existingUnlocked = userData.starters[sid]?.unlockedEggMoves || [];
-				const availableToUnlock = allEggMoves.filter(m => !existingUnlocked.includes(m));
-				if (availableToUnlock.length > 0) {
-					unlockedEggMove = Utils.randomElement(availableToUnlock);
-				}
-			}
-
-			const hatchedMon: PokemonEntry = {
-				species: sid, level: 5, exp: 0,
-				moves: [], nature: randomNature, ability: haName || dexSpecies.abilities['0'] || '',
-				shiny: isShiny, teraType: generatedTeraType,
-				eggTier: egg.tier,
-			};
-			newlyHatched.push(hatchedMon);
-
-			if (!userData.starters[sid]) {
-				userData.starters[sid] = {
-					...hatchedMon,
-					unlockedNatures: [randomNature],
-					unlockedAbilities: [haName || dexSpecies.abilities['0'] || ''],
-					unlockedTeraTypes: [generatedTeraType],
-					unlockedEggMoves: unlockedEggMove ? [unlockedEggMove] : [],
-					selectedNature: randomNature,
-					selectedAbility: haName || dexSpecies.abilities['0'] || '',
-					selectedTeraType: generatedTeraType,
-				} as PokemonEntry;
-			} else {
-				const starter = userData.starters[sid];
-
-				if (!starter.unlockedNatures) starter.unlockedNatures = [starter.nature || 'Hardy'];
-				if (!starter.unlockedNatures.includes(randomNature)) starter.unlockedNatures.push(randomNature);
-
-				if (!starter.unlockedTeraTypes) starter.unlockedTeraTypes = [starter.teraType || 'Normal'];
-				if (!starter.unlockedTeraTypes.includes(generatedTeraType)) starter.unlockedTeraTypes.push(generatedTeraType);
-				const hasLegacyNormalTera = starter.teraType === 'Normal' && !dexSpecies.types.includes('Normal');
-				const hasLegacySelectedTera = starter.selectedTeraType === 'Normal' && !dexSpecies.types.includes('Normal');
-				if (!starter.teraType || hasLegacyNormalTera) starter.teraType = generatedTeraType;
-				if (!starter.selectedTeraType || hasLegacySelectedTera) starter.selectedTeraType = generatedTeraType;
-
-				if (haName) {
-					if (!starter.unlockedAbilities) starter.unlockedAbilities = [starter.ability || dexSpecies.abilities['0'] || ''];
-					if (!starter.unlockedAbilities.includes(haName)) starter.unlockedAbilities.push(haName);
-				}
-
-				if (isShiny && !starter.shiny) {
-					starter.shiny = true;
-					incrementAccountStat(targetId, 'shiniesUnlocked');
-				}
-				if (unlockedEggMove) {
-					if (!starter.unlockedEggMoves) starter.unlockedEggMoves = [];
-					if (!starter.unlockedEggMoves.includes(unlockedEggMove)) starter.unlockedEggMoves.push(unlockedEggMove);
-				}
-			}
+			newlyHatched.push(hatchEgg(egg, userData, config, targetId, true));
 			userData.eggs.splice(i, 1);
-			incrementAccountStat(targetId, 'eggsHatched');
 		}
 
 		if (newlyHatched.length > 0) {
