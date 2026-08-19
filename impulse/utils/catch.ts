@@ -1,15 +1,87 @@
-import { toID } from '../../sim/dex';
+import { Dex, toID } from '../../sim/dex';
 import { CATCH_RATES } from './data/catch-rates';
+
+export interface CatchOptions {
+	turns?: number;
+	isNight?: boolean;
+	isFishing?: boolean;
+	targetLevel?: number;
+	playerLevel?: number;
+	isAlreadyCaught?: boolean;
+}
 
 /**
  * Returns the catch rate multiplier for a given Pokéball type.
  */
-export function getBallBonus(ballType: string): number {
+export function getBallBonus(ballType: string, speciesId?: string, options: CatchOptions = {}): number {
 	const id = toID(ballType);
-	if (id === 'greatball') return 1.5;
-	if (id === 'ultraball') return 2.0;
-	if (id === 'masterball') return 255.0; // Effectively guaranteed
-	return 1.0;
+	let bonus = 1.0;
+
+	// Base static modifiers
+	if (id === 'greatball' || id === 'safariball' || id === 'sportball') bonus = 1.5;
+	if (id === 'ultraball') bonus = 2.0;
+	if (id === 'masterball' || id === 'parkball') bonus = 255.0;
+	if (id === 'beastball') bonus = 0.1; 
+
+	if (speciesId) {
+		const sp = Dex.species.get(speciesId);
+
+		// Net Ball: 3.5x for Water or Bug
+		if (id === 'netball' && (sp.types.includes('Water') || sp.types.includes('Bug'))) {
+			bonus = 3.5;
+		}
+
+		// Dive Ball: 3.5x while surfing/fishing
+		if (id === 'diveball' && options.isFishing) {
+			bonus = 3.5;
+		}
+
+		// Dusk Ball: 3.0x at night
+		if (id === 'duskball' && options.isNight) {
+			bonus = 3.0;
+		}
+
+		// Quick Ball: 5.0x on turn 1
+		if (id === 'quickball') {
+			bonus = (options.turns || 1) === 1 ? 5.0 : 1.0;
+		}
+
+		// Timer Ball: max 4.0x depending on turns
+		if (id === 'timerball') {
+			const turns = options.turns || 1;
+			bonus = Math.min(4.0, 1 + (turns * 1229 / 4096));
+		}
+
+		// Nest Ball: better against lower level pokemon
+		if (id === 'nestball' && options.targetLevel) {
+			bonus = Math.max(1.0, Math.min(3.0, (41 - options.targetLevel) / 10));
+		}
+
+		// Repeat Ball: 3.5x if previously caught
+		if (id === 'repeatball' && options.isAlreadyCaught) {
+			bonus = 3.5;
+		}
+
+		// Fast Ball: 4.0x if base speed >= 100
+		if (id === 'fastball' && sp.baseStats.spe >= 100) {
+			bonus = 4.0;
+		}
+
+		// Beast Ball: 5.0x for Ultra Beasts
+		if (id === 'beastball' && sp.tags.includes('Ultra Beast')) {
+			bonus = 5.0;
+		}
+		
+		// Heavy ball actually modifies the base catch rate rather than a multiplier,
+		// but as an approximation if we strictly want a multiplier:
+		if (id === 'heavyball') {
+			if (sp.weighthg >= 3000) bonus = 1.3;
+			else if (sp.weighthg >= 2000) bonus = 1.2;
+			else if (sp.weighthg < 1000) bonus = 0.8;
+		}
+	}
+
+	return bonus;
 }
 
 /**
@@ -31,14 +103,18 @@ export function calculateCatchShakes(
 	currentHp: number,
 	maxHp: number,
 	statusId: string,
-	ballType: string
+	ballType: string,
+	options: CatchOptions = {}
 ): number {
-	if (toID(ballType) === 'masterball') return 3;
+	if (toID(ballType) === 'masterball' || toID(ballType) === 'parkball') return 3;
 
 	const baseCatchRate = CATCH_RATES[toID(speciesId)] || 45;
 	const hpPercent = currentHp / maxHp;
 	
-	const modifiedCatchRate = (1 - (2 / 3) * hpPercent) * baseCatchRate * getBallBonus(ballType) * getStatusBonus(statusId);
+	const ballBonus = getBallBonus(ballType, speciesId, options);
+	const statusBonus = getStatusBonus(statusId);
+	
+	const modifiedCatchRate = (1 - (2 / 3) * hpPercent) * baseCatchRate * ballBonus * statusBonus;
 	const shakeProb = Math.min(65536, Math.floor(65536 * (modifiedCatchRate / 255) ** 0.1875));
 
 	let shakes = 0;
