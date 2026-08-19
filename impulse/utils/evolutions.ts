@@ -44,13 +44,10 @@ export function getItemEvolution(speciesId: string, itemId: string): string | nu
 		const evoItemId = toID(evoData.evoItem);
 
 		const isUseItemEvolution = evoData.evoType === 'useItem' && evoItemId === pendingItemId;
-		const isHeldTradeEvolution = evoData.evoType === 'trade' && evoItemId === pendingItemId;
-		const isPlainTradeEvolution = evoData.evoType === 'trade' && !evoItemId && pendingItemId === 'linkingcord';
-		
-		const isTradeStone = pendingItemId === 'tradestone';
-		const isItemOrTradeEvo = evoData.evoType === 'useItem' || evoData.evoType === 'trade';
+		const isHeldTradeEvolution = evoData.evoType === 'trade' && evoItemId && (evoItemId === pendingItemId || pendingItemId === 'tradestone');
+		const isPlainTradeEvolution = evoData.evoType === 'trade' && !evoItemId && (pendingItemId === 'linkingcord' || pendingItemId === 'tradestone');
 
-		if (isUseItemEvolution || isHeldTradeEvolution || isPlainTradeEvolution || (isTradeStone && isItemOrTradeEvo)) {
+		if (isUseItemEvolution || isHeldTradeEvolution || isPlainTradeEvolution) {
 			validEvos.push(evoData.id);
 		}
 	}
