@@ -1,7 +1,7 @@
 
 import { TMS_DB } from './data/tms-data';
 import { type PokemonEntry, type SGGameState, type ModeConfig } from './types';
-import { canLearnTM } from './pokemon';
+import { canLearnTM } from '../../utils/moves';
 
 export type ItemType =
 	| 'pokeball' |

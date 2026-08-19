@@ -6,7 +6,7 @@ import { MODE_CONFIGS, MODE_REGISTRY } from './config';
 import { SHOP_ITEMS, getRerollCost, getItemPrice, type ShopItem } from './items';
 import { globalStats, getUserData } from './database';
 import { expForLevel } from '../../utils/exp';
-import { getLevelUpMoves, getAllLevelUpMoves, getEggMoves } from './pokemon';
+import { getLevelUpMoves, getAllLevelUpMoves, getEggMoves } from '../../utils/moves';
 
 export const PAGE_REFRESH_SECONDS = 20;
 

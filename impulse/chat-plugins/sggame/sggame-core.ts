@@ -7,14 +7,15 @@ import { CATCH_RATES } from '../../utils/data/pokemon-data';
 import { SHOP_ITEMS, getRewardMoney, getItemPrice, getRerollCost } from './items';
 import { getState, setState, getUserData, saveUserData, globalStats, saveGlobalStats, recordRunStats, incrementAccountStat } from './database';
 import { pickStarterOptions,
-	getLevelUpMoves, getMovesLearnedBetween,  botLevel,
+	botLevel,
 	packTeam, genPokemon, genAIPokemon, packAITeam, type AIPokemonSet, processLevelUpEvolutions,
-	getEggMoves, getAllLevelUpMoves, getLevelScaling, rollTeraTypeForSpecies,
+	getLevelScaling, rollTeraTypeForSpecies,
 } from './pokemon';
 import { UtilityBattleResolver } from '../../utils/battle';
 import { renderGamePage, refreshGamePage } from './render';
 import { calcSVExp, applyExpAndLevelUp, expForLevel, getExpType, getExpYield } from '../../utils/exp';
 import { getLevelUpEvo, getItemEvolution, getMegaEvolution } from '../../utils/evolutions';
+import { getLevelUpMoves, getMovesLearnedBetween, getEggMoves, getAllLevelUpMoves } from '../../utils/moves';
 import { devCommands } from './dev-tools';
 
 export const LADDER_RESET_CONFIRM_WINDOW = 2 * 60 * 1000;
