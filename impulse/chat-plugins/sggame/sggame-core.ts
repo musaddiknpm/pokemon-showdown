@@ -3,7 +3,7 @@ import { escapeHTML } from '../../../lib/utils';
 import { type PokemonEntry, type SGGameState, type StatusCondition, type GameMode, type ModeConfig, type BiomePool, type SGGameView, type StatTable } from './types';
 import { EGG_POOLS, getStarterCost, type EggTier } from './data/starter-data';
 import { MODE_CONFIGS, MODE_REGISTRY } from './config';
-import { CATCH_RATES } from '../../utils/data/pokemon-data';
+import { CATCH_RATES } from '../../utils/data/catch-rates';
 import { SHOP_ITEMS, getRewardMoney, getItemPrice, getRerollCost } from './items';
 import { getState, setState, getUserData, saveUserData, globalStats, saveGlobalStats, recordRunStats, incrementAccountStat } from './database';
 import { pickStarterOptions,
