@@ -1,0 +1,176 @@
+	static {
+		(global as any).SGGameActiveMatches = SGGameBattleResolver.activeMatches;
+		(global as any).SGGameBotHandlers = SGGameBattleResolver.botBattleHandlers;
+	}
+
+	user: User;
+	state: SGGameState;
+
+	constructor(user: User, state: SGGameState) {
+		this.user = user;
+		this.state = state;
+	}
+
+	private static handleSwitchEvent(match: RegExpExecArray, state: ParseState) {
+		const slot = match[1];
+		const species = toID(match[2].trim());
+		const level = match[3] ? parseInt(match[3]) : 0;
+		const hp = parseInt(match[4]);
+		const maxHp = match[5] ? parseInt(match[5]) : 100;
+		const status = match[6] || '';
+
+		if (slot.startsWith('p1')) {
+			state.p1SlotState.set(slot, false);
+			const prev = state.p1SlotToTeamIdx[slot];
+			if (prev !== undefined) state.p1ActivelyAssigned.delete(prev);
+
+			let matched = -1;
+			for (let i = 0; i < state.playerTeam.length; i++) {
+				if (!state.p1ActivelyAssigned.has(i) && toID(state.playerTeam[i].species) === species && !state.p1FaintedIndices.has(i) && (state.playerTeam[i].currentHp ?? 100) > 0) {
+					matched = i; break;
+				}
+			}
+			if (matched !== -1) {
+				state.p1SlotToTeamIdx[slot] = matched;
+				state.p1ActivelyAssigned.add(matched);
+				state.p1TeamHp[matched] = hp;
+				state.p1TeamStatus[matched] = status;
+			}
+
+			const prevItem = state.itemSlotMap[slot];
+			if (prevItem !== undefined) state.itemAssigned.delete(prevItem);
+			const logBase = toID(Dex.species.get(species).baseSpecies || species);
+			for (let i = 0; i < state.playerTeam.length; i++) {
+				const teamBase = toID(Dex.species.get(state.playerTeam[i].species).baseSpecies || state.playerTeam[i].species);
+				if (!state.itemAssigned.has(i) && teamBase === logBase && !state.p1FaintedIndices.has(i) && (state.playerTeam[i].currentHp ?? 100) > 0) {
+					state.itemSlotMap[slot] = i;
+					state.itemAssigned.add(i); break;
+				}
+			}
+		} else {
+			state.p2Active.set(slot, { species, level, hp, maxHp, status, fainted: hp <= 0 });
+		}
+	}
+
+	private static handleDamageEvent(match: RegExpExecArray, state: ParseState) {
+		const slot = match[1];
+		const hp = parseInt(match[2]);
+		const maxHp = match[3] ? parseInt(match[3]) : 100;
+		const status = match[4] || '';
+
+		if (slot.startsWith('p1')) {
+			const idx = state.p1SlotToTeamIdx[slot];
+			if (idx !== undefined) {
+				state.p1TeamHp[idx] = hp;
+				if (status) state.p1TeamStatus[idx] = status;
+			}
+		} else {
+			const s = state.p2Active.get(slot);
+			if (s) {
+				s.hp = hp;
+				if (match[3]) s.maxHp = maxHp;
+				if (status) s.status = status;
+			}
+		}
+	}
+
+	private static handleStatusEvent(match: RegExpExecArray, state: ParseState) {
+		const slot = match[1];
+		const status = match[2];
+		if (slot.startsWith('p1')) {
+			const idx = state.p1SlotToTeamIdx[slot];
+			if (idx !== undefined) state.p1TeamStatus[idx] = status;
+		} else {
+			const s = state.p2Active.get(slot);
+			if (s) s.status = status;
+		}
+	}
+
+	private static handleCureStatusEvent(match: RegExpExecArray, state: ParseState) {
+		const slot = match[1];
+		if (slot.startsWith('p1')) {
+			const idx = state.p1SlotToTeamIdx[slot];
+			if (idx !== undefined) state.p1TeamStatus[idx] = '';
+		} else {
+			const s = state.p2Active.get(slot);
+			if (s) s.status = '';
+		}
+	}
+
+	private static handleFaintEvent(match: RegExpExecArray, state: ParseState) {
+		const slot = match[1];
+		if (slot.startsWith('p1')) {
+			state.p1SlotState.set(slot, true);
+			const idx = state.p1SlotToTeamIdx[slot];
+			if (idx !== undefined) {
+				state.p1TeamHp[idx] = 0;
+				state.p1TeamStatus[idx] = '';
+				state.p1FaintedIndices.add(idx);
+				state.p1ActivelyAssigned.delete(idx);
+				delete state.p1SlotToTeamIdx[slot];
+			}
+		} else {
+			const s = state.p2Active.get(slot);
+			if (s) {
+				s.fainted = true; s.hp = 0; s.status = '';
+			}
+		}
+	}
+
+	private static handleEndItemEvent(line: string, match: RegExpExecArray, state: ParseState) {
+		if (line.includes('[from] move: Knock Off') || line.includes('[from] move: Thief') || line.includes('[from] move: Incinerate')) return;
+		const slot = 'p1' + match[1];
+		const itemId = toID(match[2].trim());
+		const teamIdx = state.itemSlotMap[slot];
+		if (teamIdx !== undefined) {
+			state.consumedItems.push({ teamIdx, itemId });
+		}
+	}
+
+	static parseBattleState(logLines: string[], playerTeam: PokemonEntry[]): ParsedBattleState {
+		const state: ParseState = {
+			p1TeamHp: {}, p1TeamStatus: {}, p1FaintedIndices: new Set(),
+			p2Active: new Map(), consumedItems: [], p1SlotToTeamIdx: {},
+			p1ActivelyAssigned: new Set(), itemSlotMap: {}, itemAssigned: new Set(),
+			p1SlotState: new Map(), playerTeam,
+		};
+
+		for (const line of logLines) {
+			let match = /^\|(?:switch|drag)\|(p[12][a-z]): [^|]+\|([^|,]+)(?:, L(\d+))?[^|]*\|(\d+)(?:\/(\d+))?(?: (brn|psn|tox|par|slp|frz))?/.exec(line);
+			if (match) { SGGameBattleResolver.handleSwitchEvent(match, state); continue; }
+			match = /^\|(?:-damage|-heal)\|(p[12][a-z]): [^|]+\|(\d+)(?:\/(\d+))?(?: (brn|psn|tox|par|slp|frz))?/.exec(line);
+			if (match) { SGGameBattleResolver.handleDamageEvent(match, state); continue; }
+			match = /^\|-status\|(p[12][a-z]): [^|]+\|(brn|psn|tox|par|slp|frz)/.exec(line);
+			if (match) { SGGameBattleResolver.handleStatusEvent(match, state); continue; }
+			match = /^\|-curestatus\|(p[12][a-z]):/.exec(line);
+			if (match) { SGGameBattleResolver.handleCureStatusEvent(match, state); continue; }
+			match = /^\|faint\|(p[12][a-z]):/.exec(line);
+			if (match) { SGGameBattleResolver.handleFaintEvent(match, state); continue; }
+			match = /^\|-enditem\|p1([a-z]): [^|]+\|([^|]+)/.exec(line);
+			if (match) { SGGameBattleResolver.handleEndItemEvent(line, match, state); continue; }
+		}
+
+		let p1ActiveFainted = false;
+		if (state.p1SlotState.size > 0) {
+			let totalAlive = 0;
+			for (let i = 0; i < playerTeam.length; i++) {
+				let hp = playerTeam[i].currentHp ?? 100;
+				if (state.p1TeamHp[i] !== undefined) hp = state.p1TeamHp[i];
+				if (state.p1FaintedIndices.has(i)) hp = 0;
+				if (hp > 0) totalAlive++;
+			}
+			const activeAliveCount = Array.from(state.p1SlotState.values()).filter(f => !f).length;
+			const hasFaintedSlot = Array.from(state.p1SlotState.values()).includes(true);
+			p1ActiveFainted = activeAliveCount === 0 || (hasFaintedSlot && totalAlive > activeAliveCount);
+		}
+
+		return {
+			p1TeamHp: state.p1TeamHp, p1TeamStatus: state.p1TeamStatus,
+			p1FaintedIndices: state.p1FaintedIndices, p2Active: state.p2Active,
+			p1ActiveFainted, consumedItems: state.consumedItems,
+		};
+	}
+
+	static destroyBotUser(botUser: User): void {
+		SGGameBattleResolver.botBattleHandlers.delete(botUser.id);
+		for (const c of botUser.connections.slice()) {

@@ -8,10 +8,10 @@ import { SHOP_ITEMS, getRewardMoney, getItemPrice, getRerollCost } from './items
 import { getState, setState, getUserData, saveUserData, globalStats, saveGlobalStats, recordRunStats, incrementAccountStat } from './database';
 import { pickStarterOptions, expForLevel, applyExpAndLevelUp, getLevelUpEvo,
 	getLevelUpMoves, getMovesLearnedBetween,  getExpType, getExpYield, botLevel,
-	packTeam, genPokemon, processLevelUpEvolutions, getItemEvolution, getMegaEvolution,
+	packTeam, genPokemon, genAIPokemon, packAITeam, type AIPokemonSet, processLevelUpEvolutions, getItemEvolution, getMegaEvolution,
 	getEggMoves, getAllLevelUpMoves, getLevelScaling, rollTeraTypeForSpecies,
 } from './pokemon';
-import { SGGameBattleResolver } from './battle';
+import { UtilityBattleResolver } from './utility-battle';
 import { renderGamePage, refreshGamePage } from './render';
 import { devCommands } from './dev-tools';
 
@@ -141,7 +141,7 @@ export function syncBattleOutcome(
 	logLines: string[],
 	state: SGGameState,
 ): { consumedItems: string[] } {
-	const parsed = SGGameBattleResolver.parseBattleState(logLines, state.team);
+	const parsed = UtilityBattleResolver.parseBattleState(logLines, state.team);
 
 	for (const [idxStr, hp] of Object.entries(parsed.p1TeamHp)) {
 		const idx = Number(idxStr);
@@ -893,7 +893,7 @@ export function applyIntent(state: SGGameState, intent: Intent): void {
 	}
 	case 'Catch': {
 		const room = intent.room;
-		const catchMatch = SGGameBattleResolver.activeMatches.get(room.roomid);
+		const catchMatch = UtilityBattleResolver.activeMatches.get(room.roomid);
 		if (!catchMatch || catchMatch.userId !== intent.userId) {
 			throw new Chat.ErrorMessage("You can only catch Pokémon in your own battle.");
 		}
@@ -931,7 +931,7 @@ export function applyIntent(state: SGGameState, intent: Intent): void {
 		state.lastThrowTime = now;
 
 		const log = room.log?.log || [];
-		const parsed = SGGameBattleResolver.parseBattleState(log, state.team);
+		const parsed = UtilityBattleResolver.parseBattleState(log, state.team);
 		const p1Fainted = parsed.p1ActiveFainted;
 		const p2State = parsed.p2Active;
 
@@ -1326,4 +1326,45 @@ export function processBattleExperience(
 	}
 
 	return detailMsgs;
+}
+
+
+export function buildBotTeam(state: SGGameState, config: ModeConfig): { packedTeam: string, isTrainer: boolean, trainerName?: string, team: AIPokemonSet[], isDoubles?: boolean } {
+	const data = MODE_REGISTRY[state.gameMode] || MODE_REGISTRY['classic'];
+	const floor = state.floor;
+	const isBossFloor = floor % config.bossInterval === 0;
+
+	let size = 1;
+	if (!isBossFloor) {
+		const hasLure = (state.lureCharges ?? 0) > 0;
+		const doubleChance = hasLure ? 0.85 : 0.15;
+		if (Math.random() < doubleChance) size = 2;
+	}
+
+	const luck = state.luck ?? 0;
+	const trainerKey = state.pendingTrainerKey;
+	const shinyCharms = state.keyItems?.['Shiny Charm'] || 0;
+	const abilityCharms = state.keyItems?.['Ability Charm'] || 0;
+
+	const result = genAIPokemon(
+		size,
+		floor,
+		luck,
+		state.pendingTrainer,
+		trainerKey,
+		state.currentBiome || config.startingBiome,
+		config,
+		data,
+		shinyCharms,
+		abilityCharms,
+		state
+	);
+
+	return {
+		packedTeam: packAITeam(result.team),
+		isTrainer: result.isTrainer,
+		trainerName: result.trainerName,
+		team: result.team,
+		isDoubles: result.isDoubles,
+	};
 }
