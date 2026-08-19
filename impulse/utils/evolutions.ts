@@ -1,4 +1,4 @@
-import { Utils } from '../../../lib';
+import { Utils } from '../../lib';
 
 export const EVO_TYPE_FALLBACK_LEVEL: Partial<Record<string, number>> = {
 	trade: 36, useItem: 36, levelFriendship: 20,
