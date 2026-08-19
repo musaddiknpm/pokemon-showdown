@@ -1,4 +1,4 @@
-import { Utils } from '../../../lib';
+import { Utils } from '../../lib';
 
 interface BattlePokemonLike {
 	fainted?: boolean;

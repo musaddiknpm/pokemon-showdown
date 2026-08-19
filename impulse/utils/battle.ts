@@ -1,4 +1,4 @@
-import { ObjectReadWriteStream } from '../../../lib/streams';
+import { ObjectReadWriteStream } from '../../lib/streams';
 import { getUtilityAI, clearUtilityAI } from './ai';
 
 export interface ParsedPokemonState {

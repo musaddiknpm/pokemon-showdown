@@ -11,7 +11,7 @@ import { pickStarterOptions, expForLevel, applyExpAndLevelUp, getLevelUpEvo,
 	packTeam, genPokemon, genAIPokemon, packAITeam, type AIPokemonSet, processLevelUpEvolutions, getItemEvolution, getMegaEvolution,
 	getEggMoves, getAllLevelUpMoves, getLevelScaling, rollTeraTypeForSpecies,
 } from './pokemon';
-import { UtilityBattleResolver } from './utility-battle';
+import { UtilityBattleResolver } from '../../utils/battle';
 import { renderGamePage, refreshGamePage } from './render';
 import { devCommands } from './dev-tools';
 
