@@ -1,19 +1,11 @@
 import { Dex, toID } from '../../sim/dex';
 import { CATCH_RATES } from './data/catch-rates';
 
-export interface CatchOptions {
-	turns?: number;
-	isNight?: boolean;
-	isFishing?: boolean;
-	targetLevel?: number;
-	playerLevel?: number;
-	isAlreadyCaught?: boolean;
-}
-
 /**
  * Returns the catch rate multiplier for a given Pokéball type.
+ * Only supports balls whose mechanics can be calculated purely from species base stats and typing.
  */
-export function getBallBonus(ballType: string, speciesId?: string, options: CatchOptions = {}): number {
+export function getBallBonus(ballType: string, speciesId?: string): number {
 	const id = toID(ballType);
 	let bonus = 1.0;
 
@@ -31,37 +23,6 @@ export function getBallBonus(ballType: string, speciesId?: string, options: Catc
 			bonus = 3.5;
 		}
 
-		// Dive Ball: 3.5x while surfing/fishing
-		if (id === 'diveball' && options.isFishing) {
-			bonus = 3.5;
-		}
-
-		// Dusk Ball: 3.0x at night
-		if (id === 'duskball' && options.isNight) {
-			bonus = 3.0;
-		}
-
-		// Quick Ball: 5.0x on turn 1
-		if (id === 'quickball') {
-			bonus = (options.turns || 1) === 1 ? 5.0 : 1.0;
-		}
-
-		// Timer Ball: max 4.0x depending on turns
-		if (id === 'timerball') {
-			const turns = options.turns || 1;
-			bonus = Math.min(4.0, 1 + (turns * 1229 / 4096));
-		}
-
-		// Nest Ball: better against lower level pokemon
-		if (id === 'nestball' && options.targetLevel) {
-			bonus = Math.max(1.0, Math.min(3.0, (41 - options.targetLevel) / 10));
-		}
-
-		// Repeat Ball: 3.5x if previously caught
-		if (id === 'repeatball' && options.isAlreadyCaught) {
-			bonus = 3.5;
-		}
-
 		// Fast Ball: 4.0x if base speed >= 100
 		if (id === 'fastball' && sp.baseStats.spe >= 100) {
 			bonus = 4.0;
@@ -72,8 +33,7 @@ export function getBallBonus(ballType: string, speciesId?: string, options: Catc
 			bonus = 5.0;
 		}
 		
-		// Heavy ball actually modifies the base catch rate rather than a multiplier,
-		// but as an approximation if we strictly want a multiplier:
+		// Heavy ball: Modifies based on weight
 		if (id === 'heavyball') {
 			if (sp.weighthg >= 3000) bonus = 1.3;
 			else if (sp.weighthg >= 2000) bonus = 1.2;
@@ -103,15 +63,14 @@ export function calculateCatchShakes(
 	currentHp: number,
 	maxHp: number,
 	statusId: string,
-	ballType: string,
-	options: CatchOptions = {}
+	ballType: string
 ): number {
 	if (toID(ballType) === 'masterball' || toID(ballType) === 'parkball') return 3;
 
 	const baseCatchRate = CATCH_RATES[toID(speciesId)] || 45;
 	const hpPercent = currentHp / maxHp;
 	
-	const ballBonus = getBallBonus(ballType, speciesId, options);
+	const ballBonus = getBallBonus(ballType, speciesId);
 	const statusBonus = getStatusBonus(statusId);
 	
 	const modifiedCatchRate = (1 - (2 / 3) * hpPercent) * baseCatchRate * ballBonus * statusBonus;
