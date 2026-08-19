@@ -1,5 +1,4 @@
 import { Utils } from '../../../lib';
-import { type ModeConfig } from './types';
 
 interface BattlePokemonLike {
 	fainted?: boolean;
@@ -122,26 +121,25 @@ function parseHpRatio(condition: string | undefined): number {
 	return parseInt(match[1]) / parseInt(match[2]);
 }
 
-export class SGGameAI {
+export class UtilityAI {
 	roomid: string;
 	gen: number;
-	config: ModeConfig;
+	options: AnyObject;
 	room: AnyObject | null;
 	turn = 0;
-	floor = 1;
-	recentMoveHistory: Map<number, Map<string, number>>;
+		recentMoveHistory: Map<number, Map<string, number>>;
 
-	constructor(roomid: string, gen: number, config: ModeConfig) {
+	constructor(roomid: string, gen: number, options: AnyObject = {}) {
 		this.roomid = roomid;
 		this.gen = gen;
-		this.config = config;
+		this.options = options;
 		this.room = Rooms.get(roomid as RoomID) || null;
 		this.recentMoveHistory = new Map();
 	}
 
-	receiveRequest(requestJson: string, turn: number, floor: number): string {
+	receiveRequest(requestJson: string, turn: number, options?: AnyObject): string {
 		this.turn = turn;
-		this.floor = floor;
+		
 		this.room = Rooms.get(this.roomid as RoomID) || null;
 
 		let request: BattleChoiceRequest;
@@ -621,7 +619,7 @@ export class SGGameAI {
 				worstIncoming = this.getWorstIncomingMultiplier(defaultCtx.targetDex.types, defaultCtx.userDex.types);
 			}
 
-			if (teraDefensiveOk && (worstIncoming >= 2 || this.floor > 40 || teraOffensiveBoost) && parseHpRatio(pokemon.condition) > 0.3 && Math.random() < 0.7) {
+			if (teraDefensiveOk && (worstIncoming >= 2 || (this.options?.aggression || 0) > 40 || teraOffensiveBoost) && parseHpRatio(pokemon.condition) > 0.3 && Math.random() < 0.7) {
 				return ' terastallize';
 			}
 		}
@@ -629,19 +627,19 @@ export class SGGameAI {
 	}
 }
 
-export const aiInstances: Map<string, SGGameAI> = (global as any).SGGameAIInstances || new Map<string, SGGameAI>();
-(global as any).SGGameAIInstances = aiInstances;
+export const aiInstances: Map<string, UtilityAI> = (global as any).UtilityAIInstances || new Map<string, UtilityAI>();
+(global as any).UtilityAIInstances = aiInstances;
 
-export function getSGGameAI(roomid: string, gen: number, config: ModeConfig): SGGameAI {
+export function getUtilityAI(roomid: string, gen: number, options: AnyObject = {}): UtilityAI {
 	if (!aiInstances.has(roomid)) {
-		aiInstances.set(roomid, new SGGameAI(roomid, gen, config));
+		aiInstances.set(roomid, new UtilityAI(roomid, gen, options));
 	}
 	const ai = aiInstances.get(roomid)!;
 	ai.gen = gen;
-	ai.config = config;
+	ai.options = options;
 	return ai;
 }
 
-export function clearSGGameAI(roomid: string) {
+export function clearUtilityAI(roomid: string) {
 	aiInstances.delete(roomid);
 }

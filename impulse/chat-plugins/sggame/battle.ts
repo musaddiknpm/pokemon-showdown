@@ -3,7 +3,7 @@ import { StreamWorker } from '../../../lib/process-manager';
 import { type ModeConfig, type SGGameState, type PokemonEntry } from './types';
 import { MODE_CONFIGS, MODE_REGISTRY } from './config';
 import { genAIPokemon, packAITeam, packTeam, type AIPokemonSet, botLevel } from './pokemon';
-import { getSGGameAI, clearSGGameAI } from './ai';
+import { getUtilityAI, clearUtilityAI } from './ai';
 import { setState, getState, loadUser } from './database';
 
 export interface ParsedPokemonState {
@@ -406,8 +406,8 @@ export class SGGameBattleResolver {
 				}
 
 				const turn = room.battle.turn || 0;
-				const ai = getSGGameAI(roomid, gen, activeConfig);
-				const choice = ai.receiveRequest(requestLine, turn, match?.floor ?? 1);
+				const ai = getUtilityAI(roomid, gen, activeConfig);
+				const choice = ai.receiveRequest(requestLine, turn, {});
 				void room.battle.stream.write(`>p2 ${choice}`);
 			})();
 		});
@@ -443,7 +443,7 @@ export class SGGameBattleResolver {
 			isDoubles: botTeamData.isDoubles ?? (!botTeamData.isTrainer && !isBoss && botTeamData.team.length > 1 && livingTeam.length > 1),
 		});
 
-		clearSGGameAI(battleRoom.roomid);
+		clearUtilityAI(battleRoom.roomid);
 		return true;
 	}
 }
