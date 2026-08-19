@@ -1,6 +1,21 @@
 import { BASE_EXP } from './data/base-exp';
 import { GROWTH_RATES } from './data/growth-rates';
 
+
+export interface BattleExpYield {
+	enemySpecies: string;
+	enemyLevel: number;
+	participantSpecies: string[];
+}
+
+export interface ExpPartyMember {
+	species: string;
+	level: number;
+	isFainted: boolean;
+	heldItem?: string;
+}
+
+
 export const EXP_LEVELS = [
 	[0, 15, 52, 122, 237, 406, 637, 942, 1326, 1800, 2369, 3041, 3822, 4719, 5737, 6881, 8155, 9564, 11111, 12800, 14632, 16610, 18737, 21012, 23437, 26012, 28737, 31610, 34632, 37800, 41111, 44564, 48155, 51881, 55737, 59719, 63822, 68041, 72369, 76800, 81326, 85942, 90637, 95406, 100237, 105122, 110052, 115015, 120001, 125000, 131324, 137795, 144410, 151165, 158056, 165079, 172229, 179503, 186894, 194400, 202013, 209728, 217540, 225443, 233431, 241496, 249633, 257834, 267406, 276458, 286328, 296358, 305767, 316074, 326531, 336255, 346965, 357812, 367807, 378880, 390077, 400293, 411686, 423190, 433572, 445239, 457001, 467489, 479378, 491346, 501878, 513934, 526049, 536557, 548720, 560922, 571333, 583539, 591882, 600000],
 	[0, 6, 21, 51, 100, 172, 274, 409, 583, 800, 1064, 1382, 1757, 2195, 2700, 3276, 3930, 4665, 5487, 6400, 7408, 8518, 9733, 11059, 12500, 14060, 15746, 17561, 19511, 21600, 23832, 26214, 28749, 31443, 34300, 37324, 40522, 43897, 47455, 51200, 55136, 59270, 63605, 68147, 72900, 77868, 83058, 88473, 94119, 100000, 106120, 112486, 119101, 125971, 133100, 140492, 148154, 156089, 164303, 172800, 181584, 190662, 200037, 209715, 219700, 229996, 240610, 251545, 262807, 274400, 286328, 298598, 311213, 324179, 337500, 351180, 365226, 379641, 394431, 409600, 425152, 441094, 457429, 474163, 491300, 508844, 526802, 545177, 563975, 583200, 602856, 622950, 643485, 664467, 685900, 707788, 730138, 752953, 776239, 800000],
@@ -9,11 +24,56 @@ export const EXP_LEVELS = [
 	[0, 10, 33, 80, 156, 270, 428, 640, 911, 1250, 1663, 2160, 2746, 3430, 4218, 5120, 6141, 7290, 8573, 10000, 11576, 13310, 15208, 17280, 19531, 21970, 24603, 27440, 30486, 33750, 37238, 40960, 44921, 49130, 53593, 58320, 63316, 68590, 74148, 80000, 86151, 92610, 99383, 106480, 113906, 121670, 129778, 138240, 147061, 156250, 165813, 175760, 186096, 196830, 207968, 219520, 231491, 243890, 256723, 270000, 283726, 297910, 312558, 327680, 343281, 359370, 375953, 393040, 410636, 428750, 447388, 466560, 486271, 506530, 527343, 548720, 570666, 593190, 616298, 640000, 664301, 689210, 714733, 740880, 767656, 795070, 823128, 851840, 881211, 911250, 941963, 973360, 1005446, 1038230, 1071718, 1105920, 1140841, 1176490, 1212873, 1250000],
 ];
 
+
+/**
+ * Retrieves the base EXP yield for a given species.
+ * Defaults to 70 or an approximation based on base stats if not found.
+ */
+export function getExpYield(speciesId: string): number {
+	const id = toID(speciesId);
+	if (BASE_EXP[id]) return BASE_EXP[id];
+
+	const sp = Dex.species.get(id);
+	if (!sp.exists) return 70;
+	const bs = sp.baseStats ?? { hp: 45, atk: 45, def: 45, spa: 45, spd: 45, spe: 45 };
+	return Math.round((bs.hp + bs.atk + bs.def + bs.spa + bs.spd + bs.spe) / 3.5);
+}
+
+
+/**
+ * Determines the EXP growth rate type (e.g., "Medium Fast", "Slow") for a species.
+ */
+export function getExpType(speciesId: string): string {
+	const id = toID(speciesId);
+	if (GROWTH_RATES[id]) return GROWTH_RATES[id];
+
+	const sp = Dex.species.get(id);
+	if (sp.exists && sp.baseSpecies) {
+		const baseId = toID(sp.baseSpecies);
+		if (baseId !== id && GROWTH_RATES[baseId]) return GROWTH_RATES[baseId];
+	}
+
+	if (sp.exists) {
+		const bs = sp.baseStats ?? { hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 };
+		if (bs.hp + bs.atk + bs.def + bs.spa + bs.spd + bs.spe >= 580) return 'Slow';
+	}
+
+	return 'Medium Fast';
+}
+
+
+/**
+ * Calculates the total EXP required to reach a specific level using the Medium Fast growth rate.
+ */
 export function getMediumFastExp(level: number): number {
 	if (level <= 100) return EXP_LEVELS[2][level - 1];
 	return Math.floor(level ** 3);
 }
 
+
+/**
+ * Calculates the total EXP required to reach a specific level for a given growth rate.
+ */
 export function expForLevel(level: number, expType = 'Medium Fast'): number {
 	if (level <= 1) return 0;
 
@@ -37,6 +97,11 @@ export function expForLevel(level: number, expType = 'Medium Fast'): number {
 	return Math.floor(raw * 0.325 + getMediumFastExp(level) * 0.675);
 }
 
+
+/**
+ * Calculates the exact EXP awarded for defeating an enemy Pokémon, factoring in level scaling,
+ * Trainer bonuses, Lucky Eggs, and Exp. All distribution mechanics.
+ */
 export function calcSVExp(
 	baseYield: number,
 	enemyLevel: number,
@@ -70,6 +135,11 @@ export function calcSVExp(
 	return exp;
 }
 
+
+/**
+ * Adds gained EXP to a Pokémon and calculates how many times it leveled up,
+ * respecting the provided level cap.
+ */
 export function applyExpAndLevelUp(
 	currentLevel: number,
 	currentExp: number,
@@ -97,48 +167,10 @@ export function applyExpAndLevelUp(
 	return { leveledUp, newLevel, newExp };
 }
 
-export function getExpYield(speciesId: string): number {
-	const id = toID(speciesId);
-	if (BASE_EXP[id]) return BASE_EXP[id];
 
-	const sp = Dex.species.get(id);
-	if (!sp.exists) return 70;
-	const bs = sp.baseStats ?? { hp: 45, atk: 45, def: 45, spa: 45, spd: 45, spe: 45 };
-	return Math.round((bs.hp + bs.atk + bs.def + bs.spa + bs.spd + bs.spe) / 3.5);
-}
-
-export function getExpType(speciesId: string): string {
-	const id = toID(speciesId);
-	if (GROWTH_RATES[id]) return GROWTH_RATES[id];
-
-	const sp = Dex.species.get(id);
-	if (sp.exists && sp.baseSpecies) {
-		const baseId = toID(sp.baseSpecies);
-		if (baseId !== id && GROWTH_RATES[baseId]) return GROWTH_RATES[baseId];
-	}
-
-	if (sp.exists) {
-		const bs = sp.baseStats ?? { hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 };
-		if (bs.hp + bs.atk + bs.def + bs.spa + bs.spd + bs.spe >= 580) return 'Slow';
-	}
-
-	return 'Medium Fast';
-}
-
-
-export interface BattleExpYield {
-	enemySpecies: string;
-	enemyLevel: number;
-	participantSpecies: string[];
-}
-
-export interface ExpPartyMember {
-	species: string;
-	level: number;
-	isFainted: boolean;
-	heldItem?: string;
-}
-
+/**
+ * Parses raw Showdown battle logs to extract EXP_GAIN events into structured data objects.
+ */
 export function parseBattleExpStream(logLines: string[]): BattleExpYield[] {
 	const yields: BattleExpYield[] = [];
 	for (const line of logLines) {
@@ -156,6 +188,11 @@ export function parseBattleExpStream(logLines: string[]): BattleExpYield[] {
 	return yields;
 }
 
+
+/**
+ * Distributes EXP across a full party based on raw battle logs, calculating participation,
+ * holding items, and Exp. All bonuses.
+ */
 export function distributeBattleExp(
 	logLines: string[],
 	party: ExpPartyMember[],
@@ -200,3 +237,4 @@ export function distributeBattleExp(
 	
 	return expGained;
 }
+

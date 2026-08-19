@@ -86,10 +86,17 @@ export function packAIPokemon(set: PackableAISet): string {
 	return base;
 }
 
+/**
+ * Packs an array of generic PackablePokemon objects into a Pokémon Showdown team string,
+ * encoding custom metadata like HP, Status, and Active Buffs.
+ */
 export function packTeam(mons: PackablePokemon[]): string {
 	return mons.map(m => packPokemon(m)).join(']');
 }
 
+/**
+ * Packs an array of AI-specific Pokémon sets into a Pokémon Showdown team string.
+ */
 export function packAITeam(sets: PackableAISet[]): string {
 	return sets.map(s => packAIPokemon(s)).join(']');
 }

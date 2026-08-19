@@ -1,5 +1,8 @@
 import { Utils } from '../../lib';
 
+/**
+ * Checks if a specific species is capable of learning a given TM/TR move.
+ */
 export function canLearnTM(speciesId: string, moveId: string): boolean {
 	let canLearn = false;
 	let spData = Dex.species.get(speciesId);
@@ -19,6 +22,10 @@ export function canLearnTM(speciesId: string, moveId: string): boolean {
 	return canLearn;
 }
 
+/**
+ * Retrieves all moves a species can naturally learn via leveling up,
+ * traversing backwards through its pre-evolutions.
+ */
 export function getAllLevelUpMoves(speciesId: string, level: number, genNumber = 9): string[] {
 	const id = toID(speciesId);
 	let gen = genNumber;
@@ -49,10 +56,16 @@ export function getAllLevelUpMoves(speciesId: string, level: number, genNumber =
 	return Array.from(viableMoves);
 }
 
+/**
+ * Retrieves the level-up moves for a specific species at a specific level.
+ */
 export function getLevelUpMoves(speciesId: string, level: number, genNumber = 9): string[] {
 	return getAllLevelUpMoves(speciesId, level, genNumber).slice(-4);
 }
 
+/**
+ * Retrieves all available egg moves for a given species.
+ */
 export function getEggMoves(speciesId: string, genNumber = 9): string[] {
 	const id = toID(speciesId);
 	let gen = genNumber;
@@ -80,6 +93,10 @@ export function getEggMoves(speciesId: string, genNumber = 9): string[] {
 	return Array.from(eggMoves);
 }
 
+/**
+ * Finds all moves a Pokémon would learn when leveling up from an old level to a new level,
+ * factoring in its pre-evolutions.
+ */
 export function getMovesLearnedBetween(speciesId: string, oldLevel: number, newLevel: number, isEvolution = false, genNumber = 9, randomizeMoves = false): string[] {
 	const id = toID(speciesId);
 	let gen = genNumber;
