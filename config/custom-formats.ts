@@ -9,6 +9,7 @@ export const Formats: FormatList = [
 		ruleset: [
 			'Cancel Mod',
 			'HP Percentage Mod',
+			'SGGame EXP Tracker',
 			'PokeRogue Classic Rule',
 			'PokeRogue EXP Tracker',
 		],
@@ -24,6 +25,7 @@ export const Formats: FormatList = [
 		ruleset: [
 			'Cancel Mod',
 			'HP Percentage Mod',
+			'SGGame EXP Tracker',
 			'PokeRogue Classic Rule',
 			'PokeRogue EXP Tracker',
 		],
@@ -38,6 +40,7 @@ export const Formats: FormatList = [
 		ruleset: [
 			'Cancel Mod',
 			'HP Percentage Mod',
+			'SGGame EXP Tracker',
 			'PokeRogue Classic Rule',
 			'PokeRogue EXP Tracker',
 		],
@@ -53,8 +56,43 @@ export const Formats: FormatList = [
 		ruleset: [
 			'Cancel Mod',
 			'HP Percentage Mod',
+			'SGGame EXP Tracker',
 			'PokeRogue Classic Rule',
 			'PokeRogue EXP Tracker',
+		],
+		DefaultLevel: 1,
+		MaxLevel: 999999,
+		banlist: [],
+	},
+	{
+		section: "SGGame",
+	},
+	{
+		name: "[Gen 9] SGGame Singles",
+		mod: 'sggame',
+		searchShow: false,
+		ruleset: [
+			'Cancel Mod',
+			'HP Percentage Mod',
+			'SGGame EXP Tracker',
+			'Terastal Clause',
+			'Dynamax Clause',
+		],
+		DefaultLevel: 1,
+		MaxLevel: 999999,
+		banlist: [],
+	},
+	{
+		name: "[Gen 9] SGGame Doubles",
+		mod: 'sggame',
+		gameType: 'doubles',
+		searchShow: false,
+		ruleset: [
+			'Cancel Mod',
+			'HP Percentage Mod',
+			'SGGame EXP Tracker',
+			'Terastal Clause',
+			'Dynamax Clause',
 		],
 		DefaultLevel: 1,
 		MaxLevel: 999999,
