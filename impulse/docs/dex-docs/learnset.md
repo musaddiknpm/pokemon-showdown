@@ -189,3 +189,37 @@ When Pokémon Showdown compiles a Pokémon's full learnset, it traverses its pre
 * But if you query `Dex.mod('gen3').species.getFullLearnset('roselia')`, the API knows Budew doesn't exist yet, and correctly returns just `[Roselia]`.
 
 *(Fun fact: There is a hardcoded exception for Gen 2 pre-evolutions in Gen 1, like Pichu. The API intentionally allows you to traverse them in Gen 1 to support the old Time Capsule tradeback mechanic!)*
+---
+
+## Handling Forms, Regionals, and Megas
+
+Pokémon is full of alternate forms, regional variants, and temporary transformations. Fortunately, `Dex.species.getFullLearnset()` handles almost all of this complexity automatically.
+
+Here is how the API resolves different types of forms under the hood:
+
+### 1. Forms Without Unique Learnsets
+If an alternate form doesn't have a distinct movepool (like `Gastrodon-East` or `Ogerpon-Wellspring`), the API detects that the form lacks explicit learnset data. It immediately skips the alternate form and fetches the base species' learnset instead.
+* `getFullLearnset('ogerponwellspring')` returns `['Ogerpon']`
+
+### 2. Forms With Unique Learnsets
+If an alternate form has a distinct movepool explicitly defined in the data (like `Rotom-Wash` getting Hydro Pump, or `Wormadam-Sandy` getting Earth Power), the API includes both the alternate form's learnset *and* inherits its base species' learnset.
+* `getFullLearnset('rotomwash')` returns `['Rotom-Wash', 'Rotom']`
+* `getFullLearnset('wormadamsandy')` returns `['Wormadam-Sandy', 'Burmy']`
+
+### 3. Regional Base Forms
+Regional base forms (like Galarian Meowth) are treated as completely distinct species. Their `prevo` chain is completely blank, meaning they do *not* inherit from their original counterparts.
+* `getFullLearnset('meowthgalar')` returns `['Meowth-Galar']`
+
+### 4. Regional Evolutions
+When checking a regional evolution, the API simply follows the `prevo` chain defined in the database.
+* `Perrserker` evolves from Galarian Meowth, so it inherits exclusively from that variant.
+  * `getFullLearnset('perrserker')` returns `['Perrserker', 'Meowth-Galar']`
+* `Raichu-Alola` evolves from a standard Pikachu (since there is no Alolan Pikachu), so it correctly inherits standard Pikachu moves!
+  * `getFullLearnset('raichualola')` returns `['Raichu-Alola', 'Pikachu', 'Pichu']`
+
+### 5. Mega Evolutions & Gigantamax Forms
+Megas and Gmax/Dynamax forms are treated mechanically as strictly in-battle transformations; they do not learn unique moves or level up on their own. Because of this, they fall into the **"Forms Without Unique Learnsets"** category. If you query one, the API automatically strips the suffix and returns the learnset of its base form.
+* `getFullLearnset('charizardmegax')` returns `['Charizard', 'Charmeleon', 'Charmander']`
+* `getFullLearnset('pikachugmax')` returns `['Pikachu', 'Pichu']`
+
+*(Note: Absolutely none of the Mega or Gmax forms in the Pokémon Showdown database have their own learnsets. The API handles them seamlessly, meaning your extraction code will work flawlessly even if you accidentally pass it `charizardmegay`!)*
