@@ -7,21 +7,22 @@ import { SGUtils } from './pokemon';
 
 export const SGBattle = {
 		renderCatchUI(p: SGPlayer): string {
-			let catchHTML = `<div style="padding: 10px; background: rgba(0,0,0,0.2); border-radius: 5px; text-align: center; margin-top: 5px;">`;
-			catchHTML += `<div style="font-weight: bold; margin-bottom: 5px; color: #ddd;">Wild Encounter!</div>`;
+			let catchHTML = `<div style="text-align: center; margin-top: 5px;">`;
 			const balls = [
-				{ id: 'pokeball', name: 'Poké Ball' },
-				{ id: 'greatball', name: 'Great Ball' },
-				{ id: 'ultraball', name: 'Ultra Ball' },
-				{ id: 'masterball', name: 'Master Ball' }
+				{ id: 'pokeball', name: 'Poké Ball', img: 'https://i.ibb.co/LdXWzyFm/pokeball.png' },
+				{ id: 'greatball', name: 'Great Ball', img: 'https://i.ibb.co/mVjYKGpP/greatball.png' },
+				{ id: 'ultraball', name: 'Ultra Ball', img: 'https://i.ibb.co/n8YrGSZq/ultraball.png' },
+				{ id: 'masterball', name: 'Master Ball', img: 'https://i.ibb.co/C36ByMDw/masterball.png' }
 			];
 			for (const ball of balls) {
 				const count = p.bag[ball.id] || 0;
-				if (count > 0) {
-					catchHTML += `<button name="send" value="/sg catch ${ball.id}" class="button">${ball.name} (${count})</button> `;
-				} else {
-					catchHTML += `<button name="send" value="/sg catch ${ball.id}" class="button" disabled>${ball.name} (0)</button> `;
-				}
+				const disabled = count > 0 ? '' : 'disabled';
+				const opacity = count > 0 ? '1' : '0.4';
+				const cursor = count > 0 ? 'pointer' : 'not-allowed';
+				
+				catchHTML += `<button name="send" value="/sg catch ${ball.id}" style="background: transparent; border: 1px solid #aaa; border-radius: 4px; cursor: ${cursor}; opacity: ${opacity}; margin: 0 4px; padding: 4px; vertical-align: middle;" ${disabled}>`;
+				catchHTML += `<img src="${ball.img}" alt="${ball.name}" style="width: 32px; height: 32px; display: block;" />`;
+				catchHTML += `</button>`;
 			}
 			catchHTML += `</div>`;
 			return catchHTML;

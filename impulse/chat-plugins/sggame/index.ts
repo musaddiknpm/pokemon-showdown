@@ -755,9 +755,6 @@ export const handlers: Chat.Handlers = {
 								msgs[0] = msgs[0] + ' (Exp. All)';
 							}
 							battleReport.push(...msgs);
-							if (room) {
-								for (const msg of msgs) room.add(`|c|~|${msg}`);
-							}
 						}
 					}
 				}

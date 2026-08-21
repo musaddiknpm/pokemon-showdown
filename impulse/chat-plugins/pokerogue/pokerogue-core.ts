@@ -1584,14 +1584,12 @@ export function applyIntent(state: PokeRogueState, intent: Intent): void {
 				saveUserData(intent.userId);
 			}
 
-			if (state.team.length < 6) {
-				state.team.push(caught);
-			} else {
-				state.pendingSwap = caught;
-			}
 			state.caughtPokemon = caught;
+			setState(intent.userId, state);
+			room.battle.forfeit(catchMatch.botUserId);
 		} else {
 			room.add(`|c|~|Argh! Almost had it!`).update();
+			void room.battle.stream.write('>p1 pass');
 		}
 		break;
 	}
