@@ -9,7 +9,6 @@ export const Formats: FormatList = [
 		ruleset: [
 			'Cancel Mod',
 			'HP Percentage Mod',
-			'EXP Gain Mod',
 			'PokeRogue Classic Rule',
 			'PokeRogue EXP Tracker',
 		],
@@ -25,7 +24,6 @@ export const Formats: FormatList = [
 		ruleset: [
 			'Cancel Mod',
 			'HP Percentage Mod',
-			'EXP Gain Mod',
 			'PokeRogue Classic Rule',
 			'PokeRogue EXP Tracker',
 		],
@@ -40,7 +38,6 @@ export const Formats: FormatList = [
 		ruleset: [
 			'Cancel Mod',
 			'HP Percentage Mod',
-			'EXP Gain Mod',
 			'PokeRogue Classic Rule',
 			'PokeRogue EXP Tracker',
 		],
@@ -56,7 +53,6 @@ export const Formats: FormatList = [
 		ruleset: [
 			'Cancel Mod',
 			'HP Percentage Mod',
-			'EXP Gain Mod',
 			'PokeRogue Classic Rule',
 			'PokeRogue EXP Tracker',
 		],
