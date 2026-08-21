@@ -1,166 +1,199 @@
-
-import { TMS_DB } from './data/tms-data';
-import { type PokemonEntry, type SGGameState, type ModeConfig } from './types';
-import { canLearnTM } from '../../utils/moves';
-
-export type ItemType =
-	| 'pokeball' |
-	'healHP' |
-	'key' |
-	'revive' |
-	'cureStatus' |
-	'itemPack' |
-	'item' |
-	'evolveItem' |
-	'megaStone' |
-	'vitamin' |
-	'tm' |
-	'mint' |
-	'rareCandy' |
-	'gmaxMushroom' |
-	'xItem';
-
-export type ItemRarityTier = 'Common' | 'Great' | 'Ultra' | 'Rogue' | 'Master';
-
-export interface ShopItem {
-	name: string;
-	icon: string;
-	type: ItemType;
-	category: string;
-	desc: string;
-	moneyMultiplier: number;
-	tier: ItemRarityTier;
-	weight?: number;
-	minWeight?: number;
-	maxWeight?: number;
-	weightFunc?: (state: SGGameState) => number;
-	evGain?: number;
-	isShopItem?: boolean;
-	minFloor?: number;
-	healAmount?: number;
-	healPercent?: number;
-	curesStatus?: boolean;
-	reviveAmount?: number;
-	isMax?: boolean;
-	evStat?: string;
-	maxStack?: number;
-	buffStat?: string;
-}
-
-export interface TierConfig {
-	weight: number;
-	minWeight?: number;
-	maxWeight?: number;
-}
-
-export const TIER_WEIGHTS: Record<ItemRarityTier, TierConfig> = {
-	'Common': { weight: 7500 },
-	'Great': { weight: 1904 },
-	'Ultra': { weight: 469 },
-	'Rogue': { weight: 117 },
-	'Master': { weight: 10 },
+export const SGItems: Record<string, { name: string, category: string, description: string, healPct?: number, cureStatus?: boolean | string | string[], revive?: boolean, moveId?: string }> = {
+	pokeball: {
+		name: 'Poke Ball',
+		category: 'Pokeballs',
+		description: 'A device for catching wild Pokemon.',
+	},
+	greatball: {
+		name: 'Great Ball',
+		category: 'Pokeballs',
+		description: 'A good, high-performance Ball that provides a higher Pokemon catch rate than a standard Poke Ball.',
+	},
+	ultraball: {
+		name: 'Ultra Ball',
+		category: 'Pokeballs',
+		description: 'An ultra-high-performance Ball that provides a higher success rate for catching Pokemon than a Great Ball.',
+	},
+	masterball: {
+		name: 'Master Ball',
+		category: 'Pokeballs',
+		description: 'The best Ball with the ultimate level of performance. With it, you will catch any wild Pokemon without fail.',
+	},
+	potion: {
+		name: 'Potion',
+		category: 'Medicine',
+		description: 'Restores 30% of max HP.',
+		healPct: 30,
+	},
+	superpotion: {
+		name: 'Super Potion',
+		category: 'Medicine',
+		description: 'Restores 50% of max HP.',
+		healPct: 50,
+	},
+	hyperpotion: {
+		name: 'Hyper Potion',
+		category: 'Medicine',
+		description: 'Restores 70% of max HP.',
+		healPct: 70,
+	},
+	maxpotion: {
+		name: 'Max Potion',
+		category: 'Medicine',
+		description: 'Fully restores HP.',
+		healPct: 100,
+	},
+	fullrestore: {
+		name: 'Full Restore',
+		category: 'Medicine',
+		description: 'Fully restores HP and cures any status condition.',
+		healPct: 100,
+		cureStatus: true,
+	},
+	revive: {
+		name: 'Revive',
+		category: 'Medicine',
+		description: 'Revives one fainted Pokémon and restores 50% of its max HP.',
+		healPct: 50,
+		revive: true,
+	},
+	maxrevive: {
+		name: 'Max Revive',
+		category: 'Medicine',
+		description: 'Revives one fainted Pokémon and fully restores its HP.',
+		healPct: 100,
+		revive: true,
+	},
+	antidote: {
+		name: 'Antidote',
+		category: 'Medicine',
+		description: 'A spray-type medicine for treating poisoning. It can be used to lift the effects of poisoning from a single Pokémon.',
+		cureStatus: ['psn', 'tox'],
+	},
+	burnheal: {
+		name: 'Burn Heal',
+		category: 'Medicine',
+		description: 'A topical medicine for treating burns. It can be used to lift the effects of a burn from a single Pokémon.',
+		cureStatus: 'brn',
+	},
+	awakening: {
+		name: 'Awakening',
+		category: 'Medicine',
+		description: 'A spray-type medicine to wake the sleeping. It can be used to rouse a single Pokémon from the clutches of sleep.',
+		cureStatus: 'slp',
+	},
+	iceheal: {
+		name: 'Ice Heal',
+		category: 'Medicine',
+		description: 'A spray-type medicine for treating freezing. It can be used to thaw out a single Pokémon that has been frozen solid.',
+		cureStatus: 'frz',
+	},
+	paralyzeheal: {
+		name: 'Paralyze Heal',
+		category: 'Medicine',
+		description: 'A spray-type medicine for treating paralysis. It can be used to lift the effects of paralysis from a single Pokémon.',
+		cureStatus: 'par',
+	},
+	fullheal: {
+		name: 'Full Heal',
+		category: 'Medicine',
+		description: 'A spray-type medicine that is broadly effective. It can be used to heal all the status conditions of a single Pokémon.',
+		cureStatus: true,
+	},
+	expall: {
+		name: 'Exp. All',
+		category: 'Key Items',
+		description: 'An item that distributes EXP points to all healthy Pokémon in your party, even if they did not participate in the battle.',
+	},
+	leftovers: {
+		name: 'Leftovers',
+		category: 'Held Items',
+		description: 'An item to be held by a Pokémon. The holder\'s HP is slowly but steadily restored throughout every battle.',
+	},
+	lifeorb: {
+		name: 'Life Orb',
+		category: 'Held Items',
+		description: 'An item to be held by a Pokémon. It boosts the power of moves, but at the cost of some HP on each hit.',
+	},
+	choiceband: {
+		name: 'Choice Band',
+		category: 'Held Items',
+		description: 'An item to be held by a Pokémon. This headband boosts Attack, but allows the use of only one of its moves.',
+	},
+	choicespecs: {
+		name: 'Choice Specs',
+		category: 'Held Items',
+		description: 'An item to be held by a Pokémon. These distinctive glasses boost Sp. Atk, but allow the use of only one of its moves.',
+	},
+	choicescarf: {
+		name: 'Choice Scarf',
+		category: 'Held Items',
+		description: 'An item to be held by a Pokémon. This scarf boosts Speed, but allows the use of only one of its moves.',
+	},
+	focussash: {
+		name: 'Focus Sash',
+		category: 'Held Items',
+		description: 'An item to be held by a Pokémon. If the holder has full HP, it will endure a potential KO attack with 1 HP.',
+	},
+	eviolite: {
+		name: 'Eviolite',
+		category: 'Held Items',
+		description: 'A mysterious evolutionary lump. When held by a Pokémon that can still evolve, it raises both Defense and Sp. Def.',
+	},
+	venusaurite: {
+		name: 'Venusaurite',
+		category: 'Held Items',
+		description: 'One of a variety of mysterious Mega Stones. Have Venusaur hold it, and this stone will enable it to Mega Evolve during battle.',
+	},
+	charizarditex: {
+		name: 'Charizardite X',
+		category: 'Held Items',
+		description: 'One of a variety of mysterious Mega Stones. Have Charizard hold it, and this stone will enable it to Mega Evolve during battle.',
+	},
+	charizarditey: {
+		name: 'Charizardite Y',
+		category: 'Held Items',
+		description: 'One of a variety of mysterious Mega Stones. Have Charizard hold it, and this stone will enable it to Mega Evolve during battle.',
+	},
+	blastoisinite: {
+		name: 'Blastoisinite',
+		category: 'Held Items',
+		description: 'One of a variety of mysterious Mega Stones. Have Blastoise hold it, and this stone will enable it to Mega Evolve during battle.',
+	},
+	tm26: {
+		name: 'TM26 Earthquake',
+		category: 'TMs',
+		description: 'An earthquake that strikes every Pokémon around the user.',
+		moveId: 'earthquake',
+	},
+	tm06: {
+		name: 'TM06 Toxic',
+		category: 'TMs',
+		description: 'A move that leaves the target badly poisoned.',
+		moveId: 'toxic',
+	},
+	tm13: {
+		name: 'TM13 Ice Beam',
+		category: 'TMs',
+		description: 'The target is struck with an icy-cold beam of energy. This may also leave the target frozen.',
+		moveId: 'icebeam',
+	},
+	tm24: {
+		name: 'TM24 Thunderbolt',
+		category: 'TMs',
+		description: 'A strong electric blast crashes down on the target. This may also leave the target with paralysis.',
+		moveId: 'thunderbolt',
+	},
+	tm35: {
+		name: 'TM35 Flamethrower',
+		category: 'TMs',
+		description: 'The target is scorched with an intense blast of fire. This may also leave the target with a burn.',
+		moveId: 'flamethrower',
+	},
+	tm30: {
+		name: 'TM30 Shadow Ball',
+		category: 'TMs',
+		description: 'The user hurls a shadowy blob at the target. This may also lower the target\'s Sp. Def stat.',
+		moveId: 'shadowball',
+	}
 };
-
-export const SHOP_ITEMS: Record<string, ShopItem> = {
-	"tradestone": { name: "Trade Stone", icon: "sun-stone", type: "evolveItem", category: "Evolution", desc: "Evolves any Pokémon that normally requires a specific Evolution Stone or Trade Item.", moneyMultiplier: 10, tier: "Ultra" }, ...TMS_DB };
-
-export function calculatePartyLuck(team: PokemonEntry[], state: SGGameState): number {
-	if (state.luckOverride !== undefined) return state.luckOverride;
-	let luck = 0;
-	for (const mon of team) {
-		if (mon.shiny) luck += 2;
-	}
-	return luck;
-}
-
-export function getTierWeight(tier: ItemRarityTier, state: SGGameState): number {
-	const config = TIER_WEIGHTS[tier];
-	let w = config.weight;
-
-	if (config.minWeight !== undefined && w < config.minWeight) w = config.minWeight;
-	if (config.maxWeight !== undefined && w > config.maxWeight) w = config.maxWeight;
-
-	return w;
-}
-
-export function getItemWeight(item: ShopItem, state: SGGameState): number {
-	let w = item.weight ?? 1;
-
-	if (item.weightFunc) {
-		w = item.weightFunc(state);
-	}
-
-	if (w <= 0) return 0;
-
-	if (item.type === 'tm' || item.type === 'item') {
-		w = Math.max(1, Math.floor(w * 0.5));
-	}
-
-	if (item.minWeight !== undefined && w < item.minWeight) w = item.minWeight;
-	if (item.maxWeight !== undefined && w > item.maxWeight) w = item.maxWeight;
-
-	return w;
-}
-
-export function rollRarity(luck: number, state: SGGameState): ItemRarityTier {
-	const tiers: ItemRarityTier[] = ['Common', 'Great', 'Ultra', 'Rogue', 'Master'];
-	const weights = tiers.map(t => getTierWeight(t, state));
-	let totalWeight = 0;
-	for (const val of weights) totalWeight += val;
-	let roll = Math.random() * totalWeight;
-	let currentTier = 0;
-
-	for (let i = 0; i < weights.length; i++) {
-		roll -= weights[i];
-		if (roll <= 0) {
-			currentTier = i;
-			break;
-		}
-	}
-
-	while (currentTier < tiers.length - 1) {
-		if (Math.floor(Math.random() * 64) < luck) {
-			currentTier++;
-		} else {
-			break;
-		}
-	}
-
-	return tiers[currentTier];
-}
-
-export function weightedItemPick(items: [string, ShopItem][], state: SGGameState): [string, ShopItem] | undefined {
-	if (items.length === 0) return undefined;
-	let totalWeight = 0;
-	for (const [, item] of items) totalWeight += getItemWeight(item, state);
-	let roll = Math.random() * totalWeight;
-
-	for (const itemPair of items) {
-		roll -= getItemWeight(itemPair[1], state);
-		if (roll <= 0) return itemPair;
-	}
-
-	return items[items.length - 1];
-}
-
-export function getWaveSet(wave: number): number {
-	return Math.ceil(wave / 10) - 1;
-}
-
-export function getBaseMoneyReward(wave: number): number {
-	const waveSet = getWaveSet(wave);
-	return (10 * wave + 175) ** (1 + 0.005 * waveSet);
-}
-
-export function getRewardMoney(wave: number, multiplier: number): number {
-	return Math.floor((getBaseMoneyReward(wave) * multiplier) / 10) * 10;
-}
-
-export function getItemPrice(wave: number, multiplier: number): number {
-	return Math.floor(getBaseMoneyReward(wave) / 10) * 10 * multiplier;
-}
-
-export function getRerollCost(wave: number, rerollCount: number): number {
-	const base = 250 * Math.ceil(Math.max(1, wave) / 10);
-	return base * 2 ** rerollCount;
-}

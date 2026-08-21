@@ -48,6 +48,9 @@ const noopWorker = {
 	process: {
 		send: () => {},
 	},
+	stream: {
+		write: () => {},
+	},
 } as any;
 
 export class UtilityBattleResolver {

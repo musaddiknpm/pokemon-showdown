@@ -151,7 +151,7 @@ export const ImpulseMod = {
 
 	// side.ts helpers
 	isPokeRogueBypass(formatId: string): boolean {
-		return formatId.includes('pokerogue');
+		return formatId.includes('pokerogue') || formatId.includes('sggame');
 	},
 	
 	parseTeamPositions(data: string, pokemonLength: number, pickedTeamSize: number): number[] {
