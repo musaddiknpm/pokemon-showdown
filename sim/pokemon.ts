@@ -1839,7 +1839,7 @@ export class Pokemon {
 				break;
 			default:
 				if (item.isGem) {
-					this.battle.add('-enditem', this, item, '[from] gem');
+					this.battle.add('-enditem', this, item, '[from] gem', `[move] ${this.battle.activeMove!.name}`);
 				} else {
 					this.battle.add('-enditem', this, item);
 				}
